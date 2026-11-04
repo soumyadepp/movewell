@@ -288,6 +288,12 @@ img {
   animation-delay: calc(var(--i, 0) * var(--stagger) + var(--duration-base));
 }
 
+@media (max-width: 640px) {
+  body:has(nav.tabs) #main {
+    padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

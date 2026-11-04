@@ -18,7 +18,7 @@ class SideBend:
     copy: ExerciseCopy = field(
         default_factory=lambda: ExerciseCopy(
             label="Side bend",
-            guidance="Slide one hand down the side of your leg, then come back to upright.",
+            guidance="Reach one arm over your head and lean gently to the side, then come back upright.",
             not_visible="Face the camera so it can see your shoulders and hips.",
             low_label="Upright",
             high_label="Leaning",

@@ -5,7 +5,11 @@
  * until its target is reached or the user skips it, followed by a timed rest,
  * then the next step. A single-exercise workout is simply a one-step routine.
  */
-import { type CountedExercise, ExerciseMode } from "./domain/models";
+import {
+  COUNTED_EXERCISES,
+  type CountedExercise,
+  ExerciseMode,
+} from "./domain/models";
 import type { Clock } from "./session";
 
 export interface RoutineStep {
@@ -47,7 +51,121 @@ export const DAILY_ROUTINE: RoutinePlan = {
   ],
 };
 
-export const singleExercise = (mode: CountedExercise, target: number): RoutinePlan => ({
+/** Repetition counts offered when editing a plan. */
+export const TARGET_CHOICES = [5, 10, 15] as const;
+/** Rest lengths, in seconds, offered when editing a plan. */
+export const REST_CHOICES = [10, 15, 30] as const;
+
+/** True when a plan has the same steps and rest as the physiotherapist's plan. */
+export function isPhysioPlan(plan: RoutinePlan): boolean {
+  return (
+    plan.restS === DAILY_ROUTINE.restS &&
+    plan.steps.length === DAILY_ROUTINE.steps.length &&
+    plan.steps.every(
+      (s, i) =>
+        s.mode === DAILY_ROUTINE.steps[i].mode &&
+        s.target === DAILY_ROUTINE.steps[i].target,
+    )
+  );
+}
+
+/** Repetition choices for one exercise, including the physiotherapist's own target for it. */
+export function targetChoices(mode: CountedExercise): number[] {
+  const physio = DAILY_ROUTINE.steps.find((s) => s.mode === mode)?.target;
+  return [...new Set([...TARGET_CHOICES, ...(physio ? [physio] : [])])].sort(
+    (a, b) => a - b,
+  );
+}
+
+/**
+ * Rebuilds a plan from stored data, dropping anything invalid.
+ *
+ * Args:
+ *   raw: Parsed JSON from storage, of unknown shape.
+ *
+ * Returns:
+ *   A valid daily plan, or the physiotherapist's plan when nothing usable remains.
+ */
+export function planFrom(raw: unknown): RoutinePlan {
+  const data = (raw ?? {}) as { steps?: unknown; restS?: unknown };
+  const seen = new Set<CountedExercise>();
+  const steps: RoutineStep[] = [];
+  for (const item of Array.isArray(data.steps) ? data.steps : []) {
+    const { mode, target } = (item ?? {}) as {
+      mode?: unknown;
+      target?: unknown;
+    };
+    const counted = COUNTED_EXERCISES.find((m) => m === mode);
+    if (!counted || seen.has(counted)) continue;
+    if (typeof target !== "number" || !targetChoices(counted).includes(target))
+      continue;
+    seen.add(counted);
+    steps.push({ mode: counted, target });
+  }
+  if (steps.length === 0) return DAILY_ROUTINE;
+  const restS =
+    REST_CHOICES.find((r) => r === data.restS) ?? DAILY_ROUTINE.restS;
+  return { ...DAILY_ROUTINE, steps, restS };
+}
+
+const withSteps = (plan: RoutinePlan, steps: RoutineStep[]): RoutinePlan => ({
+  ...plan,
+  steps,
+});
+
+/** Moves a step one place earlier (-1) or later (+1), ignoring moves past either end. */
+export function moveStep(
+  plan: RoutinePlan,
+  index: number,
+  by: -1 | 1,
+): RoutinePlan {
+  const to = index + by;
+  if (to < 0 || to >= plan.steps.length) return plan;
+  const steps = [...plan.steps];
+  [steps[index], steps[to]] = [steps[to], steps[index]];
+  return withSteps(plan, steps);
+}
+
+/** Removes a step, always keeping at least one. */
+export function removeStep(plan: RoutinePlan, index: number): RoutinePlan {
+  if (plan.steps.length <= 1) return plan;
+  return withSteps(
+    plan,
+    plan.steps.filter((_, i) => i !== index),
+  );
+}
+
+/** Adds an exercise at the end with its usual target, unless it is already in the plan. */
+export function addStep(plan: RoutinePlan, mode: CountedExercise): RoutinePlan {
+  if (plan.steps.some((s) => s.mode === mode)) return plan;
+  const target = DAILY_ROUTINE.steps.find((s) => s.mode === mode)?.target ?? 10;
+  return withSteps(plan, [...plan.steps, { mode, target }]);
+}
+
+export function setTarget(
+  plan: RoutinePlan,
+  index: number,
+  target: number,
+): RoutinePlan {
+  return withSteps(
+    plan,
+    plan.steps.map((s, i) => (i === index ? { ...s, target } : s)),
+  );
+}
+
+export function setRest(plan: RoutinePlan, restS: number): RoutinePlan {
+  return { ...plan, restS };
+}
+
+/** Counted exercises not yet in the plan, in library order. */
+export function addableExercises(plan: RoutinePlan): CountedExercise[] {
+  return COUNTED_EXERCISES.filter((m) => !plan.steps.some((s) => s.mode === m));
+}
+
+export const singleExercise = (
+  mode: CountedExercise,
+  target: number,
+): RoutinePlan => ({
   id: `single-${mode}`,
   restS: 0,
   showIntro: false,
@@ -95,7 +213,9 @@ export class RoutineRun {
   }
 
   restRemainingS(): number {
-    return this.phase === "rest" ? Math.max(0, Math.ceil(this.restEndsAt - this.clock())) : 0;
+    return this.phase === "rest"
+      ? Math.max(0, Math.ceil(this.restEndsAt - this.clock()))
+      : 0;
   }
 
   /**

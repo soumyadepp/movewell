@@ -102,6 +102,8 @@
   --button-radius: var(--radius-md);
   --photo-radius: var(--radius-lg);
   --day-size: 64px;
+  --header-height-compact: 64px;
+  --tabbar-height: 64px;
   --focus-ring: 3px solid var(--color-focus);
   --figure-stroke: var(--color-primary);
   --figure-ghost: var(--color-rule);

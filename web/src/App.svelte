@@ -7,6 +7,7 @@
   import ExerciseDetail from "./lib/screens/ExerciseDetail.svelte";
   import HomeScreen from "./lib/screens/HomeScreen.svelte";
   import LibraryScreen from "./lib/screens/LibraryScreen.svelte";
+  import PlanScreen from "./lib/screens/PlanScreen.svelte";
   import SettingsScreen from "./lib/screens/SettingsScreen.svelte";
   import SetupComfort from "./lib/screens/SetupComfort.svelte";
   import SetupSpace from "./lib/screens/SetupSpace.svelte";
@@ -37,6 +38,7 @@
       summary: msg.DONE_TITLE(coach.displayName),
       week: msg.NAV_WEEK,
       settings: msg.NAV_SETTINGS,
+      plan: msg.PLAN_TITLE,
     };
     document.title = `${titles[route.name] ?? ""} · ${msg.APP_NAME}`;
   });
@@ -76,6 +78,8 @@
     <SummaryScreen {coach} />
   {:else if route.name === "week"}
     <WeekScreen {coach} />
+  {:else if route.name === "plan"}
+    <PlanScreen {coach} />
   {:else if route.name === "settings"}
     <SettingsScreen {coach} />
   {:else}

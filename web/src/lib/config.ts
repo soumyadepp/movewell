@@ -44,3 +44,5 @@ export const VOICE = { rate: 0.9, volume: 1.0, cooldownS: 5.0 } as const;
 export const PREFERENCES_KEY = "physio-assistant.preferences.v1";
 
 export const STORAGE_KEY = "physio-assistant.sessions.v1";
+
+export const PLAN_KEY = "physio-assistant.plan.v1";

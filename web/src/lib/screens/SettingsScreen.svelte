@@ -4,6 +4,7 @@
   import type { CoachController } from "../controller.svelte";
   import { href } from "../controller.svelte";
   import * as msg from "../messages";
+  import { estimatedMinutes } from "../routine";
 
   let { coach }: { coach: CoachController } = $props();
   let name = $state(untrack(() => coach.name));
@@ -16,6 +17,13 @@
   <div class="row name-row">
     <label for="name" class="label">{msg.YOUR_NAME}</label>
     <input id="name" bind:value={name} maxlength="40" onchange={() => coach.setName(name)} />
+  </div>
+  <div class="row plan-row">
+    <div>
+      <h2 class="label">{msg.PLAN_TITLE}</h2>
+      <p class="secondary small">{msg.PLAN_SUMMARY(coach.plan.steps.length, estimatedMinutes(coach.plan))}</p>
+    </div>
+    <a class="btn btn-secondary" href={href.plan}>{msg.PLAN_EDIT}</a>
   </div>
   <ComfortSettings {coach} />
 

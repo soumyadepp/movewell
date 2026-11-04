@@ -8,7 +8,13 @@
 import { Assistant } from "./assistant";
 import { type FrameInspection, inspectFrame } from "./analysis/inspection";
 import { dayStreak } from "./analysis/progress";
-import { DEFAULT_GOAL, POSTURE, PREFERENCES_KEY, STORAGE_KEY } from "./config";
+import {
+  DEFAULT_GOAL,
+  PLAN_KEY,
+  POSTURE,
+  PREFERENCES_KEY,
+  STORAGE_KEY,
+} from "./config";
 import {
   type CountedExercise,
   ExerciseMode,
@@ -38,7 +44,9 @@ import {
 import * as msg from "./messages";
 import {
   DAILY_ROUTINE,
+  planFrom,
   type RoutinePhase,
+  type RoutinePlan,
   RoutineRun,
   type RoutineStep,
   type StepResult,
@@ -61,7 +69,8 @@ export type Route =
   | { name: "workout"; kind: "single"; mode: CountedExercise; target: number }
   | { name: "summary" }
   | { name: "week" }
-  | { name: "settings" };
+  | { name: "settings" }
+  | { name: "plan" };
 
 export const href = {
   home: "#/",
@@ -73,6 +82,7 @@ export const href = {
   summary: "#/summary",
   week: "#/week",
   settings: "#/settings",
+  plan: "#/plan",
   setup: (step: SetupStep) => `#/setup/${step}`,
 };
 
@@ -87,6 +97,7 @@ export function parseRoute(hash: string): Route {
   if (parts[0] === "exercises") return { name: "library" };
   if (parts[0] === "week" || parts[0] === "progress") return { name: "week" };
   if (parts[0] === "settings") return { name: "settings" };
+  if (parts[0] === "plan") return { name: "plan" };
   if (parts[0] === "setup") {
     const step =
       parts[1] === "comfort" || parts[1] === "space" ? parts[1] : "welcome";
@@ -141,6 +152,15 @@ const DEFAULT_PREFERENCES: Preferences = {
   showSkeleton: false,
   recordSessions: false,
 };
+
+function loadPlan(): RoutinePlan {
+  try {
+    const raw = localStorage.getItem(PLAN_KEY);
+    return raw ? planFrom(JSON.parse(raw)) : DAILY_ROUTINE;
+  } catch {
+    return DAILY_ROUTINE;
+  }
+}
 
 function loadPreferences(): Preferences {
   try {
@@ -223,6 +243,7 @@ export class CoachController {
   name = $state("");
   onboarded = $state(false);
   cameraGranted = $state(false);
+  plan = $state<RoutinePlan>(DAILY_ROUTINE);
   devMode = $state(devModeRequested());
   inspection = $state<FrameInspection | null>(null);
   diagnostics = $state<Diagnostics>({
@@ -261,6 +282,7 @@ export class CoachController {
     attachVoice(this.events, this.speaker, () => this.language);
     attachCues(this.events, this.cues, secondsClock);
     const prefs = loadPreferences();
+    this.plan = loadPlan();
     this.textSize = prefs.textSize;
     this.name = prefs.name;
     this.onboarded = prefs.onboarded;
@@ -302,6 +324,29 @@ export class CoachController {
     this.onboarded = true;
     this.savePreferences();
     this.navigate(href.home);
+  }
+
+  /** Replaces the daily plan and saves it on this device. */
+  updatePlan(plan: RoutinePlan): void {
+    this.plan = plan;
+    try {
+      localStorage.setItem(
+        PLAN_KEY,
+        JSON.stringify({ steps: plan.steps, restS: plan.restS }),
+      );
+    } catch {
+      return;
+    }
+  }
+
+  /** Goes back to the physiotherapist's plan. */
+  resetPlan(): void {
+    this.plan = DAILY_ROUTINE;
+    try {
+      localStorage.removeItem(PLAN_KEY);
+    } catch {
+      return;
+    }
   }
 
   setRecordSessions(on: boolean): void {
@@ -540,7 +585,7 @@ export class CoachController {
     this.celebrating = false;
     const plan =
       route.kind === "routine"
-        ? DAILY_ROUTINE
+        ? this.plan
         : singleExercise(route.mode, route.target);
     this.run = new RoutineRun(plan, secondsClock);
     this.cues.unlock();

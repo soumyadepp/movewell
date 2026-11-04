@@ -1,4 +1,4 @@
-<script lang="ts" generics="T extends string">
+<script lang="ts" generics="T extends string | number">
   let {
     options,
     value,
@@ -56,5 +56,18 @@
   button[aria-checked="true"] {
     background: var(--color-primary);
     color: var(--color-on-primary);
+  }
+
+  @media (max-width: 640px) {
+    .segmented {
+      display: flex;
+      width: 100%;
+    }
+
+    button {
+      flex: 1 1 0;
+      min-width: 0;
+      padding: 0 var(--space-2);
+    }
   }
 </style>

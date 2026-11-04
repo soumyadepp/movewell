@@ -6,22 +6,22 @@
   import { getExercise } from "../exercises";
   import * as msg from "../messages";
   import Handwritten from "../components/Handwritten.svelte";
-  import { DAILY_ROUTINE, estimatedMinutes } from "../routine";
+  import { estimatedMinutes, isPhysioPlan } from "../routine";
 
   let { coach }: { coach: CoachController } = $props();
 
   const week = $derived(currentWeek(coach.history, new Date()));
   const activeDays = $derived(week.filter((d) => d.done).length);
   const doneToday = $derived(week.some((d) => d.isToday && d.done));
-  const exerciseList = DAILY_ROUTINE.steps.map((s) => getExercise(s.mode).copy.label).join(", ");
-  const hero = getExercise(DAILY_ROUTINE.steps[0].mode);
+  const exerciseList = $derived(coach.plan.steps.map((s) => getExercise(s.mode).copy.label).join(", "));
+  const hero = $derived(getExercise(coach.plan.steps[0].mode));
 </script>
 
 <section class="band">
   <div class="container hero">
     <div class="hero-text">
       <h1>{msg.GREETING_HELLO(new Date().getHours())} <span class="accent"><Handwritten text={msg.GREETING_NAME(coach.displayName)} delayMs={300} /></span></h1>
-      <p class="lead">{doneToday ? msg.SESSION_DONE_TODAY : msg.SESSION_LENGTH(estimatedMinutes(DAILY_ROUTINE))}</p>
+      <p class="lead">{doneToday ? msg.SESSION_DONE_TODAY : msg.SESSION_LENGTH(estimatedMinutes(coach.plan))}</p>
       <p class="list">{exerciseList}</p>
       <a class="btn btn-light start" href={href.routine}>{doneToday ? msg.START_AGAIN : msg.START_SESSION}</a>
     </div>
@@ -34,7 +34,10 @@
   <WeekRow days={week} />
   <p class="progress">{msg.WEEK_PROGRESS(activeDays)}</p>
   <div class="foot">
-    <p class="secondary small">{msg.PLAN_BY}</p>
+    <p class="secondary small">
+      {isPhysioPlan(coach.plan) ? msg.PLAN_BY : msg.PLAN_CUSTOM}
+      <a class="link" href={href.plan}>{msg.PLAN_EDIT}</a>
+    </p>
     <a class="link" href={href.setup("space")}>{msg.SPACE_TITLE}</a>
   </div>
 </section>

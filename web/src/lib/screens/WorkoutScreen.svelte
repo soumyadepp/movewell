@@ -13,6 +13,7 @@
   let { coach }: { coach: CoachController } = $props();
   let video = $state<HTMLVideoElement>();
   let canvas = $state<HTMLCanvasElement>();
+  let confirmEnd = $state(false);
 
   const s = $derived(coach.snapshot);
   const r = $derived(coach.routine);
@@ -105,12 +106,23 @@
         </div>
         {#key coachLine}<p class="coach fade-in">{coachLine}</p>{/key}
         <div class="end">
-          {#if phase === "exercise" && r && !r.isSingle}
-            <button class="link light" onclick={() => coach.skipExercise()}>{msg.SKIP_THIS}</button>
+          {#if confirmEnd && r}
+            <p class="confirm" role="alert">{msg.END_CONFIRM(r.index, r.steps.length)}</p>
+            <button class="btn btn-light btn-block" onclick={() => (confirmEnd = false)}>{msg.KEEP_GOING}</button>
+            <button class="btn btn-outline-light btn-block" onclick={() => coach.endSession()}>{msg.END_NOW}</button>
+          {:else}
+            {#if phase === "exercise" && r && !r.isSingle}
+              <button class="btn btn-light btn-block" onclick={() => coach.skipExercise()}>
+                {r.next ? msg.NEXT_EXERCISE : msg.FINISH}
+              </button>
+            {/if}
+            <button
+              class="btn btn-outline-light btn-block"
+              onclick={() => (r && !r.isSingle ? (confirmEnd = true) : coach.endSession())}
+            >
+              {r?.isSingle ? msg.FINISH : msg.END_SESSION}
+            </button>
           {/if}
-          <button class="btn btn-outline-light btn-block" onclick={() => coach.endSession()}>
-            {r?.isSingle ? msg.FINISH : msg.END_SESSION}
-          </button>
         </div>
       {/if}
     </aside>
@@ -340,9 +352,9 @@
     margin-top: auto;
   }
 
-  .light {
-    color: var(--color-on-deep);
-    justify-self: start;
+  .confirm {
+    font-size: var(--type-lead);
+    font-weight: var(--weight-semibold);
   }
 
   .error {

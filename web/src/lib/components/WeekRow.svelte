@@ -112,4 +112,24 @@
   .band .minutes {
     color: var(--color-on-deep);
   }
+
+  @media (max-width: 640px) {
+    .week {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: var(--space-2);
+    }
+
+    li {
+      min-width: 0;
+    }
+
+    .circle {
+      width: 100%;
+      max-width: var(--day-size);
+      height: auto;
+      align-self: start;
+      aspect-ratio: 1;
+    }
+  }
 </style>

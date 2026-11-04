@@ -34,7 +34,7 @@
       <a class="wordmark" href={href.home} aria-label="{msg.APP_NAME}, {msg.NAV_TODAY}"
         >{msg.WORDMARK[0]}<span class="accent"><Handwritten text={msg.WORDMARK[1]} delayMs={150} unitsPerMs={9} weight={70} /></span><span class="dot" aria-hidden="true"></span></a
       >
-      <nav aria-label={msg.NAV_LABEL}>
+      <nav class="tabs" aria-label={msg.NAV_LABEL}>
         {#each links as link (link.id)}
           <a href={link.href} aria-current={section === link.id ? "page" : undefined}>{link.label}</a>
         {/each}
@@ -113,21 +113,50 @@
     color: var(--color-text-secondary);
   }
 
-  @media (max-width: 900px) {
-    .bar {
-      flex-wrap: wrap;
-      padding-top: var(--space-3);
-    }
+  nav a {
+    white-space: nowrap;
+  }
 
+  @media (max-width: 900px) {
     nav {
-      width: 100%;
-      gap: var(--space-4);
-      overflow-x: auto;
+      gap: var(--space-5);
     }
 
     nav a {
-      min-height: 56px;
       font-size: var(--type-small);
+    }
+  }
+
+  @media (max-width: 640px) {
+    .bar {
+      min-height: var(--header-height-compact);
+    }
+
+    nav {
+      position: fixed;
+      inset: auto 0 0;
+      z-index: 10;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0;
+      padding-bottom: env(safe-area-inset-bottom);
+      background: var(--color-bg);
+      border-top: 1px solid var(--color-rule);
+    }
+
+    nav a {
+      justify-content: center;
+      min-height: var(--tabbar-height);
+      padding: 0 var(--space-1);
+      border-bottom: 0;
+      border-top: 3px solid transparent;
+      white-space: normal;
+      text-align: center;
+      line-height: 1.15;
+    }
+
+    nav a[aria-current="page"] {
+      border-top-color: var(--color-primary);
     }
   }
 </style>
