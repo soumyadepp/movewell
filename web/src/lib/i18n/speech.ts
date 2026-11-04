@@ -88,8 +88,8 @@ const en: SpeechCatalog = {
   saved: "Session saved.",
   routineStart: "Let's begin today's routine.",
   routineComplete: "Routine complete. Great work today!",
-  pausedAway: "Paused. Step back into view and we'll carry on.",
-  pausedUser: "Paused. Carry on when you're ready.",
+  pausedAway: "Paused. Step back into the camera's view.",
+  pausedUser: "Paused. Take your time.",
   corrections: {
     shoulder_height:
       "Stand comfortably; avoid deliberately forcing one shoulder down.",
@@ -127,8 +127,8 @@ const hi: SpeechCatalog = {
   saved: "सत्र सहेजा गया।",
   routineStart: "चलिए, आज का व्यायाम शुरू करते हैं।",
   routineComplete: "आज की कसरत पूरी हो गई। बहुत बढ़िया!",
-  pausedAway: "रुक गए हैं। कैमरे के सामने आइए, फिर आगे बढ़ेंगे।",
-  pausedUser: "रुक गए हैं। तैयार हों तो आगे बढ़िए।",
+  pausedAway: "रुक गए हैं। कैमरे के सामने आइए।",
+  pausedUser: "रुक गए हैं। आराम से।",
   corrections: {
     shoulder_height: "आराम से खड़े रहिए; एक कंधे को जानबूझकर नीचे मत दबाइए।",
     hip_height: "दोनों पैरों पर बराबर वज़न रखकर सहज रूप से खड़े रहिए।",

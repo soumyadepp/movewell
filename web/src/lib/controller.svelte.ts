@@ -11,6 +11,7 @@ import {
   type Command,
   type CommandAction,
   commandAction,
+  EchoFilter,
   MAX_INTERIM_WORDS,
   MAX_WORDS,
   parseCommand,
@@ -36,7 +37,12 @@ import {
   type ViewMode,
 } from "./domain/models";
 import { EventBus } from "./events";
-import { SPEECH_CATALOGS, PhraseKey, type VoiceLanguage } from "./i18n/speech";
+import {
+  SPEECH_CATALOGS,
+  PhraseKey,
+  phraseText,
+  type VoiceLanguage,
+} from "./i18n/speech";
 import { attachCues, WebAudioCuePlayer } from "./infrastructure/cues";
 import {
   CommandListener,
@@ -52,6 +58,7 @@ import {
 import {
   attachVoice,
   ClipSpeaker,
+  type Speaker,
   pickVoice,
   WebSpeechSpeaker,
 } from "./infrastructure/voice";
@@ -302,6 +309,19 @@ export class CoachController {
     (speaking) => (this.hearing = speaking),
   );
   private heardTimer: ReturnType<typeof setTimeout> | undefined;
+  private readonly echo = new EchoFilter();
+  /** The speaker, plus a record of what was said so it is not heard back as a command. */
+  private readonly voice: Speaker = {
+    get enabled() {
+      return true;
+    },
+    say: (language, key, priority) => {
+      const text = phraseText(SPEECH_CATALOGS[language], key);
+      if (text && this.speaker.enabled) this.echo.record(text, secondsClock());
+      this.speaker.say(language, key, priority);
+    },
+    stop: () => this.speaker.stop(),
+  };
   private lastSeenAt = -Infinity;
   private seenSince: number | null = null;
   private lastCountdown = 0;
@@ -327,7 +347,7 @@ export class CoachController {
       clock: secondsClock,
       ranges: this.ranges,
     });
-    attachVoice(this.events, this.speaker, () => this.language);
+    attachVoice(this.events, this.voice, () => this.language);
     attachCues(this.events, this.cues, secondsClock);
     const prefs = loadPreferences();
     this.plan = loadPlan();
@@ -352,6 +372,10 @@ export class CoachController {
         );
       }
       window.addEventListener("hashchange", () => this.onRouteChange());
+      document.addEventListener("visibilitychange", () =>
+        this.onPageShown(document.visibilityState === "visible"),
+      );
+      window.addEventListener("focus", () => this.onPageShown(true));
     }
     this.events.subscribe("goalReached", () => this.onGoalReached());
     this.refresh();
@@ -605,7 +629,7 @@ export class CoachController {
 
   chooseLanguage(language: VoiceLanguage): void {
     this.setLanguage(language);
-    this.speaker.say(language, PhraseKey.selected, "interrupt");
+    this.voice.say(language, PhraseKey.selected, "interrupt");
   }
 
   setLanguage(language: VoiceLanguage): void {
@@ -933,6 +957,27 @@ export class CoachController {
     }
   }
 
+  /**
+   * Chrome takes speech recognition away from hidden or background pages.
+   * Stop quietly when hidden, and listen again whenever the page is back in
+   * front, unless the microphone itself is the problem.
+   */
+  private onPageShown(visible: boolean): void {
+    if (!this.voiceCommands || this.stage !== "running") return;
+    if (!visible) {
+      this.listener.stop();
+      this.listening = false;
+      this.hearing = false;
+      return;
+    }
+    const permanent =
+      this.listenerProblem === "blocked" ||
+      this.listenerProblem === "no-microphone" ||
+      this.listenerProblem === "unavailable";
+    if (!permanent && (!this.listening || this.listenerProblem))
+      this.startListening();
+  }
+
   private startListening(): void {
     if (!this.voiceCommands || this.stage !== "running") return;
     this.listenerProblem = null;
@@ -942,7 +987,7 @@ export class CoachController {
 
   private onHeard(transcript: string, final: boolean): boolean {
     const text = transcript.trim();
-    if (!text) return false;
+    if (!text || this.echo.isEcho(text, secondsClock())) return false;
     const command = parseCommand(
       text,
       this.language,

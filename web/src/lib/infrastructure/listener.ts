@@ -182,8 +182,14 @@ export class CommandListener {
     this.wanted = false;
     clearTimeout(this.restartTimer);
     if (this.recognition) {
-      this.recognition.onend = null;
-      this.recognition.abort();
+      const old = this.recognition;
+      old.onend = null;
+      old.onerror = null;
+      old.onresult = null;
+      old.onstart = null;
+      old.onspeechstart = null;
+      old.onspeechend = null;
+      old.abort();
       this.recognition = null;
     }
   }

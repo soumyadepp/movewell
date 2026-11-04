@@ -226,3 +226,31 @@ export function commandAction(
   }
   return "none";
 }
+
+/** Seconds a spoken phrase can still be echoed back through the microphone. */
+const ECHO_WINDOW_S = 6;
+
+/**
+ * Remembers what the app said recently, so the microphone hearing the app's
+ * own voice ("...carry on when you're ready") is not taken as a command.
+ */
+export class EchoFilter {
+  private said: { words: Set<string>; at: number }[] = [];
+
+  record(text: string, at: number): void {
+    this.said.push({ words: new Set(normalize(text).split(" ")), at });
+  }
+
+  /**
+   * True when every word heard was in something the app said within the last
+   * few seconds. A person saying "pause" right after the app said "Paused"
+   * still counts, because "pause" is not a word the app said.
+   */
+  isEcho(transcript: string, now: number): boolean {
+    this.said = this.said.filter((s) => now - s.at <= ECHO_WINDOW_S);
+    const words = normalize(transcript).split(" ").filter(Boolean);
+    if (words.length === 0 || this.said.length === 0) return false;
+    const recent = new Set(this.said.flatMap((s) => [...s.words]));
+    return words.every((w) => recent.has(w));
+  }
+}

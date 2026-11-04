@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { commandAction, commandHints, parseCommand } from "./commands";
+import {
+  commandAction,
+  commandHints,
+  EchoFilter,
+  parseCommand,
+} from "./commands";
 
 describe("voice commands", () => {
   it("understands short spoken commands", () => {
@@ -85,5 +90,34 @@ describe("what a command does", () => {
     expect(commandAction("yes", "exercise", false)).toBe("none");
     expect(commandAction("no", "exercise", false)).toBe("none");
     expect(commandAction("next", "done", false)).toBe("none");
+  });
+});
+
+describe("echo filter", () => {
+  it("ignores the app's own words heard back through the microphone", () => {
+    const echo = new EchoFilter();
+    echo.record("Paused. Carry on when you're ready.", 100);
+    expect(echo.isEcho("carry on", 101)).toBe(true);
+    expect(echo.isEcho("ready", 102)).toBe(true);
+  });
+
+  it("still hears the person, even right after the app spoke", () => {
+    const echo = new EchoFilter();
+    echo.record("Paused. Carry on when you're ready.", 100);
+    expect(echo.isEcho("pause", 101)).toBe(false);
+    expect(echo.isEcho("next", 101)).toBe(false);
+  });
+
+  it("forgets what the app said after a few seconds", () => {
+    const echo = new EchoFilter();
+    echo.record("Paused. Carry on when you're ready.", 100);
+    expect(echo.isEcho("carry on", 110)).toBe(false);
+  });
+
+  it("works for Hindi", () => {
+    const echo = new EchoFilter();
+    echo.record("चलिए, आज का व्यायाम शुरू करते हैं।", 100);
+    expect(echo.isEcho("शुरू करते", 101)).toBe(true);
+    expect(echo.isEcho("रुको", 101)).toBe(false);
   });
 });

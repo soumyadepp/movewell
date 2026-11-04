@@ -112,7 +112,7 @@ export const LEARNING_RANGE =
   "Do two slow, comfortable movements, as far as feels right. MoveWell will learn your range.";
 export const GET_READY = "Get ready";
 export const PAUSED_TITLE = "Paused";
-export const PAUSED_AWAY = "Step back into view and we'll carry on.";
+export const PAUSED_AWAY = "Step back into the camera's view and the session carries on by itself.";
 export const PAUSED_USER = "Take your time.";
 export const CARRY_ON = "Carry on";
 export const PAUSE = "Pause";
