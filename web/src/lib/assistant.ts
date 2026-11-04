@@ -63,6 +63,7 @@ export class Assistant {
   private lastFinding: Finding | null = null;
   private lastSeen = -Infinity;
   private bodyLostAnnounced = false;
+  private bodyPresent = false;
   private readonly stableFindings = new Debounced<Finding[]>([], FINDINGS_HOLD_S, sameFindings);
   private readonly now: () => Date;
 
@@ -89,6 +90,7 @@ export class Assistant {
       if (now - this.lastSeen < BODY_LOST_GRACE_S) return this.frame;
       if (!this.bodyLostAnnounced) {
         this.bodyLostAnnounced = true;
+        this.bodyPresent = false;
         this.deps.events.publish("bodyLost", {});
       }
       this.stableFindings.reset([]);
@@ -98,6 +100,10 @@ export class Assistant {
     }
     this.lastSeen = now;
     this.bodyLostAnnounced = false;
+    if (!this.bodyPresent) {
+      this.bodyPresent = true;
+      this.deps.events.publish("bodyFound", {});
+    }
 
     const findings = this.stableFindings.update(this.analyzer.analyze(points), now);
     const repsBefore = this.counter.reps;

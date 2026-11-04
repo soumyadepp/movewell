@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import * as catalog from "./analysis/findings";
 import { Assistant, type SessionRepository } from "./assistant";
 import { POSTURE } from "./config";
-import { ExerciseMode, Joint, type SessionRecord, ViewMode } from "./domain/models";
+import {
+  ExerciseMode,
+  Joint,
+  type SessionRecord,
+  ViewMode,
+} from "./domain/models";
 import { EventBus, type EventMap } from "./events";
 import { LocalStorageRepository, toCsv } from "./infrastructure/storage";
 import * as msg from "./messages";
@@ -28,7 +33,15 @@ function setup(repo: SessionRepository = new MemoryRepo()) {
   const events = new EventBus();
   const clock = new FakeClock();
   const seen: { type: keyof EventMap; payload: unknown }[] = [];
-  for (const type of ["repCounted", "goalReached", "findingChanged", "bodyLost", "viewChanged", "modeChanged"] as const) {
+  for (const type of [
+    "repCounted",
+    "goalReached",
+    "findingChanged",
+    "bodyFound",
+    "bodyLost",
+    "viewChanged",
+    "modeChanged",
+  ] as const) {
     events.subscribe(type, (payload) => seen.push({ type, payload }));
   }
   const assistant = new Assistant({
@@ -38,7 +51,8 @@ function setup(repo: SessionRepository = new MemoryRepo()) {
     clock: clock.read,
     now: () => new Date(2026, 10, 4, 9, 30, 0),
   });
-  const of = (type: keyof EventMap) => seen.filter((e) => e.type === type).map((e) => e.payload);
+  const of = (type: keyof EventMap) =>
+    seen.filter((e) => e.type === type).map((e) => e.payload);
   return { assistant, clock, of, repo, seen };
 }
 
@@ -66,6 +80,19 @@ describe("Assistant", () => {
     expect(of("bodyLost")).toHaveLength(1);
   });
 
+  it("announces the body once on arrival and again only after a real loss", () => {
+    const { assistant, clock, of } = setup();
+    assistant.process(body());
+    clock.advance(0.3);
+    assistant.process(null);
+    assistant.process(body());
+    expect(of("bodyFound")).toHaveLength(1);
+    clock.advance(2);
+    assistant.process(null);
+    assistant.process(body());
+    expect(of("bodyFound")).toHaveLength(2);
+  });
+
   it("starts in arm raise mode for the quickest first win", () => {
     expect(setup().assistant.mode).toBe(ExerciseMode.ArmRaise);
   });
@@ -88,7 +115,10 @@ describe("Assistant", () => {
     hold(tilted);
     hold(body());
     hold(tilted);
-    expect(of("findingChanged")).toEqual([{ finding: catalog.SHOULDER_HEIGHT }, { finding: catalog.SHOULDER_HEIGHT }]);
+    expect(of("findingChanged")).toEqual([
+      { finding: catalog.SHOULDER_HEIGHT },
+      { finding: catalog.SHOULDER_HEIGHT },
+    ]);
   });
 
   it("announces the target once, after the final count", () => {
@@ -99,8 +129,15 @@ describe("Assistant", () => {
       hold((p) => assistant.process(p), armsAt(100), clock, 0.8);
     }
     expect(assistant.counter.reps).toBe(3);
-    const order = seen.filter((e) => e.type === "repCounted" || e.type === "goalReached").map((e) => e.type);
-    expect(order).toEqual(["repCounted", "repCounted", "goalReached", "repCounted"]);
+    const order = seen
+      .filter((e) => e.type === "repCounted" || e.type === "goalReached")
+      .map((e) => e.type);
+    expect(order).toEqual([
+      "repCounted",
+      "repCounted",
+      "goalReached",
+      "repCounted",
+    ]);
   });
 
   it("publishes semantic events for view and mode changes", () => {

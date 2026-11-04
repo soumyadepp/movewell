@@ -1,5 +1,5 @@
 /** Elbow curl: hands come up toward the shoulders with the elbows by the sides. */
-import { jointAngle3 } from "../domain/geometry";
+import { jointAngle, jointAngle3 } from "../domain/geometry";
 import { ExerciseMode, Joint, ViewMode } from "../domain/models";
 import { FRONT_POSE, pose } from "../illustrations";
 import { blocked, fromVertical, orientationBlock } from "./measures";
@@ -16,6 +16,7 @@ const ARMS: [Joint, Joint, Joint][] = [
 export const elbowCurl: Exercise = {
   mode: ExerciseMode.ElbowCurl,
   bestView: ViewMode.Front,
+  photo: "elbow-curl.webp",
   thresholds: { lowDeg: 30, highDeg: 75, minIntervalS: 0.8 },
   copy: {
     label: "Elbow curl",
@@ -27,7 +28,8 @@ export const elbowCurl: Exercise = {
     ],
     benefit: "Arm strength for lifting and carrying.",
     safety: "Hold light objects only if your physiotherapist agrees.",
-    guidance: "Keep elbows by your sides and bring your hands up towards your shoulders.",
+    guidance:
+      "Keep elbows by your sides and bring your hands up towards your shoulders.",
     notVisible: "Show your shoulders, elbows and wrists to the camera.",
     low: "Arm straight",
     high: "Elbow bent",
@@ -40,6 +42,29 @@ export const elbowCurl: Exercise = {
   illustration: {
     start: FRONT_POSE,
     end: pose(FRONT_POSE, { lWrist: [47, 44], rWrist: [73, 44] }),
+  },
+
+  /** Per-arm flexion in 3-D and 2-D, and how far each upper arm is from vertical. */
+  inspect(p) {
+    const details: Record<string, number | string | null> = {
+      orientation: orientationBlock(p, this.bestView) ?? "ok",
+    };
+    for (const [shoulder, elbow, wrist] of ARMS) {
+      const side = shoulder === Joint.LeftShoulder ? "L" : "R";
+      const angle3 = jointAngle3(p, shoulder, elbow, wrist);
+      const angle2 = jointAngle(p, shoulder, elbow, wrist);
+      const upperArm = fromVertical(p.get(shoulder), p.get(elbow));
+      details[`${side} bend 3D`] = angle3 === null ? null : 180 - angle3;
+      details[`${side} bend 2D`] = angle2 === null ? null : 180 - angle2;
+      details[`${side} upper arm`] = upperArm;
+      details[`${side} arm used`] =
+        angle3 === null
+          ? "no joints"
+          : upperArm === null || upperArm > UPPER_ARM_MAX_DEG
+            ? "upper arm too high"
+            : "yes";
+    }
+    return details;
   },
 
   /**

@@ -1,216 +1,107 @@
 <script lang="ts">
-  import { weekSummary } from "../analysis/progress";
-  import Pictogram from "../components/Pictogram.svelte";
-  import StatTile from "../components/StatTile.svelte";
+  import { currentWeek } from "../analysis/progress";
+  import WeekRow from "../components/WeekRow.svelte";
   import type { CoachController } from "../controller.svelte";
   import { href } from "../controller.svelte";
-  import { POSTURE_ILLUSTRATION } from "../illustrations";
-  import { EXERCISES, getExercise, POSTURE_LABEL } from "../exercises";
+  import { getExercise } from "../exercises";
   import * as msg from "../messages";
+  import Handwritten from "../components/Handwritten.svelte";
   import { DAILY_ROUTINE, estimatedMinutes } from "../routine";
 
   let { coach }: { coach: CoachController } = $props();
 
-  const week = $derived(weekSummary(coach.history, new Date()));
-  const streak = $derived(coach.streak);
-  const greeting = msg.GREETING(new Date().getHours());
+  const week = $derived(currentWeek(coach.history, new Date()));
+  const activeDays = $derived(week.filter((d) => d.done).length);
+  const doneToday = $derived(week.some((d) => d.isToday && d.done));
+  const exerciseList = DAILY_ROUTINE.steps.map((s) => getExercise(s.mode).copy.label).join(", ");
+  const hero = getExercise(DAILY_ROUTINE.steps[0].mode);
 </script>
 
-<div class="home">
-  <section class="hero card" aria-labelledby="routine-title">
+<section class="band">
+  <div class="container hero">
     <div class="hero-text">
-      <p class="eyebrow">{greeting}</p>
-      <h1>{msg.HOME_LEAD}</h1>
-      <h2 id="routine-title" class="routine-title">{msg.ROUTINE_TITLE}</h2>
-      <p class="meta">{msg.ROUTINE_META(DAILY_ROUTINE.steps.length, estimatedMinutes(DAILY_ROUTINE))}</p>
-      <ol class="steps">
-        {#each DAILY_ROUTINE.steps as step, i (step.mode)}
-          <li>
-            <span class="num" aria-hidden="true">{i + 1}</span>
-            <span class="name">{getExercise(step.mode).copy.label}</span>
-            <span class="target">{msg.ROUTINE_TARGET(step.target)}</span>
-          </li>
-        {/each}
-      </ol>
-      <a class="btn btn-primary btn-lg" href={href.routine}>{msg.ROUTINE_START}</a>
+      <h1>{msg.GREETING_HELLO(new Date().getHours())} <span class="accent"><Handwritten text={msg.GREETING_NAME(coach.displayName)} delayMs={300} /></span></h1>
+      <p class="lead">{doneToday ? msg.SESSION_DONE_TODAY : msg.SESSION_LENGTH(estimatedMinutes(DAILY_ROUTINE))}</p>
+      <p class="list">{exerciseList}</p>
+      <a class="btn btn-light start" href={href.routine}>{doneToday ? msg.START_AGAIN : msg.START_SESSION}</a>
     </div>
-    <div class="hero-figure" aria-hidden="true">
-      <Pictogram illustration={getExercise(DAILY_ROUTINE.steps[0].mode).illustration} label="" size={220} />
-    </div>
-  </section>
+    <img class="photo hero-photo fade-in" src="{import.meta.env.BASE_URL}img/{hero.photo}" alt="" />
+  </div>
+</section>
 
-  <section class="stats" aria-label={msg.NAV_PROGRESS}>
-    <StatTile label={msg.STAT_STREAK} value={streak} unit={msg.STAT_STREAK_UNIT(streak)} />
-    <StatTile label={msg.STAT_WEEK_DAYS} value={week.activeDays} unit="/ 7" />
-    <StatTile label={msg.STAT_WEEK_REPS} value={week.reps} />
-  </section>
-
-  <section aria-labelledby="explore-title">
-    <div class="section-head">
-      <h2 id="explore-title">{msg.EXPLORE_TITLE}</h2>
-      <a href={href.library}>{msg.EXPLORE_ALL}</a>
-    </div>
-    <ul class="grid">
-      {#each EXERCISES as exercise (exercise.mode)}
-        <li>
-          <a class="tile card" href={href.detail(exercise.mode)}>
-            <Pictogram illustration={exercise.illustration} label="" animate={false} size={72} />
-            <span class="tile-name">{exercise.copy.label}</span>
-          </a>
-        </li>
-      {/each}
-      <li>
-        <a class="tile card" href={href.posture}>
-          <Pictogram illustration={POSTURE_ILLUSTRATION} label="" animate={false} size={72} />
-          <span class="tile-name">{POSTURE_LABEL}</span>
-        </a>
-      </li>
-    </ul>
-  </section>
-</div>
+<section class="container week">
+  <h2>{msg.THIS_WEEK}</h2>
+  <WeekRow days={week} />
+  <p class="progress">{msg.WEEK_PROGRESS(activeDays)}</p>
+  <div class="foot">
+    <p class="secondary small">{msg.PLAN_BY}</p>
+    <a class="link" href={href.setup("space")}>{msg.SPACE_TITLE}</a>
+  </div>
+</section>
 
 <style>
-  .home {
-    display: grid;
-    gap: var(--space-8);
+  .band {
+    background: var(--color-primary);
+    color: var(--color-on-deep);
   }
 
   .hero {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    gap: var(--space-12);
     align-items: center;
-    gap: var(--space-8);
-    padding: var(--space-8) var(--space-10);
+    padding-top: var(--space-14);
+    padding-bottom: var(--space-14);
+  }
+
+  .hero-text {
+    display: grid;
+    gap: var(--space-4);
+    justify-items: start;
   }
 
   h1 {
-    margin-top: var(--space-2);
-    font-size: var(--font-size-4xl);
-    font-weight: var(--font-weight-bold);
+    color: var(--color-on-deep);
   }
 
-  .routine-title {
+  .list {
+    opacity: 0.9;
+    max-width: 34rem;
+  }
+
+  .start {
     margin-top: var(--space-6);
-    font-size: var(--font-size-xl);
-    font-weight: var(--font-weight-semibold);
+    min-width: 18rem;
   }
 
-  .meta {
-    margin: var(--space-1) 0 var(--space-4);
-    color: var(--color-text-muted);
+  .hero-photo {
+    aspect-ratio: 4 / 3;
   }
 
-  .steps {
+  .week {
     display: grid;
-    gap: var(--space-2);
-    margin: 0 0 var(--space-6);
-    padding: 0;
-    list-style: none;
-    max-width: 30rem;
+    gap: var(--space-6);
+    padding-top: var(--space-14);
+    padding-bottom: var(--space-14);
   }
 
-  .steps li {
+  .progress {
+    font-size: var(--type-label);
+    font-weight: var(--weight-semibold);
+  }
+
+  .foot {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: var(--space-3);
-    padding: var(--space-2) var(--space-3);
-    border-radius: var(--radius-md);
-    background: var(--color-surface-sunken);
-  }
-
-  .num {
-    display: grid;
-    place-items: center;
-    width: 1.75rem;
-    height: 1.75rem;
-    border-radius: 50%;
-    background: var(--color-primary-subtle);
-    color: var(--color-primary);
-    font-weight: var(--font-weight-bold);
-    font-size: var(--font-size-sm);
-  }
-
-  .name {
-    flex: 1;
-    font-weight: var(--font-weight-medium);
-  }
-
-  .target {
-    color: var(--color-text-muted);
-    font-size: var(--font-size-sm);
-  }
-
-  .hero-figure {
-    display: grid;
-    place-items: center;
-    width: 280px;
-    aspect-ratio: 1;
-    border-radius: 50%;
-    background: var(--color-primary-subtle);
-  }
-
-  .stats {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: var(--space-4);
-  }
-
-  .section-head {
-    display: flex;
     justify-content: space-between;
-    align-items: baseline;
-    margin-bottom: var(--space-4);
+    gap: var(--space-4);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--color-rule);
   }
 
-  .section-head h2 {
-    font-size: var(--font-size-2xl);
-  }
-
-  .section-head a {
-    font-weight: var(--font-weight-semibold);
-  }
-
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
-    gap: var(--space-3);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  .tile {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--space-2);
-    height: 100%;
-    padding: var(--space-4);
-    color: var(--color-text);
-    text-decoration: none;
-    text-align: center;
-    transition: border-color var(--duration-fast) var(--easing-standard);
-  }
-
-  .tile:hover {
-    border-color: var(--color-primary);
-  }
-
-  .tile-name {
-    font-weight: var(--font-weight-semibold);
-  }
-
-  @media (max-width: 760px) {
+  @media (max-width: 900px) {
     .hero {
-      grid-template-columns: 1fr;
-      padding: var(--space-6);
-    }
-
-    .hero-figure {
-      display: none;
-    }
-
-    .stats {
       grid-template-columns: 1fr;
     }
   }

@@ -8,6 +8,7 @@ import type { Exercise } from "./types";
 export const marching: Exercise = {
   mode: ExerciseMode.Marching,
   bestView: ViewMode.Front,
+  photo: "marching.webp",
   thresholds: { lowDeg: 15, highDeg: 40, minIntervalS: 0.6 },
   copy: {
     label: "Marching",

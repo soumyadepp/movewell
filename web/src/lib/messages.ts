@@ -1,182 +1,174 @@
-/** All user-facing copy lives here so wording can change without touching logic. */
+/**
+ * All on-screen copy. Voice (docs/DESIGN.md): plain, warm, second person,
+ * short sentences, like a kind physiotherapist. Say "times" or "movements",
+ * never "reps", "angle" or "threshold". No taglines.
+ */
 import { ViewMode } from "./domain/models";
 
+export const WORDMARK = ["Move", "Well"] as const;
 export const APP_NAME = "MoveWell";
-export const APP_NAME_LEAD = "Move";
-export const APP_NAME_ACCENT = "Well";
-export const APP_TAGLINE = "Gentle exercise guidance at home.";
-
-export const SETUP_EYEBROW = "Getting started";
-export const SETUP_TITLE_LEAD = "Let's get";
-export const SETUP_TITLE_ACCENT = "set up";
-export const SETUP_STEPS = [
-  { title: "Place the laptop at waist height", body: "On a table, facing an open space." },
-  { title: "Step back 2 to 3 metres", body: "So the camera can see you from head to feet." },
-  { title: "Keep a sturdy chair close by", body: "For support, and for the sit-to-stand exercise." },
-] as const;
-export const SETUP_START = "Start camera";
-export const SETUP_PRIVACY = "Your video stays on this device. Nothing is recorded or uploaded.";
-
-export const LOADING_MODEL = "Loading pose model…";
-export const CAMERA_DENIED =
-  "The camera could not start. Allow camera access in the browser's address bar, then try again.";
-export const MODEL_FAILED = "The pose model could not load. Check the internet connection and refresh.";
-export const TRY_AGAIN = "Try again";
-
-export const POSTURE_SUMMARY = "Stand still while the camera looks at how you are standing, from the front or side.";
+export const PHYSIO_NAME = "Sarah Jenkins";
+export const PHYSIO_FIRST_NAME = "Sarah";
+export const PLAN_DAYS_PER_WEEK = 5;
+export const DEFAULT_NAME = "there";
 
 export const NAV_LABEL = "Main";
-export const NAV_HOME = "Home";
+export const NAV_TODAY = "Today";
 export const NAV_EXERCISES = "Exercises";
-export const NAV_PROGRESS = "Progress";
+export const NAV_WEEK = "Your week";
+export const NAV_SETTINGS = "Settings";
+export const SKIP_LINK = "Skip to content";
+export const BACK = "Back";
+export const CONTINUE = "Continue";
+export const DONE = "Done";
 
-export const GREETING = (hour: number) =>
-  hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-export const HOME_LEAD = "Ready for today's movement?";
-export const ROUTINE_TITLE = "Today's routine";
-export const ROUTINE_META = (count: number, minutes: number) => `${count} exercises · about ${minutes} minutes`;
-export const ROUTINE_START = "Start routine";
-export const ROUTINE_TARGET = (target: number) => `${target} reps`;
-export const STAT_STREAK = "Day streak";
-export const STAT_STREAK_UNIT = (n: number) => (n === 1 ? "day" : "days");
-export const STAT_WEEK_DAYS = "Active days this week";
-export const STAT_WEEK_REPS = "Repetitions this week";
-export const STAT_WEEK_MINUTES = "Minutes this week";
-export const EXPLORE_TITLE = "Exercise library";
-export const EXPLORE_ALL = "See all exercises";
-export const POSTURE_CARD_CTA = "Check posture";
+export const STEP_OF = (step: number, total: number) => `Step ${step} of ${total}`;
 
-export const LIBRARY_TITLE = "Exercises";
-export const LIBRARY_LEAD = "Six gentle exercises chosen for strength, balance and mobility. Choose one to see how it works.";
-export const VIEW_FRONT_LABEL = "Face the camera";
-export const VIEW_SIDE_LABEL = "Stand side-on";
-export const DETAIL_STEPS = "How to do it";
-export const DETAIL_BENEFIT = "Why it helps";
-export const DETAIL_SAFETY = "Safety";
-export const DETAIL_TARGET = "Repetitions";
-export const DETAIL_START = "Start exercise";
-export const BACK_TO_LIBRARY = "All exercises";
-export const DEMO_LABEL = (name: string) => `Animated figure showing ${name}`;
+export const WELCOME_TITLE = "Welcome to MoveWell";
+export const WELCOME_BODY = `${PHYSIO_NAME}, your physiotherapist, has set up a short daily session for you. Let's get you ready. It takes about a minute.`;
+export const WELCOME_NAME_LABEL = "What should we call you?";
+export const WELCOME_NAME_HINT = "We'll use this to greet you each day.";
+export const WELCOME_PRIVACY = "Your progress is shared only with your physiotherapist.";
 
-export const WORKOUT_STEP = (index: number, total: number) => `Exercise ${index} of ${total}`;
-export const WORKOUT_NEXT = (name: string) => `Next: ${name}`;
-export const WORKOUT_SKIP = "Skip exercise";
-export const WORKOUT_END = "End session";
-export const WORKOUT_FINISH = "Finish";
-export const REST_TITLE = "Rest";
-export const REST_NEXT = (name: string) => `Up next: ${name}`;
-export const REST_SKIP = "Start now";
-export const REST_TURN = (side: boolean) => (side ? "Turn side-on to the camera." : "Face the camera.");
-
-export const SUMMARY_TITLE_LEAD = "Well";
-export const SUMMARY_TITLE_ACCENT = "done";
-export const SUMMARY_LEAD = "Here is what you did today.";
-export const SUMMARY_EMPTY = "No repetitions were counted this time. That's fine, every attempt counts.";
-export const SUMMARY_REPS = "Repetitions";
-export const SUMMARY_TIME = "Active time";
-export const SUMMARY_COMPLETED = "Exercises completed";
-export const SUMMARY_DONE = "Completed";
-export const SUMMARY_PARTIAL = "Partly done";
-export const SUMMARY_HOME = "Back to home";
-export const SUMMARY_PROGRESS = "See progress";
-export const DURATION = (seconds: number) =>
-  seconds < 60 ? `${seconds} s` : `${Math.floor(seconds / 60)} min ${String(seconds % 60).padStart(2, "0")} s`;
-
-export const PROGRESS_LEAD = "Your activity from the last two weeks.";
-export const CHART_TITLE = (name: string) => `${name}: repetitions per day`;
-export const CHART_PICK = "Exercise";
-export const CHART_EMPTY = "No sessions yet for this exercise. Complete one to see it here.";
-export const CHART_TOOLTIP = (day: string, reps: number) => `${day}: ${reps} repetitions`;
-export const CHART_TABLE = "Show as table";
-export const CHART_DAY = "Day";
-export const RECENT_TITLE = "Recent sessions";
-export const RECENT_EMPTY = "Your completed exercises will appear here.";
-
-
-export const PHASE_READY = "Ready";
-export const BEST_VIEW = (view: ViewMode) => `Best with ${view === ViewMode.Front ? "front" : "side"} view`;
-
-export const MODES_GROUP = "Exercise mode";
-
-export const VIEW_LABELS: Record<ViewMode, string> = {
-  [ViewMode.Front]: "Front view",
-  [ViewMode.Side]: "Side view",
-};
-export const VIEW_SWITCH = "Switch view";
-
-export const REPS_LABEL = "repetitions";
-export const TARGET_LABEL = (goal: number) => `Target: ${goal} repetitions`;
-export const TARGET_PICK = "Set target";
-export const TARGET_REACHED = "Target reached.";
-export const ANGLE_THRESHOLDS = (low: number, high: number) => `counts below ${low}° then above ${high}°`;
-export const ANGLE_UNKNOWN = "not visible";
-export const POSTURE_COUNTER_HINT = "Choose an exercise to start counting repetitions.";
-
-export const GUIDANCE_TITLE = "Live guidance";
-export const GUIDANCE_INITIAL = ["Stand where your full body is visible.", "Keep the camera steady."];
-export const GUIDANCE_NO_BODY = [
-  "No body detected.",
-  "Move back until the required joints are visible.",
-  "Improve lighting and keep the camera steady.",
-];
-export const GUIDANCE_POSTURE_MODE = "Use Switch view to alternate between front and side assessments.";
-export const GUIDANCE_NO_FINDINGS = "No configured posture threshold was triggered.";
-
-export const OBSERVATIONS_TITLE = "Posture observations";
-export const OBSERVATIONS_EMPTY = "No obvious threshold-based flag.";
-export const OBSERVATIONS_CAVEAT = "Camera-based estimate.";
-export const CORRECTION_LABEL = "Correction";
-export const EXERCISE_LABEL = "Suggested";
-
-export const TIMER_LABEL = "Session time";
-export const TIMER_START = "Start timer";
-export const TIMER_PAUSE = "Pause timer";
-export const SAVE = "Save session";
-export const SAVED = "Session saved.";
-export const SAVE_FAILED = "Could not save the session on this device.";
-
-export const PROGRESS_TITLE = "Progress";
-export const SAVED_SESSIONS = (count: number) => `${count} saved session${count === 1 ? "" : "s"}`;
-export const RECENT_AVERAGE = (value: number) => `Recent average: ${value.toFixed(1)} repetitions`;
-
-export const SAFETY = "Move within a comfortable range, and rest if anything feels painful or dizzy.";
-
-export const ABOUT_TITLE = "About and history";
-export const ABOUT_BODY =
-  "An educational prototype that estimates posture from a single camera, so readings are approximate. Your physiotherapist can advise which exercises suit you. Session history is kept only in this browser.";
-export const DOWNLOAD_CSV = "Download history (CSV)";
-export const CLEAR_HISTORY = "Clear history";
-export const CSV_FILENAME = "movewell_history.csv";
-export const SHORTCUTS = "Keyboard: Tab moves between controls, Enter activates them.";
-
-export const SETTINGS_GROUP = "Display and voice settings";
-export const TEXT_SIZE_LABEL = "Text size";
+export const COMFORT_TITLE = "Make it comfortable";
+export const COMFORT_LEAD = "You can change these anytime in Settings.";
+export const TEXT_SIZE = "Text size";
+export const TEXT_SIZE_HINT = "Make the words easier to read.";
 export const TEXT_SIZES = [
-  { id: "md", label: "A", name: "Standard text" },
-  { id: "lg", label: "A+", name: "Large text" },
-  { id: "xl", label: "A++", name: "Extra large text" },
+  { id: "md", label: "Standard" },
+  { id: "lg", label: "Large" },
+  { id: "xl", label: "Extra large" },
 ] as const;
-export const VOICE_LABEL = "Voice";
+export const TEXT_SAMPLE = "Lift both arms slowly, then lower them.";
+export const VOICE_LABEL = "Spoken guidance";
+export const VOICE_HINT = "Hear counting and coaching out loud.";
 export const VOICE_ON = "On";
 export const VOICE_OFF = "Off";
-export const LANGUAGE_LABEL = "Voice language";
+export const SOUNDS_LABEL = "Sound cues";
+export const SOUNDS_HINT = "Short tones when you are in view, out of view, or counted.";
+export const LANGUAGE_LABEL = "Language";
+export const LANGUAGE_HINT = "For spoken guidance.";
 export const VOICE_MISSING = (language: string) =>
-  `No ${language} voice is installed on this device. Add one in the system speech settings.`;
+  `No ${language} voice is installed on this computer, so guidance will use the default voice.`;
 
+export const SPACE_TITLE = "Set up your space";
+export const SPACE_STEPS = [
+  "Put your laptop on a table at about waist height.",
+  "Stand 2 to 3 metres back so your whole body is on screen.",
+  "Keep a sturdy chair close by.",
+] as const;
+export const SPACE_PRIVACY = "Your video stays on this computer. Nothing is recorded or sent anywhere.";
+export const SPACE_START = "Turn on camera";
+export const CAMERA_DENIED =
+  "The camera didn't turn on. Click the camera icon in the address bar, choose Allow, then try again.";
+export const MODEL_FAILED = "Something didn't load. Check the internet connection and refresh the page.";
+export const LOADING_MODEL = "Getting ready…";
+export const TRY_AGAIN = "Try again";
+
+export const GREETING_HELLO = (hour: number) =>
+  hour < 12 ? "Good morning," : hour < 17 ? "Good afternoon," : "Good evening,";
+export const GREETING_NAME = (name: string) => `${name}.`;
+export const SESSION_LENGTH = (minutes: number) => `Today's session: ${minutes} minutes`;
+export const SESSION_DONE_TODAY = "You've done today's session. Well done.";
+export const START_SESSION = "Start session";
+export const START_AGAIN = "Do it again";
+export const THIS_WEEK = "This week";
+export const WEEK_PROGRESS = (days: number) =>
+  `${days} ${days === 1 ? "day" : "days"} this week. Your plan asks for ${PLAN_DAYS_PER_WEEK}.`;
+export const PLAN_BY = `Plan set by ${PHYSIO_NAME}, Physiotherapist.`;
+export const DAY_DONE = "Done";
+export const DAY_NOT_YET = "Not yet";
+
+export const EXERCISES_TITLE = "Exercises";
+export const EXERCISES_LEAD = "Six gentle exercises from your plan.";
+export const VIEW_FRONT = "Face the camera";
+export const VIEW_SIDE = "Stand side-on";
+export const VIEW_HINT = (view: ViewMode) => (view === ViewMode.Side ? VIEW_SIDE : VIEW_FRONT);
+export const ALL_EXERCISES = "All exercises";
+export const WHY_IT_HELPS = "Why it helps";
+export const TAKE_CARE = "Take care";
+export const HOW_MANY = "How many times";
+export const START_EXERCISE = "Start this exercise";
+export const DEMO_LABEL = (name: string) => `Animated demonstration of ${name}`;
+
+export const NEXT_POSITION = (index: number, total: number) => `${index} of ${total}`;
+export const TIMES = (n: number) => `${n} times`;
+export const READY = "I'm ready";
+export const SKIP_THIS = "Skip this one";
+export const OF = (n: number) => `of ${n}`;
+export const END_SESSION = "End session";
+export const FINISH = "Finish";
+export const REST = "Rest";
+export const UP_NEXT = (name: string) => `Up next: ${name}`;
+export const START_NOW = "Start now";
+export const STEP_BACK = "Step back so the camera can see your whole body.";
+export const CAMERA_OFF_TITLE = "Turn on your camera to begin";
+export const CAMERA_OFF_BODY = "Stand 2 to 3 metres back with your whole body in view. Your video stays on this computer.";
+export const TARGET_REACHED = "That's all of them. Well done.";
+
+export const DONE_TITLE = (name: string) => `Well done, ${name}.`;
+export const DONE_ACCENT = "Well done";
+export const DONE_REST = (name: string) => `, ${name}.`;
+export const DONE_STATS = (movements: number, minutes: number) =>
+  `${movements} ${movements === 1 ? "movement" : "movements"} in ${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
+export const DONE_WEEK = (days: number) => `That's ${days} ${days === 1 ? "day" : "days"} this week.`;
+export const DONE_EMPTY = "No movements were counted this time. That's fine. Every try counts.";
+export const DONE_LIST = "Today's session";
+export const RESULT = (reps: number, target: number) => `${reps} of ${target}`;
+export const PARTLY_DONE = "Partly done";
+export const PHYSIO_CAN_SEE = `${PHYSIO_FIRST_NAME} can see this session at your next visit.`;
+
+export const WEEK_TITLE = "Your week";
+export const RECENT_SESSIONS = "Recent sessions";
+export const NO_SESSIONS = "Your sessions will appear here after you finish one.";
+export const DAY_MINUTES = (minutes: number) => `${minutes} min`;
+export const SESSION_MINUTES = (minutes: number) => `${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
+export const SESSION_EXERCISES = (n: number) => `${n} ${n === 1 ? "exercise" : "exercises"}`;
+export const TODAY_LABEL = "Today";
+
+export const SETTINGS_TITLE = "Settings";
+export const YOUR_NAME = "Your name";
+export const ADVANCED = "Advanced, for your physiotherapist";
+export const SHOW_LINES = "Show tracking lines on the camera";
+export const RECORD_DATA = "Record movement data during sessions";
+export const RECORD_HINT = "Saves body positions only, never video, as a file on this computer after each session.";
+export const DOWNLOAD_CSV = "Download session history (CSV)";
+export const CLEAR_HISTORY = "Clear history";
+export const CLEAR_CONFIRM = "Clear all session history on this computer?";
+export const CLEAR_YES = "Yes, clear it";
 export const CANCEL = "Cancel";
-export const SKIP_LINK = "Skip to content";
-export const FOOTER =
-  "MoveWell is an educational prototype, not a medical device. Camera-based estimates are approximate. Ask your physiotherapist which exercises suit you. Video is processed on this device and never uploaded.";
-export const GUIDANCE_TURN_FRONT = "Face the camera so both shoulders are visible.";
-export const GUIDANCE_TURN_SIDE = "Turn side-on to the camera for this exercise.";
+export const SAVED = "Saved.";
+export const SAVE_FAILED = "Couldn't save on this computer.";
 
-export const DIAGNOSTICS_TITLE = "Diagnostics";
-export const DIAGNOSTICS_SKELETON = "Show tracking lines on the camera";
-export const DIAGNOSTICS_FPS = (fps: number) => `Tracking at ${fps} frames per second`;
-export const DIAGNOSTICS_ANGLE = (label: string, angle: string) => `${label}: ${angle}`;
-export const DIAGNOSTICS_GUIDANCE = "Current check";
-export const DIAGNOSTICS_RECORD = "Record movement data";
-export const DIAGNOSTICS_STOP = (frames: number) => `Stop and download (${frames} frames)`;
-export const DIAGNOSTICS_RECORD_NOTE =
-  "Records body landmark positions only, never video, so counting can be tuned. The file downloads to this device.";
+export const FOOTER_NOTE =
+  "MoveWell is an educational prototype, not a medical device. Ask your physiotherapist which exercises suit you.";
+
+export const GUIDANCE_INITIAL = ["Step back so the camera can see your whole body.", "Keep the camera still."];
+export const GUIDANCE_NO_BODY = [
+  "I can't see you yet.",
+  "Step back so the camera can see your whole body.",
+  "Try turning on a light.",
+];
+export const GUIDANCE_POSTURE_MODE = "Stand comfortably and look straight ahead.";
+export const GUIDANCE_NO_FINDINGS = "You're standing well.";
+export const GUIDANCE_TURN_FRONT = "Face the camera so I can see both shoulders.";
+export const GUIDANCE_TURN_SIDE = "Turn side-on to the camera for this one.";
+
+export const CSV_FILENAME = "movewell_history.csv";
 export const RECORDING_FILENAME = "movewell-landmarks.json";
+
+export const DEV = {
+  title: "Frame inspector",
+  hide: "Hide",
+  show: "Inspector",
+  fps: "fps",
+  reading: "raw",
+  smoothed: "smoothed",
+  band: "band",
+  zone: "zone",
+  phase: "phase",
+  reps: "reps",
+  blockedFor: "blocked for",
+  joints: "Joint confidence (dropped below cut-off in red)",
+  details: "Exercise breakdown",
+} as const;

@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { createCounter, type ExerciseCounter } from "./analysis/counting";
-import { BodyPoints, COUNTED_EXERCISES, ExerciseMode, Joint, MovementPhase, type Point3 } from "./domain/models";
+import {
+  BodyPoints,
+  COUNTED_EXERCISES,
+  ExerciseMode,
+  Joint,
+  MovementPhase,
+  type Point3,
+} from "./domain/models";
 import { EventBus } from "./events";
 import { EXERCISES, getExercise } from "./exercises";
 import { VOICE_LANGUAGES } from "./i18n/speech";
@@ -25,7 +32,8 @@ function setup(mode: ExerciseMode) {
   const counted: number[] = [];
   events.subscribe("repCounted", ({ total }) => counted.push(total));
   const counter = createCounter(mode, events, clock.read);
-  const holdPose = (points: BodyPoints, seconds = 0.5) => hold((p) => counter.update(p), points, clock, seconds);
+  const holdPose = (points: BodyPoints, seconds = 0.5) =>
+    hold((p) => counter.update(p), points, clock, seconds);
   const reps = (low: BodyPoints, high: BodyPoints, cycles = 1) => {
     for (let i = 0; i < cycles; i++) {
       holdPose(low, 0.8);
@@ -33,7 +41,7 @@ function setup(mode: ExerciseMode) {
     }
     return counter.reps;
   };
-  return { counter, clock, counted, holdPose, reps };
+  return { counter, clock, counted, events, holdPose, reps };
 }
 
 describe("rep counting state machine", () => {
@@ -77,7 +85,14 @@ describe("shoulder raise", () => {
     const cropped = (deg: number) => {
       const full = armsAt(deg);
       return new BodyPoints(
-        new Map([Joint.LeftShoulder, Joint.RightShoulder, Joint.LeftElbow, Joint.RightElbow].map((j) => [j, full.get(j)!])),
+        new Map(
+          [
+            Joint.LeftShoulder,
+            Joint.RightShoulder,
+            Joint.LeftElbow,
+            Joint.RightElbow,
+          ].map((j) => [j, full.get(j)!]),
+        ),
       );
     };
     expect(reps(cropped(10), cropped(110), 2)).toBe(2);
@@ -97,7 +112,10 @@ describe("elbow curl", () => {
 
   it("does not count a bent arm raised away from the body", () => {
     const { reps } = setup(ExerciseMode.ElbowCurl);
-    const raisedBent = body({ [Joint.LeftElbow]: [330, 200], [Joint.LeftWrist]: [330, 120] });
+    const raisedBent = body({
+      [Joint.LeftElbow]: [330, 200],
+      [Joint.LeftWrist]: [330, 120],
+    });
     expect(reps(curled(5), raisedBent, 3)).toBe(0);
   });
 });
@@ -110,7 +128,10 @@ describe("marching", () => {
 
   it("does not count leaning the trunk forward", () => {
     const { reps } = setup(ExerciseMode.Marching);
-    const lean = sideBody({ [Joint.LeftShoulder]: [580, 230], [Joint.RightShoulder]: [590, 230] });
+    const lean = sideBody({
+      [Joint.LeftShoulder]: [580, 230],
+      [Joint.RightShoulder]: [590, 230],
+    });
     expect(reps(kneeLifted(0), lean, 3)).toBe(0);
   });
 
@@ -123,7 +144,16 @@ describe("marching", () => {
     const { reps } = setup(ExerciseMode.Marching);
     const facing = (liftRight: boolean) =>
       new BodyPoints(
-        new Map([...[Joint.LeftShoulder, Joint.RightShoulder, Joint.LeftHip, Joint.RightHip, Joint.LeftKnee, Joint.RightKnee].map((j) => [j, body().get(j)!] as const)]),
+        new Map([
+          ...[
+            Joint.LeftShoulder,
+            Joint.RightShoulder,
+            Joint.LeftHip,
+            Joint.RightHip,
+            Joint.LeftKnee,
+            Joint.RightKnee,
+          ].map((j) => [j, body().get(j)!] as const),
+        ]),
         new Map<Joint, Point3>([
           [Joint.LeftShoulder, [-0.18, -0.5, 0]],
           [Joint.RightShoulder, [0.18, -0.5, 0]],
@@ -165,6 +195,18 @@ describe("side bend", () => {
     holdPose(sideBody(), 1);
     expect(counter.update(sideBody())).toBe(msg.GUIDANCE_TURN_FRONT);
   });
+
+  it("reports a position problem once after the grace period, then when it is fixed", () => {
+    const { events, holdPose } = setup(ExerciseMode.SideBend);
+    const seen: string[] = [];
+    events.subscribe("positionBlocked", ({ reason }) => seen.push(reason));
+    events.subscribe("positionReady", () => seen.push("ready"));
+    holdPose(sideBody(), 0.3);
+    expect(seen).toEqual([]);
+    holdPose(sideBody(), 2);
+    holdPose(leaning(0), 0.5);
+    expect(seen).toEqual(["face_camera", "ready"]);
+  });
 });
 
 describe("sit-to-stand", () => {
@@ -185,9 +227,18 @@ describe("sit-to-stand", () => {
   };
   const standingSide = (withAnkles = true) => {
     const full = sideBody();
-    const joints = [Joint.LeftShoulder, Joint.RightShoulder, Joint.LeftHip, Joint.RightHip, Joint.LeftKnee, Joint.RightKnee];
+    const joints = [
+      Joint.LeftShoulder,
+      Joint.RightShoulder,
+      Joint.LeftHip,
+      Joint.RightHip,
+      Joint.LeftKnee,
+      Joint.RightKnee,
+    ];
     if (withAnkles) joints.push(Joint.LeftAnkle, Joint.RightAnkle);
-    return new BodyPoints(new Map(joints.map((j) => [j, full.get(j)!] as const)));
+    return new BodyPoints(
+      new Map(joints.map((j) => [j, full.get(j)!] as const)),
+    );
   };
 
   it("counts each stand from a seat when side-on", () => {
@@ -204,7 +255,16 @@ describe("sit-to-stand", () => {
     const { reps } = setup(ExerciseMode.SitToStand);
     const facing = (seated: boolean) =>
       new BodyPoints(
-        new Map([...[Joint.LeftShoulder, Joint.RightShoulder, Joint.LeftHip, Joint.RightHip, Joint.LeftKnee, Joint.RightKnee].map((j) => [j, body().get(j)!] as const)]),
+        new Map([
+          ...[
+            Joint.LeftShoulder,
+            Joint.RightShoulder,
+            Joint.LeftHip,
+            Joint.RightHip,
+            Joint.LeftKnee,
+            Joint.RightKnee,
+          ].map((j) => [j, body().get(j)!] as const),
+        ]),
         new Map<Joint, Point3>([
           [Joint.LeftShoulder, [-0.18, -0.5, 0]],
           [Joint.RightShoulder, [0.18, -0.5, 0]],
@@ -221,9 +281,16 @@ describe("sit-to-stand", () => {
     const { reps } = setup(ExerciseMode.SitToStand);
     const leanForward = new BodyPoints(
       new Map([
-        ...[...[Joint.LeftHip, Joint.RightHip, Joint.LeftKnee, Joint.RightKnee, Joint.LeftAnkle, Joint.RightAnkle]].map(
-          (j) => [j, seatedSide().get(j)!] as const,
-        ),
+        ...[
+          ...[
+            Joint.LeftHip,
+            Joint.RightHip,
+            Joint.LeftKnee,
+            Joint.RightKnee,
+            Joint.LeftAnkle,
+            Joint.RightAnkle,
+          ],
+        ].map((j) => [j, seatedSide().get(j)!] as const),
         [Joint.LeftShoulder, [560, 300] as const],
         [Joint.RightShoulder, [568, 300] as const],
       ]),
@@ -234,12 +301,18 @@ describe("sit-to-stand", () => {
 
 describe("registry", () => {
   it("registers every counted mode exactly once, with complete definitions", () => {
-    expect(EXERCISES.map((e) => e.mode).sort()).toEqual([...COUNTED_EXERCISES].sort());
+    expect(EXERCISES.map((e) => e.mode).sort()).toEqual(
+      [...COUNTED_EXERCISES].sort(),
+    );
     for (const exercise of EXERCISES) {
       expect(getExercise(exercise.mode)).toBe(exercise);
-      expect(exercise.thresholds.highDeg).toBeGreaterThan(exercise.thresholds.lowDeg);
-      for (const text of Object.values(exercise.copy)) expect(text).toBeTruthy();
-      for (const language of VOICE_LANGUAGES) expect(exercise.announcement[language]).toBeTruthy();
+      expect(exercise.thresholds.highDeg).toBeGreaterThan(
+        exercise.thresholds.lowDeg,
+      );
+      for (const text of Object.values(exercise.copy))
+        expect(text).toBeTruthy();
+      for (const language of VOICE_LANGUAGES)
+        expect(exercise.announcement[language]).toBeTruthy();
       expect(exercise.illustration.start).toBeDefined();
     }
   });
@@ -249,7 +322,11 @@ describe("registry", () => {
   });
 
   it("posture mode never counts", () => {
-    const counter: ExerciseCounter = createCounter(ExerciseMode.Posture, new EventBus(), () => 0);
+    const counter: ExerciseCounter = createCounter(
+      ExerciseMode.Posture,
+      new EventBus(),
+      () => 0,
+    );
     expect(counter.update(armsAt(100))).toBe(msg.GUIDANCE_POSTURE_MODE);
     expect(counter.reps).toBe(0);
   });
@@ -258,7 +335,12 @@ describe("registry", () => {
 describe("measurement fidelity", () => {
   it("keeps true proportions on 16:9 cameras", async () => {
     const { toBodyPoints } = await import("./infrastructure/pose");
-    const landmarks = Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.5, z: 0, visibility: 0.9 }));
+    const landmarks = Array.from({ length: 33 }, () => ({
+      x: 0.5,
+      y: 0.5,
+      z: 0,
+      visibility: 0.9,
+    }));
     landmarks[11] = { x: 0.25, y: 0.5, z: 0, visibility: 0.9 };
     const wide = toBodyPoints(landmarks, 0.6, 16 / 9);
     expect(wide.get(Joint.LeftShoulder)).toEqual([0.25 * 720 * (16 / 9), 360]);
@@ -269,11 +351,23 @@ describe("measurement fidelity", () => {
     const flat = body();
     const world = (bentTowardCamera: boolean) =>
       new BodyPoints(
-        new Map([...[Joint.LeftShoulder, Joint.RightShoulder, Joint.LeftElbow, Joint.LeftWrist, Joint.LeftHip, Joint.RightHip].map((j) => [j, flat.get(j)!] as const)]),
+        new Map([
+          ...[
+            Joint.LeftShoulder,
+            Joint.RightShoulder,
+            Joint.LeftElbow,
+            Joint.LeftWrist,
+            Joint.LeftHip,
+            Joint.RightHip,
+          ].map((j) => [j, flat.get(j)!] as const),
+        ]),
         new Map<Joint, Point3>([
           [Joint.LeftShoulder, [-0.18, -0.45, 0]],
           [Joint.LeftElbow, [-0.2, -0.17, 0]],
-          [Joint.LeftWrist, bentTowardCamera ? [-0.2, -0.2, -0.26] : [-0.2, 0.08, 0]],
+          [
+            Joint.LeftWrist,
+            bentTowardCamera ? [-0.2, -0.2, -0.26] : [-0.2, 0.08, 0],
+          ],
         ]),
       );
     expect(reps(world(false), world(true), 2)).toBe(2);
@@ -299,7 +393,8 @@ describe("tracking dropouts", () => {
     const kept = new Map<Joint, readonly [number, number]>();
     for (const joint of Object.values(Joint)) {
       const p = points.get(joint);
-      if (p && joint !== Joint.LeftWrist && joint !== Joint.RightWrist) kept.set(joint, p);
+      if (p && joint !== Joint.LeftWrist && joint !== Joint.RightWrist)
+        kept.set(joint, p);
     }
     return new BodyPoints(kept);
   };
@@ -324,17 +419,30 @@ describe("tracking dropouts", () => {
     const { counter, holdPose } = setup(ExerciseMode.ElbowCurl);
     holdPose(curled(5));
     holdPose(dropWrists(curled(5)), 1);
-    expect(counter.update(dropWrists(curled(5)))).toBe(getExercise(ExerciseMode.ElbowCurl).copy.notVisible);
+    expect(counter.update(dropWrists(curled(5)))).toBe(
+      getExercise(ExerciseMode.ElbowCurl).copy.notVisible,
+    );
   });
 });
 
 describe("form checks never fake a zero reading", () => {
   it("counts a curl whose elbow briefly drifts out at the top", () => {
     const { counter, clock, holdPose } = setup(ExerciseMode.ElbowCurl);
-    const driftedTop = body({ [Joint.LeftElbow]: [340, 250], [Joint.LeftWrist]: [380, 190] });
+    const driftedTop = body({
+      [Joint.LeftElbow]: [340, 250],
+      [Joint.LeftWrist]: [380, 190],
+    });
     for (let i = 0; i < 3; i++) {
       holdPose(curled(5), 0.6);
-      for (const pose of [curled(60), curled(100), curled(110), driftedTop, driftedTop, curled(110), curled(60)]) {
+      for (const pose of [
+        curled(60),
+        curled(100),
+        curled(110),
+        driftedTop,
+        driftedTop,
+        curled(110),
+        curled(60),
+      ]) {
         counter.update(pose);
         clock.advance(1 / 20);
       }

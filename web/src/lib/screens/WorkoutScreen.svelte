@@ -1,17 +1,14 @@
 <script lang="ts">
   import { onDestroy, onMount } from "svelte";
-  import BodyCheck from "../components/BodyCheck.svelte";
   import CameraStage from "../components/CameraStage.svelte";
-  import DiagnosticsPanel from "../components/DiagnosticsPanel.svelte";
-  import Guidance from "../components/Guidance.svelte";
-  import Onboarding from "../components/Onboarding.svelte";
-  import RepCounter from "../components/RepCounter.svelte";
+  import DevPanel from "../components/DevPanel.svelte";
+  import ExerciseMedia from "../components/ExerciseMedia.svelte";
   import type { CoachController } from "../controller.svelte";
   import { href } from "../controller.svelte";
-  import { ExerciseMode, isCounted, ViewMode } from "../domain/models";
-  import { getExercise, modeLabel } from "../exercises";
+  import { isCounted } from "../domain/models";
+  import { getExercise } from "../exercises";
   import * as msg from "../messages";
-  import { DAILY_ROUTINE } from "../routine";
+  import Handwritten from "../components/Handwritten.svelte";
 
   let { coach }: { coach: CoachController } = $props();
   let video = $state<HTMLVideoElement>();
@@ -20,16 +17,15 @@
   const s = $derived(coach.snapshot);
   const r = $derived(coach.routine);
   const running = $derived(coach.stage === "running");
-  const resting = $derived(r?.phase === "rest");
-  const nextMode = $derived(r?.next?.mode ?? null);
-  const cancelHref = $derived(coach.route.name === "workout" && coach.route.kind === "single" ? href.detail(coach.route.mode) : href.home);
-  const routeMode = $derived.by(() => {
-    const route = coach.route;
-    if (route.name !== "workout") return s.mode;
-    if (route.kind === "single") return route.mode;
-    if (route.kind === "posture") return ExerciseMode.Posture;
-    return r?.steps[r.index]?.mode ?? DAILY_ROUTINE.steps[0].mode;
-  });
+  const phase = $derived(running ? (r?.phase ?? "exercise") : "camera");
+  const step = $derived(r ? r.steps[Math.min(r.index, r.steps.length - 1)] : null);
+  const exercise = $derived(step ? getExercise(step.mode) : isCounted(s.mode) ? getExercise(s.mode) : null);
+  const next = $derived(r?.next ? getExercise(r.next.mode) : null);
+  const position = $derived(r && !r.isSingle ? msg.NEXT_POSITION(r.index + 1, r.steps.length) : "");
+  const progress = $derived(r ? (r.index / r.steps.length) * 100 : 0);
+  const panelKey = $derived(`${phase === "rest" ? "exercise" : phase}-${r?.index ?? 0}`);
+  const coachLine = $derived(coach.celebrating ? msg.TARGET_REACHED : phase === "rest" ? msg.REST : (s.guidance[0] ?? ""));
+  const percent = $derived(Math.min(100, Math.round((s.reps / Math.max(1, s.goal)) * 100)));
 
   function start() {
     if (video && canvas) coach.start(video, canvas);
@@ -42,157 +38,147 @@
   onDestroy(() => coach.stop());
 </script>
 
-<div class="workout">
-  <div class="topbar">
-    {#if r && !r.isSingle}
-      <div class="progress">
-        <p class="eyebrow">{msg.WORKOUT_STEP(Math.min(r.index + 1, r.steps.length), r.steps.length)}</p>
-        <ol class="pips" aria-hidden="true">
-          {#each r.steps as step, i (i)}
-            <li class:done={i < r.index} class:current={i === r.index}>
-              <span>{getExercise(step.mode).copy.label}</span>
-            </li>
+<div class="session">
+  {#if r && !r.isSingle}
+    <div class="track" aria-hidden="true"><span style:width="{progress}%"></span></div>
+  {/if}
+
+  <div class="layout" class:intro={phase === "intro" || phase === "camera"}>
+    <div class="left">
+      <div class="stage-slot" class:hidden={phase === "intro" || phase === "camera"}>
+        <CameraStage bind:video bind:canvas showHint={phase === "exercise" && !s.bodyDetected}>
+          {#if coach.devMode && coach.inspection}
+            <DevPanel inspection={coach.inspection} />
+          {/if}
+        </CameraStage>
+        {#if phase === "rest" && r}
+          <div class="rest fade-in" role="status" aria-live="polite">
+            <p class="title">{msg.REST}</p>
+            {#key r.restRemainingS}
+              <p class="countdown"><Handwritten text={String(r.restRemainingS)} durationMs={600} scale={1.1} weight={36} /></p>
+            {/key}
+            {#if next}
+              <p class="title">{msg.UP_NEXT(next.copy.label)}</p>
+              <p>{msg.VIEW_HINT(next.bestView)}</p>
+            {/if}
+            <button class="btn btn-light" onclick={() => coach.skipRest()}>{msg.START_NOW}</button>
+          </div>
+        {/if}
+      </div>
+      {#if phase === "intro" && exercise}
+        <ExerciseMedia {exercise} />
+      {:else if phase === "camera"}
+        <img class="photo" src="{import.meta.env.BASE_URL}img/setup-space.webp" alt="" />
+      {/if}
+    </div>
+
+    {#key panelKey}
+    <aside class="right enter">
+      <p class="position">{position}</p>
+
+      {#if phase === "camera"}
+        <h1>{msg.CAMERA_OFF_TITLE}</h1>
+        <p>{msg.CAMERA_OFF_BODY}</p>
+        {#if coach.errorMessage}<p class="error" role="alert">{coach.errorMessage}</p>{/if}
+        <button class="btn btn-light btn-block" onclick={start} disabled={coach.stage === "loading"} aria-busy={coach.stage === "loading"}>
+          {coach.stage === "loading" ? msg.LOADING_MODEL : coach.stage === "error" ? msg.TRY_AGAIN : msg.SPACE_START}
+        </button>
+        <a class="btn btn-outline-light btn-block" href={href.home}>{msg.BACK}</a>
+      {:else if phase === "intro" && exercise && step}
+        <h1>{exercise.copy.label}</h1>
+        <ol class="steps">
+          {#each exercise.copy.steps as text, i (i)}
+            <li class="enter" style:--i={i + 2}><span class="num" aria-hidden="true">{i + 1}</span><span>{text}</span></li>
           {/each}
         </ol>
-      </div>
-    {:else}
-      <h1 class="title">{modeLabel(routeMode)}</h1>
-    {/if}
-    <div class="actions">
-      {#if r && r.phase === "exercise" && !r.isSingle}
-        <button class="btn" onclick={() => coach.skipExercise()} disabled={!running}>{msg.WORKOUT_SKIP}</button>
-      {/if}
-      <button class="btn btn-accent" onclick={() => coach.endSession()}>
-        {r?.isSingle ? msg.WORKOUT_FINISH : msg.WORKOUT_END}
-      </button>
-    </div>
-  </div>
-
-  <div class="layout">
-    <div class="stage-wrap">
-      <CameraStage
-        bind:video
-        bind:canvas
-        view={s.view}
-        bodyDetected={s.bodyDetected || resting}
-        {running}
-        onToggleView={() => coach.toggleView()}
-        canSwitchView={s.mode === ExerciseMode.Posture}
-      />
-      {#if resting && r}
-        <div class="rest" role="status" aria-live="polite">
-          <p class="eyebrow on-stage">{msg.REST_TITLE}</p>
-          <p class="countdown serif">{r.restRemainingS}</p>
-          {#if nextMode}
-            <p class="next">{msg.REST_NEXT(getExercise(nextMode).copy.label)}</p>
-            <p class="turn">{msg.REST_TURN(getExercise(nextMode).bestView === ViewMode.Side)}</p>
+        <p class="care">{msg.TAKE_CARE}: {exercise.copy.safety}</p>
+        <p class="target">{msg.TIMES(step.target)}</p>
+        <button class="btn btn-light btn-block" onclick={() => coach.beginExercise()}>{msg.READY}</button>
+        <button class="btn btn-outline-light btn-block" onclick={() => coach.skipExercise()}>{msg.SKIP_THIS}</button>
+      {:else if exercise}
+        <h2 class="name">{exercise.copy.label}</h2>
+        <p class="count" class:celebrating={coach.celebrating} aria-live="polite" aria-atomic="true">
+          {#key s.reps}<span class="number"><Handwritten text={String(s.reps)} durationMs={450} scale={1.1} weight={36} /></span>{/key}<span class="of">{msg.OF(s.goal)}</span>
+        </p>
+        <div class="bar" class:celebrating={coach.celebrating} role="progressbar" aria-valuemin="0" aria-valuemax={s.goal} aria-valuenow={Math.min(s.reps, s.goal)}>
+          <span style:width="{percent}%"></span>
+        </div>
+        {#key coachLine}<p class="coach fade-in">{coachLine}</p>{/key}
+        <div class="end">
+          {#if phase === "exercise" && r && !r.isSingle}
+            <button class="link light" onclick={() => coach.skipExercise()}>{msg.SKIP_THIS}</button>
           {/if}
-          <button class="btn btn-primary" onclick={() => coach.skipRest()}>{msg.REST_SKIP}</button>
+          <button class="btn btn-outline-light btn-block" onclick={() => coach.endSession()}>
+            {r?.isSingle ? msg.FINISH : msg.END_SESSION}
+          </button>
         </div>
       {/if}
-    </div>
-
-    <aside class="side" aria-label="Exercise feedback">
-      {#if isCounted(s.mode)}
-        <RepCounter
-          mode={s.mode}
-          reps={s.reps}
-          goal={s.goal}
-          phase={s.phase}
-          angle={s.angle}
-          celebrating={coach.celebrating}
-        />
-      {/if}
-      <Guidance lines={resting ? [msg.REST_TITLE] : s.guidance} />
-      {#if s.mode === ExerciseMode.Posture}
-        <BodyCheck findings={s.findings} />
-      {/if}
-      {#if r?.next && !resting}
-        <p class="up-next">{msg.WORKOUT_NEXT(getExercise(r.next.mode).copy.label)}</p>
-      {/if}
-      <DiagnosticsPanel {coach} />
     </aside>
+    {/key}
   </div>
-
-  <p class="safety" role="note">{msg.SAFETY}</p>
 </div>
 
-{#if !running}
-  <Onboarding stage={coach.stage} errorMessage={coach.errorMessage} {cancelHref} onStart={start} />
-{/if}
-
 <style>
-  .workout {
-    display: grid;
-    gap: var(--space-4);
-  }
-
-  .topbar {
+  .session {
+    min-height: 100vh;
+    background: var(--color-deep);
+    color: var(--color-on-deep);
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-4);
+    flex-direction: column;
   }
 
-  .title {
-    font-size: var(--font-size-3xl);
+  .track {
+    height: 6px;
+    background: rgb(243 238 228 / 0.2);
   }
 
-  .progress {
-    display: grid;
-    gap: var(--space-2);
-  }
-
-  .pips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  .pips li {
-    padding: var(--space-1) var(--space-3);
-    border-radius: var(--radius-full);
-    border: 2px solid var(--color-border);
-    background: var(--color-surface);
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-medium);
-    color: var(--color-text-muted);
-  }
-
-  .pips li.done {
-    background: var(--color-primary-subtle);
-    border-color: var(--color-primary-subtle);
-    color: var(--color-primary);
-  }
-
-  .pips li.done span::before {
-    content: "✓ ";
-  }
-
-  .pips li.current {
-    border-color: var(--color-primary);
-    color: var(--color-text);
-    font-weight: var(--font-weight-semibold);
-  }
-
-  .actions {
-    display: flex;
-    gap: var(--space-2);
+  .track span {
+    display: block;
+    height: 100%;
+    background: var(--color-on-deep);
+    transition: width var(--duration-bar) var(--ease-out);
   }
 
   .layout {
+    flex: 1;
     display: grid;
-    grid-template-columns: minmax(0, 1.6fr) minmax(340px, 1fr);
-    gap: var(--space-5);
-    align-items: start;
+    grid-template-columns: minmax(0, 65fr) minmax(0, 35fr);
+    gap: var(--space-10);
+    width: 100%;
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: var(--space-8) var(--gutter);
   }
 
-  .stage-wrap {
+  .layout.intro {
+    grid-template-columns: minmax(0, 6fr) minmax(0, 5fr);
+    align-items: center;
+  }
+
+  .left {
     position: relative;
+    min-height: 0;
+    display: grid;
+  }
+
+  .stage-slot {
+    position: relative;
+    min-height: min(78vh, 760px);
+  }
+
+  .stage-slot.hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    min-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .left :global(.media),
+  .left .photo {
+    aspect-ratio: 4 / 3;
   }
 
   .rest {
@@ -201,64 +187,180 @@
     display: grid;
     place-content: center;
     justify-items: center;
-    gap: var(--space-2);
-    padding: var(--space-6);
-    border-radius: var(--stage-radius);
-    background: color-mix(in srgb, var(--color-stage) 88%, transparent);
-    color: var(--color-on-stage);
+    gap: var(--space-3);
+    padding: var(--space-8);
+    border-radius: var(--photo-radius);
+    background: rgb(22 58 44 / 0.88);
     text-align: center;
   }
 
-  .on-stage {
-    color: var(--color-on-stage);
-    opacity: 0.85;
+  .rest .title {
+    font-family: var(--font-display);
+    font-size: var(--type-title);
+    font-weight: var(--weight-semibold);
   }
 
   .countdown {
-    margin: 0;
-    font-size: var(--font-size-display);
-    line-height: 1;
+    font-family: var(--font-accent);
+    font-size: calc(var(--type-counter) * 1.4);
+    font-style: italic;
+    font-weight: 400;
+    line-height: 0.9;
   }
 
-  .next {
-    margin: 0;
-    font-size: var(--font-size-2xl);
-    font-weight: var(--font-weight-semibold);
+  .rest .btn {
+    margin-top: var(--space-4);
+    min-width: 16rem;
   }
 
-  .turn {
-    margin: 0 0 var(--space-4);
-    font-size: var(--font-size-lg);
+  .right {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+    min-width: 0;
+    justify-content: center;
+  }
+
+  .position {
+    align-self: flex-end;
+    min-height: 1.5em;
+    font-size: var(--type-small);
+    opacity: 0.85;
+  }
+
+  h1,
+  .name {
+    color: var(--color-on-deep);
+  }
+
+  h1 {
+    font-size: calc(56px * var(--text-scale));
+  }
+
+  .name {
+    font-size: var(--type-title);
+  }
+
+  .steps {
+    display: grid;
+    gap: var(--space-4);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .steps li {
+    display: flex;
+    gap: var(--space-4);
+    align-items: flex-start;
+  }
+
+  .num {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--color-on-deep);
+    color: var(--color-primary);
+    font-family: var(--font-display);
+    font-weight: var(--weight-bold);
+    font-size: var(--type-small);
+  }
+
+  .care {
+    font-size: var(--type-small);
     opacity: 0.9;
   }
 
-  .side {
+  .target {
+    font-family: var(--font-display);
+    font-size: calc(28px * var(--text-scale));
+    font-weight: var(--weight-semibold);
+  }
+
+  .count {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-3);
+  }
+
+  .number {
+    font-family: var(--font-accent);
+    font-size: calc(var(--type-counter) * 1.25);
+    font-style: italic;
+    font-weight: 400;
+    line-height: 0.85;
+    letter-spacing: -0.01em;
+  }
+
+  .of {
+    font-size: var(--type-title);
+    font-weight: var(--weight-semibold);
+  }
+
+  .bar {
+    height: 14px;
+    border-radius: var(--radius-full);
+    background: rgb(243 238 228 / 0.2);
+    overflow: hidden;
+  }
+
+  .bar span {
+    display: block;
+    height: 100%;
+    background: var(--color-on-deep);
+    transition:
+      width var(--duration-bar) var(--ease-out),
+      background var(--duration-slow) var(--ease);
+  }
+
+  .bar.celebrating span {
+    background: var(--color-celebrate-on-deep);
+  }
+
+  .number {
+    transition: color var(--duration-slow) var(--ease);
+  }
+
+  .celebrating .number {
+    color: var(--color-celebrate-on-deep);
+  }
+
+  .coach {
+    font-size: var(--type-lead);
+    font-weight: var(--weight-medium);
+    min-height: 3em;
+  }
+
+  .end {
     display: grid;
-    gap: var(--space-4);
+    gap: var(--space-3);
+    margin-top: auto;
   }
 
-  .up-next {
-    margin: 0;
-    padding: var(--space-3) var(--space-5);
+  .light {
+    color: var(--color-on-deep);
+    justify-self: start;
+  }
+
+  .error {
+    padding: var(--space-4) var(--space-5);
     border-radius: var(--radius-md);
-    background: var(--color-primary-subtle);
-    color: var(--color-primary);
-    font-weight: var(--font-weight-semibold);
+    background: var(--color-warning-surface);
+    color: var(--color-warning);
+    font-size: var(--type-small);
   }
 
-  .safety {
-    margin: 0;
-    padding: var(--space-3) var(--space-5);
-    border-radius: var(--radius-md);
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-left: 6px solid var(--color-accent);
-    font-weight: var(--font-weight-medium);
-  }
+  @media (max-width: 900px) {
+    .layout,
+    .layout.intro {
+      grid-template-columns: 1fr;
+    }
 
-  @media (max-width: 1024px) {
-    .layout {
-      grid-template-columns: minmax(0, 1fr);
+    .stage-slot {
+      min-height: 52vh;
     }
   }
 </style>

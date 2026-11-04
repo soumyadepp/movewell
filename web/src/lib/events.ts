@@ -3,12 +3,16 @@
  * sentences, so each listener can render them in its own language.
  */
 import type { ExerciseMode, Finding, ViewMode } from "./domain/models";
+import type { BlockReason } from "./exercises/types";
 
 export interface EventMap {
   repCounted: { mode: ExerciseMode; total: number };
   goalReached: { mode: ExerciseMode; goal: number };
   findingChanged: { finding: Finding };
+  bodyFound: Record<string, never>;
   bodyLost: Record<string, never>;
+  positionBlocked: { reason: Exclude<BlockReason, "form"> };
+  positionReady: Record<string, never>;
   viewChanged: { view: ViewMode };
   modeChanged: { mode: ExerciseMode };
   timerToggled: { running: boolean };

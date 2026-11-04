@@ -8,9 +8,10 @@ import type { Exercise } from "./types";
 export const sitToStand: Exercise = {
   mode: ExerciseMode.SitToStand,
   bestView: ViewMode.Front,
+  photo: "sit-to-stand.webp",
   thresholds: { lowDeg: 120, highDeg: 155, minIntervalS: 1.2 },
   copy: {
-    label: "Sit-to-stand",
+    label: "Sit to stand",
     summary: "Stands up from a chair and sits back down with control.",
     steps: [
       "Sit near the front of a sturdy chair, facing the camera.",

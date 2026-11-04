@@ -1,194 +1,147 @@
 <script lang="ts">
-  import Pictogram from "../components/Pictogram.svelte";
+  import ExerciseMedia from "../components/ExerciseMedia.svelte";
+  import Segmented from "../components/Segmented.svelte";
   import { DEFAULT_GOAL, GOAL_OPTIONS } from "../config";
   import { href } from "../controller.svelte";
-  import { type CountedExercise, ViewMode } from "../domain/models";
+  import type { CountedExercise } from "../domain/models";
   import { getExercise } from "../exercises";
   import * as msg from "../messages";
 
   let { mode }: { mode: CountedExercise } = $props();
-  let target = $state<number>(DEFAULT_GOAL);
+  let target = $state(String(DEFAULT_GOAL));
   const exercise = $derived(getExercise(mode));
   const copy = $derived(exercise.copy);
+  const targets = GOAL_OPTIONS.map((n) => ({ id: String(n), label: String(n) }));
 </script>
 
-<article class="detail">
-  <a class="back" href={href.library}>← {msg.BACK_TO_LIBRARY}</a>
-
+<div class="container page">
   <div class="layout">
-    <div class="demo card">
-      <Pictogram illustration={exercise.illustration} label={msg.DEMO_LABEL(copy.label)} size={260} />
-      <span class="view">{exercise.bestView === ViewMode.Side ? msg.VIEW_SIDE_LABEL : msg.VIEW_FRONT_LABEL}</span>
-    </div>
-
+    <ExerciseMedia {exercise} />
     <div class="info">
+      <a class="link" href={href.library}>← {msg.ALL_EXERCISES}</a>
       <h1>{copy.label}</h1>
-      <p class="summary">{copy.summary}</p>
-
-      <section class="card">
-        <h2 class="eyebrow">{msg.DETAIL_STEPS}</h2>
-        <ol class="how">
-          {#each copy.steps as step, i (i)}
-            <li><span class="num" aria-hidden="true">{i + 1}</span><span>{step}</span></li>
-          {/each}
-        </ol>
-      </section>
-
-      <div class="pair">
-        <section class="card">
-          <h2 class="eyebrow">{msg.DETAIL_BENEFIT}</h2>
+      <p class="secondary small">{msg.VIEW_HINT(exercise.bestView)}</p>
+      <ol class="steps">
+        {#each copy.steps as step, i (i)}
+          <li><span class="num" aria-hidden="true">{i + 1}</span><span>{step}</span></li>
+        {/each}
+      </ol>
+      <div class="notes">
+        <div>
+          <h2 class="note-title">{msg.WHY_IT_HELPS}</h2>
           <p>{copy.benefit}</p>
-        </section>
-        <section class="card safety">
-          <h2 class="eyebrow">{msg.DETAIL_SAFETY}</h2>
-          <p>{copy.safety}</p>
-        </section>
-      </div>
-
-      <div class="start">
-        <div class="targets" role="group" aria-labelledby="target-label">
-          <span id="target-label" class="eyebrow">{msg.DETAIL_TARGET}</span>
-          {#each GOAL_OPTIONS as option (option)}
-            <button class="target" aria-pressed={target === option} onclick={() => (target = option)}>{option}</button>
-          {/each}
         </div>
-        <a class="btn btn-primary btn-lg" href={href.single(mode, target)}>{msg.DETAIL_START}</a>
+        <div>
+          <h2 class="note-title">{msg.TAKE_CARE}</h2>
+          <p>{copy.safety}</p>
+        </div>
+      </div>
+      <div class="start">
+        <div class="how-many">
+          <span class="note-title" id="how-many">{msg.HOW_MANY}</span>
+          <Segmented label={msg.HOW_MANY} options={targets} value={target} onChange={(v) => (target = v)} />
+        </div>
+        <a class="btn btn-primary" href={href.single(mode, Number(target))}>{msg.START_EXERCISE}</a>
       </div>
     </div>
   </div>
-</article>
+</div>
 
 <style>
-  .detail {
-    display: grid;
-    gap: var(--space-4);
-  }
-
-  .back {
-    font-weight: var(--font-weight-semibold);
-    text-decoration: none;
-    width: fit-content;
-    min-height: 44px;
-    display: inline-flex;
-    align-items: center;
+  .page {
+    padding-top: var(--space-12);
+    padding-bottom: var(--space-14);
   }
 
   .layout {
     display: grid;
-    grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.2fr);
-    gap: var(--space-8);
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    gap: var(--space-12);
     align-items: start;
-  }
-
-  .demo {
-    display: grid;
-    justify-items: center;
-    gap: var(--space-4);
-    padding: var(--space-8);
-    background: var(--color-primary-subtle);
-    position: sticky;
-    top: var(--space-6);
-  }
-
-  .view {
-    padding: var(--space-1) var(--space-4);
-    border-radius: var(--radius-full);
-    background: var(--color-surface);
-    font-weight: var(--font-weight-semibold);
-    font-size: var(--font-size-sm);
   }
 
   .info {
     display: grid;
     gap: var(--space-4);
+    justify-items: start;
   }
 
   h1 {
-    font-size: var(--font-size-4xl);
+    font-size: calc(56px * var(--text-scale));
   }
 
-  .summary {
-    margin: 0;
-    font-size: var(--font-size-lg);
-    color: var(--color-text-muted);
-  }
-
-  .how {
+  .steps {
     display: grid;
-    gap: var(--space-3);
-    margin: var(--space-3) 0 0;
-    padding: 0;
+    gap: var(--space-4);
+    margin: var(--space-4) 0 0;
+    padding: var(--space-6) 0 0;
+    border-top: 1px solid var(--color-rule);
     list-style: none;
+    width: 100%;
   }
 
-  .how li {
+  .steps li {
     display: flex;
-    gap: var(--space-3);
-    align-items: baseline;
-    font-size: var(--font-size-lg);
+    gap: var(--space-4);
+    align-items: flex-start;
   }
 
   .num {
-    font-family: var(--font-family-display);
-    font-style: italic;
-    font-size: var(--font-size-2xl);
-    color: var(--color-primary);
-    min-width: 1.25rem;
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    color: var(--color-on-primary);
+    font-family: var(--font-display);
+    font-weight: var(--weight-bold);
+    font-size: var(--type-small);
   }
 
-  .pair {
+  .notes {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: var(--space-4);
+    gap: var(--space-8);
+    width: 100%;
+    padding: var(--space-6) 0;
+    border-top: 1px solid var(--color-rule);
+    border-bottom: 1px solid var(--color-rule);
   }
 
-  .pair p {
-    margin: var(--space-2) 0 0;
-  }
-
-  .safety {
-    border-left: 6px solid var(--color-accent);
+  .note-title {
+    font-family: var(--font-text);
+    font-size: var(--type-lead);
+    font-weight: var(--weight-semibold);
+    letter-spacing: 0;
+    margin-bottom: var(--space-2);
+    display: block;
   }
 
   .start {
+    display: grid;
+    gap: var(--space-6);
+    width: 100%;
+    margin-top: var(--space-2);
+  }
+
+  .how-many {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: var(--space-4);
-    margin-top: var(--space-2);
   }
 
-  .targets {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
+  .how-many .note-title {
+    margin: 0;
   }
 
-  .target {
-    min-width: 56px;
-    min-height: 48px;
-    border-radius: var(--radius-full);
-    border: 2px solid var(--color-border);
-    background: var(--color-surface);
-    color: var(--color-text);
-    font: var(--button-font);
-    cursor: pointer;
-  }
-
-  .target[aria-pressed="true"] {
-    border-color: var(--color-primary);
-    background: var(--color-primary-subtle);
-  }
-
-  @media (max-width: 860px) {
+  @media (max-width: 900px) {
     .layout,
-    .pair {
+    .notes {
       grid-template-columns: 1fr;
-    }
-
-    .demo {
-      position: static;
     }
   }
 </style>

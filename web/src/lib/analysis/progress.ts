@@ -64,3 +64,66 @@ export function dailyReps(history: SessionRecord[], mode: ExerciseMode, today: D
     return { day, reps: totals.get(day) ?? 0 };
   });
 }
+
+export interface WeekDay {
+  key: string;
+  date: Date;
+  isToday: boolean;
+  isFuture: boolean;
+  done: boolean;
+  minutes: number;
+}
+
+/** The current Monday-to-Sunday week with activity per day. */
+export function currentWeek(history: SessionRecord[], today: Date): WeekDay[] {
+  const offset = (today.getDay() + 6) % 7;
+  const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - offset);
+  const seconds = new Map<string, number>();
+  for (const r of history) {
+    const day = recordDay(r);
+    seconds.set(day, (seconds.get(day) ?? 0) + (Number(r.duration_seconds) || 0));
+  }
+  const todayKey = dayKey(today);
+  return Array.from({ length: 7 }, (_, i) => {
+    const date = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
+    const key = dayKey(date);
+    return {
+      key,
+      date,
+      isToday: key === todayKey,
+      isFuture: key > todayKey,
+      done: seconds.has(key),
+      minutes: Math.max(seconds.has(key) ? 1 : 0, Math.round((seconds.get(key) ?? 0) / 60)),
+    };
+  });
+}
+
+export interface DaySession {
+  key: string;
+  date: Date;
+  minutes: number;
+  exercises: number;
+  movements: number;
+}
+
+/** Recent active days, newest first, each summarising that day's exercises. */
+export function recentDays(history: SessionRecord[], limit = 6): DaySession[] {
+  const byDay = new Map<string, SessionRecord[]>();
+  for (const r of history) {
+    const day = recordDay(r);
+    byDay.set(day, [...(byDay.get(day) ?? []), r]);
+  }
+  return [...byDay.entries()]
+    .sort(([a], [b]) => (a < b ? 1 : -1))
+    .slice(0, limit)
+    .map(([key, records]) => {
+      const [y, m, d] = key.split("-").map(Number);
+      return {
+        key,
+        date: new Date(y, m - 1, d),
+        minutes: Math.max(1, Math.round(records.reduce((s, r) => s + (Number(r.duration_seconds) || 0), 0) / 60)),
+        exercises: new Set(records.map((r) => r.exercise)).size,
+        movements: records.reduce((s, r) => s + (Number(r.repetitions) || 0), 0),
+      };
+    });
+}

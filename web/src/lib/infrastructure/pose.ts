@@ -3,7 +3,7 @@ import { DrawingUtils, FilesetResolver, type Landmark, type NormalizedLandmark, 
 import { POSE, REFERENCE_HEIGHT } from "../config";
 import { BodyPoints, Joint, type Point, type Point3 } from "../domain/models";
 
-const LANDMARK_INDEX: Record<Joint, number> = {
+export const LANDMARK_INDEX: Record<Joint, number> = {
   [Joint.Nose]: 0,
   [Joint.LeftEar]: 7,
   [Joint.RightEar]: 8,

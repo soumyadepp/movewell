@@ -8,14 +8,17 @@ describe("RoutineRun", () => {
   it("moves through exercise, rest and the next exercise", () => {
     const clock = new FakeClock();
     const run = new RoutineRun(DAILY_ROUTINE, clock.read);
+    expect(run.phase).toBe("intro");
     expect(run.current?.mode).toBe(ExerciseMode.ArmRaise);
+    run.begin();
     clock.advance(30);
     expect(run.completeStep(10, true)).toBe("rest");
-    expect(run.restRemainingS()).toBe(20);
-    clock.advance(19);
+    expect(run.restRemainingS()).toBe(15);
+    clock.advance(14);
     expect(run.tick()).toBe(false);
     clock.advance(1);
     expect(run.tick()).toBe(true);
+    expect(run.phase).toBe("intro");
     expect(run.current?.mode).toBe(ExerciseMode.ElbowCurl);
     expect(run.results[0]).toEqual({ mode: ExerciseMode.ArmRaise, target: 10, reps: 10, durationS: 30, completed: true });
   });
@@ -23,9 +26,11 @@ describe("RoutineRun", () => {
   it("skips rest and finishes after the last step", () => {
     const run = new RoutineRun(DAILY_ROUTINE, new FakeClock().read);
     for (let i = 0; i < DAILY_ROUTINE.steps.length - 1; i++) {
+      run.begin();
       run.completeStep(3, false);
       run.skipRest();
     }
+    run.begin();
     expect(run.completeStep(5, true)).toBe("done");
     expect(run.current).toBeNull();
     expect(run.results).toHaveLength(DAILY_ROUTINE.steps.length);
@@ -39,6 +44,7 @@ describe("RoutineRun", () => {
 
   it("keeps partial progress when finished early", () => {
     const run = new RoutineRun(DAILY_ROUTINE, new FakeClock().read);
+    run.begin();
     run.finish(4);
     expect(run.phase).toBe("done");
     expect(run.results).toEqual([expect.objectContaining({ reps: 4, completed: false })]);
@@ -83,5 +89,35 @@ describe("progress", () => {
       { day: "2026-11-03", reps: 0 },
       { day: "2026-11-04", reps: 7 },
     ]);
+  });
+});
+
+describe("week views", () => {
+  const rec = (day: string, seconds: number, exercise = "ARM RAISE"): SessionRecord => ({
+    date_time: `${day}T09:00:00`,
+    duration_seconds: seconds,
+    view_mode: "FRONT",
+    exercise,
+    repetitions: 10,
+    posture_observations: "",
+  });
+
+  it("builds a Monday-to-Sunday week with minutes", async () => {
+    const { currentWeek } = await import("./analysis/progress");
+    const wednesday = new Date(2026, 10, 4, 18, 0, 0);
+    const week = currentWeek([rec("2026-11-02", 300), rec("2026-11-04", 480), rec("2026-11-04", 60)], wednesday);
+    expect(week.map((d) => d.key)).toEqual([
+      "2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05", "2026-11-06", "2026-11-07", "2026-11-08",
+    ]);
+    expect(week.map((d) => d.done)).toEqual([true, false, true, false, false, false, false]);
+    expect(week[2]).toMatchObject({ isToday: true, minutes: 9 });
+    expect(week[3].isFuture).toBe(true);
+  });
+
+  it("groups recent days newest first", async () => {
+    const { recentDays } = await import("./analysis/progress");
+    const days = recentDays([rec("2026-11-02", 300), rec("2026-11-04", 240), rec("2026-11-04", 240, "MARCHING")]);
+    expect(days.map((d) => d.key)).toEqual(["2026-11-04", "2026-11-02"]);
+    expect(days[0]).toMatchObject({ minutes: 8, exercises: 2, movements: 20 });
   });
 });

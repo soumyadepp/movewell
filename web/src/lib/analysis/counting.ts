@@ -32,12 +32,18 @@ const DWELL_FRAMES = 2;
 /** Gaps longer than this restart smoothing instead of blending stale values. */
 const MAX_GAP_S = 0.5;
 
+export type Zone = "low" | "mid" | "high";
+
 /** What the assistant and UI need from any counter. */
 export interface ExerciseCounter {
   readonly mode: ExerciseMode;
   readonly reps: number;
   readonly phase: MovementPhase;
   readonly lastAngle: number | null;
+  /** Which side of the hysteresis band the smoothed angle is in. */
+  readonly zone: Zone;
+  /** When the current run of blocked frames started, in clock seconds. */
+  readonly blockedSince: number | null;
   update(points: BodyPoints): string;
 }
 
@@ -47,13 +53,13 @@ class PostureOnlyCounter implements ExerciseCounter {
   readonly reps = 0;
   readonly phase = MovementPhase.Ready;
   readonly lastAngle = null;
+  readonly zone: Zone = "mid";
+  readonly blockedSince = null;
 
   update(): string {
     return GUIDANCE_POSTURE_MODE;
   }
 }
-
-type Zone = "low" | "mid" | "high";
 
 /** Counts repetitions of one exercise with smoothing, dwell and dropout tolerance. */
 export class RepCounter implements ExerciseCounter {
@@ -62,10 +68,11 @@ export class RepCounter implements ExerciseCounter {
   phase = MovementPhase.Ready;
   lastAngle: number | null = null;
   private smoothed: number | null = null;
-  private zone: Zone = "mid";
+  zone: Zone = "mid";
+  blockedSince: number | null = null;
   private zoneSince = 0;
   private lastRepTime = -Infinity;
-  private blockedSince: number | null = null;
+  private blockAnnounced = false;
   private zoneFrames = 0;
   private lastSampleAt: number | null = null;
 
@@ -89,12 +96,20 @@ export class RepCounter implements ExerciseCounter {
       this.lastSampleAt = null;
       this.zone = "mid";
       this.zoneFrames = 0;
+      if (result.blocked !== "form" && !this.blockAnnounced) {
+        this.blockAnnounced = true;
+        this.events.publish("positionBlocked", { reason: result.blocked });
+      }
       if (result.blocked === "face_camera") return GUIDANCE_TURN_FRONT;
       if (result.blocked === "turn_side") return GUIDANCE_TURN_SIDE;
       if (result.blocked === "form") return copy.guidance;
       return copy.notVisible;
     }
     this.blockedSince = null;
+    if (this.blockAnnounced) {
+      this.blockAnnounced = false;
+      this.events.publish("positionReady", {});
+    }
 
     const dt = this.lastSampleAt === null ? Infinity : now - this.lastSampleAt;
     this.lastSampleAt = now;

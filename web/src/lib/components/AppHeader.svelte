@@ -1,131 +1,133 @@
 <script lang="ts">
-  import type { CoachController, Route } from "../controller.svelte";
+  import type { Route } from "../controller.svelte";
   import { href } from "../controller.svelte";
   import * as msg from "../messages";
-  import SettingsBar from "./SettingsBar.svelte";
+  import Handwritten from "./Handwritten.svelte";
 
-  let { coach }: { coach: CoachController } = $props();
+  let { route, step = null }: { route: Route; step?: string | null } = $props();
 
-  const section = (route: Route) =>
-    route.name === "library" || route.name === "detail" ? "library" : route.name === "progress" ? "progress" : "home";
-  const current = $derived(section(coach.route));
+  const section = $derived(
+    route.name === "library" || route.name === "detail"
+      ? "exercises"
+      : route.name === "week"
+        ? "week"
+        : route.name === "settings"
+          ? "settings"
+          : "today",
+  );
   const links = [
-    { id: "home", label: msg.NAV_HOME, href: href.home },
-    { id: "library", label: msg.NAV_EXERCISES, href: href.library },
-    { id: "progress", label: msg.NAV_PROGRESS, href: href.progress },
+    { id: "today", label: msg.NAV_TODAY, href: href.home },
+    { id: "exercises", label: msg.NAV_EXERCISES, href: href.library },
+    { id: "week", label: msg.NAV_WEEK, href: href.week },
+    { id: "settings", label: msg.NAV_SETTINGS, href: href.settings },
   ];
 </script>
 
 <header class="header">
-  <a class="brand" href={href.home} aria-label="{msg.APP_NAME}, {msg.NAV_HOME}">
-    <span class="mark" aria-hidden="true">
-      <svg viewBox="0 0 32 32" width="36" height="36"
-        ><circle cx="16" cy="16" r="16" class="mark-bg" /><path
-          class="mark-fg"
-          d="M8 21 L12.5 11 L16 18 L19.5 11 L24 21"
-        /></svg
+  <div class="container bar">
+    {#if step}
+      <span class="wordmark" aria-label={msg.APP_NAME}
+        >{msg.WORDMARK[0]}<span class="accent"><Handwritten text={msg.WORDMARK[1]} delayMs={150} unitsPerMs={9} weight={70} /></span><span class="dot" aria-hidden="true"></span></span
       >
-    </span>
-    <span class="wordmark">{msg.APP_NAME_LEAD}<em>{msg.APP_NAME_ACCENT}</em></span>
-  </a>
-
-  <nav aria-label={msg.NAV_LABEL}>
-    <ul>
-      {#each links as link (link.id)}
-        <li>
-          <a href={link.href} aria-current={current === link.id ? "page" : undefined}>{link.label}</a>
-        </li>
-      {/each}
-    </ul>
-  </nav>
-
-  <SettingsBar
-    textSize={coach.textSize}
-    muted={coach.muted}
-    language={coach.language}
-    voiceMissing={coach.voiceMissing}
-    onTextSize={(size) => coach.setTextSize(size)}
-    onMuted={(m) => coach.setMuted(m)}
-    onLanguage={(l) => coach.chooseLanguage(l)}
-  />
+      <span class="step">{step}</span>
+    {:else}
+      <a class="wordmark" href={href.home} aria-label="{msg.APP_NAME}, {msg.NAV_TODAY}"
+        >{msg.WORDMARK[0]}<span class="accent"><Handwritten text={msg.WORDMARK[1]} delayMs={150} unitsPerMs={9} weight={70} /></span><span class="dot" aria-hidden="true"></span></a
+      >
+      <nav aria-label={msg.NAV_LABEL}>
+        {#each links as link (link.id)}
+          <a href={link.href} aria-current={section === link.id ? "page" : undefined}>{link.label}</a>
+        {/each}
+      </nav>
+    {/if}
+  </div>
 </header>
 
 <style>
   .header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--color-bg);
+    border-bottom: 1px solid var(--color-rule);
+  }
+
+  .bar {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
-    gap: var(--space-4) var(--space-8);
-  }
-
-  .brand {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-3);
-    color: var(--color-text);
-    text-decoration: none;
-  }
-
-  .mark-bg {
-    fill: var(--color-primary);
-  }
-
-  .mark-fg {
-    fill: none;
-    stroke: var(--color-on-primary);
-    stroke-width: 2.6;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+    justify-content: space-between;
+    gap: var(--space-8);
+    min-height: var(--header-height);
   }
 
   .wordmark {
-    font-size: var(--font-size-2xl);
-    font-weight: var(--font-weight-bold);
-    letter-spacing: var(--letter-spacing-tight);
+    display: inline-flex;
+    align-items: baseline;
+    font-family: var(--font-display);
+    font-weight: var(--weight-black);
+    font-size: 30px;
+    letter-spacing: -0.03em;
+    color: var(--color-primary);
+    text-decoration: none;
   }
 
-  .wordmark em {
-    color: var(--color-primary);
-    margin-left: 1px;
+  .dot {
+    margin-left: 4px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--color-celebrate);
   }
 
   nav {
-    flex: 1;
-  }
-
-  ul {
     display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-1);
-    margin: 0;
-    padding: 0;
-    list-style: none;
+    align-self: stretch;
+    gap: var(--space-8);
   }
 
   nav a {
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    min-height: 48px;
-    padding: 0 var(--space-4);
-    border-radius: var(--radius-full);
-    color: var(--color-text);
-    font-weight: var(--font-weight-semibold);
+    padding: 0 var(--space-2);
+    border-bottom: 3px solid transparent;
+    color: var(--color-text-secondary);
+    transition:
+      color var(--duration-fast) var(--ease),
+      border-color var(--duration-base) var(--ease);
+    font-size: var(--type-label);
+    font-weight: var(--weight-semibold);
     text-decoration: none;
   }
 
   nav a:hover {
-    background: var(--color-primary-subtle);
+    color: var(--color-text);
   }
 
   nav a[aria-current="page"] {
-    background: var(--color-primary);
-    color: var(--color-on-primary);
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+  }
+
+  .step {
+    font-size: var(--type-small);
+    color: var(--color-text-secondary);
   }
 
   @media (max-width: 900px) {
+    .bar {
+      flex-wrap: wrap;
+      padding-top: var(--space-3);
+    }
+
     nav {
-      order: 3;
-      flex-basis: 100%;
+      width: 100%;
+      gap: var(--space-4);
+      overflow-x: auto;
+    }
+
+    nav a {
+      min-height: 56px;
+      font-size: var(--type-small);
     }
   }
 </style>

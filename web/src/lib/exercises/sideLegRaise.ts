@@ -10,6 +10,7 @@ const legAngle = (p: BodyPoints, hip: Joint, ankle: Joint, knee: Joint) =>
 export const sideLegRaise: Exercise = {
   mode: ExerciseMode.SideLegRaise,
   bestView: ViewMode.Front,
+  photo: "side-leg-raise.webp",
   thresholds: { lowDeg: 8, highDeg: 22, minIntervalS: 1.0 },
   copy: {
     label: "Side leg raise",

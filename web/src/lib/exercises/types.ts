@@ -38,6 +38,9 @@ export type BlockReason = "not_visible" | "face_camera" | "turn_side" | "form";
 
 export type Reading = { angle: number } | { blocked: BlockReason };
 
+/** Named intermediate values an exercise exposes for the developer panel. */
+export type InspectionDetails = Record<string, number | string | null>;
+
 export interface Exercise {
   readonly mode: CountedExercise;
   readonly bestView: ViewMode;
@@ -45,7 +48,14 @@ export interface Exercise {
   readonly copy: ExerciseCopy;
   /** Spoken when the exercise is selected, per voice language. */
   readonly announcement: Readonly<Record<VoiceLanguage, string>>;
-  /** Start and end poses for the animated demo. */
+  /**
+   * Optional breakdown of how a frame was measured, shown only in dev mode.
+   * Must be pure: it may be called on frames the counter never sees.
+   */
+  inspect?(p: BodyPoints): InspectionDetails;
+  /** File name of a demonstration photo in public/img, if one exists. */
+  readonly photo?: string;
+  /** Start and end poses for the animated demo, used when there is no photo. */
   readonly illustration: Illustration;
   /** Reads the exercise's angle from one frame, or explains why it cannot. */
   measure(points: BodyPoints): Reading;

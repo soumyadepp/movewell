@@ -7,6 +7,7 @@ import type { Exercise } from "./types";
 export const armRaise: Exercise = {
   mode: ExerciseMode.ArmRaise,
   bestView: ViewMode.Front,
+  photo: "arm-raise.webp",
   thresholds: { lowDeg: 35, highDeg: 75, minIntervalS: 1.0 },
   copy: {
     label: "Shoulder raise",

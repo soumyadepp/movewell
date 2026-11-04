@@ -17,6 +17,8 @@ export interface RoutinePlan {
   id: string;
   steps: RoutineStep[];
   restS: number;
+  /** Show a "Next up" introduction before each exercise until the user is ready. */
+  showIntro: boolean;
 }
 
 export interface StepResult {
@@ -27,14 +29,15 @@ export interface StepResult {
   completed: boolean;
 }
 
-export type RoutinePhase = "exercise" | "rest" | "done";
+export type RoutinePhase = "intro" | "exercise" | "rest" | "done";
 
 /** Seconds per repetition used to estimate how long a routine takes. */
 const SECONDS_PER_REP = 4;
 
 export const DAILY_ROUTINE: RoutinePlan = {
   id: "daily",
-  restS: 20,
+  restS: 15,
+  showIntro: true,
   steps: [
     { mode: ExerciseMode.ArmRaise, target: 10 },
     { mode: ExerciseMode.ElbowCurl, target: 10 },
@@ -47,6 +50,7 @@ export const DAILY_ROUTINE: RoutinePlan = {
 export const singleExercise = (mode: CountedExercise, target: number): RoutinePlan => ({
   id: `single-${mode}`,
   restS: 0,
+  showIntro: false,
   steps: [{ mode, target }],
 });
 
@@ -58,7 +62,7 @@ export function estimatedMinutes(plan: RoutinePlan): number {
 
 export class RoutineRun {
   index = 0;
-  phase: RoutinePhase = "exercise";
+  phase: RoutinePhase;
   readonly results: StepResult[] = [];
   private stepStartedAt: number;
   private restEndsAt = 0;
@@ -68,6 +72,14 @@ export class RoutineRun {
     private readonly clock: Clock,
   ) {
     this.stepStartedAt = clock();
+    this.phase = plan.showIntro ? "intro" : "exercise";
+  }
+
+  /** Starts the current exercise after its introduction. */
+  begin(): void {
+    if (this.phase !== "intro") return;
+    this.phase = "exercise";
+    this.stepStartedAt = this.clock();
   }
 
   get current(): RoutineStep | null {
@@ -137,7 +149,7 @@ export class RoutineRun {
 
   private advance(): void {
     this.index += 1;
-    this.phase = "exercise";
+    this.phase = this.plan.showIntro ? "intro" : "exercise";
     this.stepStartedAt = this.clock();
   }
 }
