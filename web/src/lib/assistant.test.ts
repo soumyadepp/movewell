@@ -107,11 +107,10 @@ describe("Assistant", () => {
   it("publishes semantic events for view and mode changes", () => {
     const { assistant, of } = setup();
     assistant.toggleView();
-    assistant.selectMode(ExerciseMode.SitToStand);
     expect(assistant.view).toBe(ViewMode.Side);
     expect(of("viewChanged")).toEqual([{ view: ViewMode.Side }]);
-    expect(of("modeChanged")).toEqual([{ mode: ExerciseMode.SitToStand }]);
-    assistant.selectMode(ExerciseMode.ElbowCurl);
+    assistant.selectMode(ExerciseMode.Marching);
+    expect(of("modeChanged")).toEqual([{ mode: ExerciseMode.Marching }]);
     expect(assistant.view).toBe(ViewMode.Front);
   });
 

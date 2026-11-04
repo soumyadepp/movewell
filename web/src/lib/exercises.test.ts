@@ -118,11 +118,21 @@ describe("marching", () => {
     expect(reps(kneeLifted(0), sideKneesAt(90), 2)).toBe(0);
   });
 
-  it("asks to turn side-on when facing the camera", () => {
-    const { counter, holdPose } = setup(ExerciseMode.Marching);
-    holdPose(body(), 1);
-    expect(counter.update(body())).toBe(msg.GUIDANCE_TURN_SIDE);
-    expect(counter.lastAngle).toBeNull();
+  it("counts knee lifts facing the camera using 3-D landmarks", () => {
+    const { reps } = setup(ExerciseMode.Marching);
+    const facing = (liftRight: boolean) =>
+      new BodyPoints(
+        new Map([...[Joint.LeftShoulder, Joint.RightShoulder, Joint.LeftHip, Joint.RightHip, Joint.LeftKnee, Joint.RightKnee].map((j) => [j, body().get(j)!] as const)]),
+        new Map<Joint, Point3>([
+          [Joint.LeftShoulder, [-0.18, -0.5, 0]],
+          [Joint.RightShoulder, [0.18, -0.5, 0]],
+          [Joint.LeftHip, [-0.1, 0, 0]],
+          [Joint.RightHip, [0.1, 0, 0]],
+          [Joint.LeftKnee, [-0.1, 0.45, 0]],
+          [Joint.RightKnee, liftRight ? [0.1, 0.1, -0.4] : [0.1, 0.45, 0]],
+        ]),
+      );
+    expect(reps(facing(false), facing(true), 3)).toBe(3);
   });
 });
 
@@ -157,9 +167,67 @@ describe("side bend", () => {
 });
 
 describe("sit-to-stand", () => {
+  const seatedSide = (withAnkles = true) => {
+    const points = new Map<Joint, readonly [number, number]>([
+      [Joint.LeftShoulder, [470, 230]],
+      [Joint.RightShoulder, [478, 230]],
+      [Joint.LeftHip, [480, 430]],
+      [Joint.RightHip, [488, 430]],
+      [Joint.LeftKnee, [610, 432]],
+      [Joint.RightKnee, [618, 432]],
+    ]);
+    if (withAnkles) {
+      points.set(Joint.LeftAnkle, [612, 560]);
+      points.set(Joint.RightAnkle, [620, 560]);
+    }
+    return new BodyPoints(points);
+  };
+  const standingSide = (withAnkles = true) => {
+    const full = sideBody();
+    const joints = [Joint.LeftShoulder, Joint.RightShoulder, Joint.LeftHip, Joint.RightHip, Joint.LeftKnee, Joint.RightKnee];
+    if (withAnkles) joints.push(Joint.LeftAnkle, Joint.RightAnkle);
+    return new BodyPoints(new Map(joints.map((j) => [j, full.get(j)!] as const)));
+  };
+
   it("counts each stand from a seat when side-on", () => {
     const { reps } = setup(ExerciseMode.SitToStand);
-    expect(reps(sideKneesAt(90), sideKneesAt(175), 3)).toBe(3);
+    expect(reps(seatedSide(), standingSide(), 3)).toBe(3);
+  });
+
+  it("counts when the ankles are hidden", () => {
+    const { reps } = setup(ExerciseMode.SitToStand);
+    expect(reps(seatedSide(false), standingSide(false), 2)).toBe(2);
+  });
+
+  it("counts facing the camera using 3-D landmarks", () => {
+    const { reps } = setup(ExerciseMode.SitToStand);
+    const facing = (seated: boolean) =>
+      new BodyPoints(
+        new Map([...[Joint.LeftShoulder, Joint.RightShoulder, Joint.LeftHip, Joint.RightHip, Joint.LeftKnee, Joint.RightKnee].map((j) => [j, body().get(j)!] as const)]),
+        new Map<Joint, Point3>([
+          [Joint.LeftShoulder, [-0.18, -0.5, 0]],
+          [Joint.RightShoulder, [0.18, -0.5, 0]],
+          [Joint.LeftHip, [-0.1, 0, 0]],
+          [Joint.RightHip, [0.1, 0, 0]],
+          [Joint.LeftKnee, seated ? [-0.1, 0, -0.45] : [-0.1, 0.45, 0]],
+          [Joint.RightKnee, seated ? [0.1, 0, -0.45] : [0.1, 0.45, 0]],
+        ]),
+      );
+    expect(reps(facing(true), facing(false), 3)).toBe(3);
+  });
+
+  it("does not count leaning forward while seated", () => {
+    const { reps } = setup(ExerciseMode.SitToStand);
+    const leanForward = new BodyPoints(
+      new Map([
+        ...[...[Joint.LeftHip, Joint.RightHip, Joint.LeftKnee, Joint.RightKnee, Joint.LeftAnkle, Joint.RightAnkle]].map(
+          (j) => [j, seatedSide().get(j)!] as const,
+        ),
+        [Joint.LeftShoulder, [560, 300] as const],
+        [Joint.RightShoulder, [568, 300] as const],
+      ]),
+    );
+    expect(reps(seatedSide(), leanForward, 3)).toBe(0);
   });
 });
 

@@ -129,17 +129,19 @@ function elbowCurl(p: BodyPoints): Reading {
 }
 
 /**
- * Thigh lift from vertical on the higher leg, while the other leg stays
- * straight under the body. Leaning the trunk does not change the reading.
+ * Marching: difference between the two legs' hip flexion, in 3-D.
+ * Lifting one knee bends one hip only; leaning the trunk or sitting bends both
+ * equally, so they cancel out. Works facing the camera or side-on.
  */
 function marching(p: BodyPoints): Reading {
-  const left = fromVertical(p.get(Joint.LeftHip), p.get(Joint.LeftKnee));
-  const right = fromVertical(p.get(Joint.RightHip), p.get(Joint.RightKnee));
-  if (left === null && right === null) return blocked("not_visible");
-  const lifted = Math.max(left ?? 0, right ?? 0);
-  const standing = Math.min(left ?? Infinity, right ?? Infinity);
-  if (left !== null && right !== null && standing > STANDING_LEG_MAX_DEG) return blocked("form");
-  return { angle: lifted };
+  const flexion = (shoulder: Joint, hip: Joint, knee: Joint) => {
+    const angle = jointAngle3(p, shoulder, hip, knee);
+    return angle === null ? null : 180 - angle;
+  };
+  const left = flexion(Joint.LeftShoulder, Joint.LeftHip, Joint.LeftKnee);
+  const right = flexion(Joint.RightShoulder, Joint.RightHip, Joint.RightKnee);
+  if (left === null || right === null) return blocked("not_visible");
+  return { angle: Math.abs(left - right) };
 }
 
 /** Leg abduction on the raised leg, while the standing leg stays vertical. */
@@ -160,11 +162,19 @@ function sideBend(p: BodyPoints): Reading {
   return reading(calculateAngle(shoulders, hips, above(hips)));
 }
 
+/**
+ * Sit-to-stand from knee and hip angles together, in 3-D. Both are about 90
+ * degrees seated and 170 or more standing, so hip angles carry the reading
+ * when the ankles are hidden by the chair or the bottom of the frame. 3-D
+ * angles work whether the person faces the camera or stands side-on.
+ */
 function sitToStand(p: BodyPoints): Reading {
   return reading(
     safeAverage([
       jointAngle3(p, Joint.LeftHip, Joint.LeftKnee, Joint.LeftAnkle),
       jointAngle3(p, Joint.RightHip, Joint.RightKnee, Joint.RightAnkle),
+      jointAngle3(p, Joint.LeftShoulder, Joint.LeftHip, Joint.LeftKnee),
+      jointAngle3(p, Joint.RightShoulder, Joint.RightHip, Joint.RightKnee),
     ]),
   );
 }
@@ -177,10 +187,10 @@ const withOrientation =
 export const MEASURES: Record<CountedExercise, Measure> = {
   [ExerciseMode.ArmRaise]: withOrientation(ExerciseMode.ArmRaise, armRaise),
   [ExerciseMode.ElbowCurl]: withOrientation(ExerciseMode.ElbowCurl, elbowCurl),
-  [ExerciseMode.Marching]: withOrientation(ExerciseMode.Marching, marching),
+  [ExerciseMode.Marching]: marching,
   [ExerciseMode.SideLegRaise]: withOrientation(ExerciseMode.SideLegRaise, sideLegRaise),
   [ExerciseMode.SideBend]: withOrientation(ExerciseMode.SideBend, sideBend),
-  [ExerciseMode.SitToStand]: withOrientation(ExerciseMode.SitToStand, sitToStand),
+  [ExerciseMode.SitToStand]: sitToStand,
 };
 
 export interface ExerciseCounter {

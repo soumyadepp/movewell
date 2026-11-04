@@ -52,10 +52,10 @@ export const POSTURE: PostureThresholds = {
 export const EXERCISES: ExerciseThresholds = {
   [ExerciseMode.ArmRaise]: { lowDeg: 35, highDeg: 75, minIntervalS: 1.0 },
   [ExerciseMode.ElbowCurl]: { lowDeg: 30, highDeg: 75, minIntervalS: 0.8 },
-  [ExerciseMode.Marching]: { lowDeg: 15, highDeg: 45, minIntervalS: 0.6 },
+  [ExerciseMode.Marching]: { lowDeg: 15, highDeg: 40, minIntervalS: 0.6 },
   [ExerciseMode.SideLegRaise]: { lowDeg: 8, highDeg: 22, minIntervalS: 1.0 },
   [ExerciseMode.SideBend]: { lowDeg: 6, highDeg: 18, minIntervalS: 1.2 },
-  [ExerciseMode.SitToStand]: { lowDeg: 105, highDeg: 155, minIntervalS: 1.2 },
+  [ExerciseMode.SitToStand]: { lowDeg: 120, highDeg: 155, minIntervalS: 1.2 },
 };
 
 export const DEFAULT_GOAL = 10;

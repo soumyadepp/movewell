@@ -56,10 +56,10 @@ export type CountedExercise = (typeof COUNTED_EXERCISES)[number];
 export const BEST_VIEW: Record<CountedExercise, ViewMode> = {
   [ExerciseMode.ArmRaise]: ViewMode.Front,
   [ExerciseMode.ElbowCurl]: ViewMode.Front,
-  [ExerciseMode.Marching]: ViewMode.Side,
+  [ExerciseMode.Marching]: ViewMode.Front,
   [ExerciseMode.SideLegRaise]: ViewMode.Front,
   [ExerciseMode.SideBend]: ViewMode.Front,
-  [ExerciseMode.SitToStand]: ViewMode.Side,
+  [ExerciseMode.SitToStand]: ViewMode.Front,
 };
 
 export const isCounted = (mode: ExerciseMode): mode is CountedExercise => mode !== ExerciseMode.Posture;
