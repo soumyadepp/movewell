@@ -2,7 +2,7 @@
 
 Gentle, camera-guided exercise for older adults. MoveWell runs a short daily routine through any laptop webcam, counts repetitions, speaks encouragement in English or Hindi, and tracks progress over time. Pose estimation runs entirely on the device; video is never recorded or uploaded.
 
-**Live app:** <https://soumyadepp.github.io/physio-assistant/>
+**Live app:** <https://soumyadepp.github.io/movewell/>
 
 ![MoveWell home screen](docs/screenshots/home.jpg)
 
