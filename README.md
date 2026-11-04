@@ -30,7 +30,7 @@ Gentle, camera-guided exercise for older adults. MoveWell runs a short daily rou
 | Path | Contents |
 |---|---|
 | [`web/`](web/README.md) | The MoveWell web app (Svelte 5, TypeScript, Vite). Start here. |
-| `src/physio_assistant/` | The original Python desktop prototype (OpenCV window) |
+| `src/physio_assistant/` | Python desktop app (OpenCV window), one module per exercise |
 | `tests/` | Python test suite |
 | `docs/screenshots/` | Images used in this README |
 | `.github/workflows/` | GitHub Pages deployment |
@@ -56,7 +56,11 @@ uv sync --extra voice
 uv run physio-assistant
 ```
 
-Options: `--camera <index>`, `--no-voice`, `--no-mirror`, `--data-file <path.csv>`. The prototype implements posture observation, shoulder raise and sit-to-stand; the routine, additional exercises and progress features are web-only. A standalone build is available with `uv run --extra voice --group build pyinstaller --noconfirm physio_assistant.spec`.
+Options: `--camera <index>`, `--no-voice`, `--no-mirror`, `--data-file <path.csv>`. Keys `1` to `7` select posture check and the six exercises, `V` switches view, `Space` toggles the timer, `S` saves and `Q` quits. A standalone build is available with `uv run --extra voice --group build pyinstaller --noconfirm physio_assistant.spec`.
+
+The desktop app shares the web app's counting logic: 3-D joint angles, dwell and dropout tolerance, and the same false-positive guards. It does not include the guided routine, exercise library or progress dashboard.
+
+Each exercise is its own module in `src/physio_assistant/exercises/` implementing the `Exercise` protocol (`base.py`): its measurement, thresholds, best camera view and copy. `registry.py` lists them in order, and `analysis/counting.py` counts any of them. To add one, create a module, register it, and add a test module under `tests/exercises/`.
 
 ## Architecture
 

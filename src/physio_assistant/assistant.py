@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from physio_assistant import messages
-from physio_assistant.analysis.exercises import ExerciseCounter, create_counter
+from physio_assistant.analysis.counting import Counter, create_counter
 from physio_assistant.analysis.posture import PostureAnalyzer, create_posture_analyzer
 from physio_assistant.analysis.progress import ProgressSummary, summarize
 from physio_assistant.config import AppConfig
@@ -23,14 +23,9 @@ from physio_assistant.domain.models import (
     ViewMode,
 )
 from physio_assistant.events import Announcement, BodyLost, EventBus, FindingChanged
+from physio_assistant.exercises import get_exercise
 from physio_assistant.infrastructure.storage import SessionRepository
 from physio_assistant.session import SessionTimer
-
-_MODE_ANNOUNCEMENTS = {
-    ExerciseMode.POSTURE: messages.SPEAK_MODE_POSTURE,
-    ExerciseMode.ARM_RAISE: messages.SPEAK_MODE_ARM_RAISE,
-    ExerciseMode.SIT_TO_STAND: messages.SPEAK_MODE_SIT_TO_STAND,
-}
 
 _VIEW_ANNOUNCEMENTS = {
     ViewMode.FRONT: messages.SPEAK_FRONT_VIEW,
@@ -78,7 +73,7 @@ class Assistant:
         self.status_message = ""
 
         self._analyzer: PostureAnalyzer = create_posture_analyzer(self.view, config.posture)
-        self.counter: ExerciseCounter = create_counter(self.mode, config.exercises, events, clock)
+        self.counter: Counter = create_counter(self.mode, events, clock)
         self._last_finding: Finding | None = None
 
     @property
@@ -127,8 +122,15 @@ class Assistant:
             mode: Mode to activate.
         """
         self.mode = mode
-        self.counter = create_counter(mode, self._config.exercises, self._events, self._clock)
-        self._events.publish(Announcement(_MODE_ANNOUNCEMENTS[mode]))
+        self.counter = create_counter(mode, self._events, self._clock)
+        if mode is ExerciseMode.POSTURE:
+            self._events.publish(Announcement(messages.SPEAK_MODE_POSTURE))
+            return
+        exercise = get_exercise(mode)
+        if self.view is not exercise.best_view:
+            self.view = exercise.best_view
+            self._analyzer = create_posture_analyzer(self.view, self._config.posture)
+        self._events.publish(Announcement(exercise.copy.announcement))
 
     def toggle_timer(self) -> None:
         """Starts, pauses or resumes the session timer."""

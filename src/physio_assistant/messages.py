@@ -22,18 +22,14 @@ GUIDANCE_NO_BODY = (
 )
 GUIDANCE_POSTURE_MODE = "Use V to switch between front and side assessments."
 GUIDANCE_NO_FINDINGS = "No configured posture threshold was triggered."
-GUIDANCE_ARM_RAISE = "Raise and lower arms slowly within a comfortable range."
-GUIDANCE_ARM_RAISE_NOT_VISIBLE = "Show both shoulders, elbows and wrists to the camera."
-GUIDANCE_SIT_TO_STAND = "Move slowly between a supported sit and stand. Use a stable chair."
-GUIDANCE_SIT_TO_STAND_NOT_VISIBLE = "Show hip, knee and ankle clearly from the side."
+GUIDANCE_TURN_FRONT = "Face the camera so both shoulders are visible."
+GUIDANCE_TURN_SIDE = "Turn side-on to the camera for this exercise."
 
 SPEAK_REP_COUNTED = "Good. One repetition counted."
 SPEAK_MOVE_INTO_VIEW = "Please move into the camera view."
 SPEAK_SIDE_VIEW = "Side view. Turn sideways to the camera."
 SPEAK_FRONT_VIEW = "Front view. Face the camera."
 SPEAK_MODE_POSTURE = "Posture observation mode selected."
-SPEAK_MODE_ARM_RAISE = "Shoulder raise counter selected. Only exercise if suitable for you."
-SPEAK_MODE_SIT_TO_STAND = "Sit to stand counter selected. Use a stable chair and support."
 SPEAK_TIMER_STARTED = "Session timer started."
 SPEAK_TIMER_PAUSED = "Session timer paused."
 SPEAK_SAVED = "Session summary saved."
@@ -56,15 +52,17 @@ LABEL_REPS = "Repetitions: {value}"
 LABEL_PHASE = "Movement phase: {value}"
 LABEL_PROGRESS = "PROGRESS: {value} saved sessions"
 LABEL_RECENT_AVERAGE = "Recent {mode} average reps: {value:.1f}"
-LABEL_CONTROLS_1 = "V View | 1 Posture | 2 Arm raise | 3 Sit-stand | SPACE Timer"
+LABEL_CONTROLS_1 = "1 Posture | 2-7 Exercises | V View | SPACE Timer"
 LABEL_CONTROLS_2 = "S Save | H Help | Q Quit"
+
+POSTURE_LABEL = "Posture check"
+LABEL_ANGLE = "{label}: {value}"
+ANGLE_UNKNOWN = "not visible"
 
 HELP_TEXT = """
 CONTROLS
+{modes}
 V: switch front/side view
-1: posture mode
-2: shoulder raise counter
-3: sit-to-stand counter
 SPACE: start/pause session timer
 S: save session summary
 H: show this help

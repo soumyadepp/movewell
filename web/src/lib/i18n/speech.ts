@@ -6,12 +6,14 @@
  * adding a language means adding one catalog here and re-running the script.
  */
 import { ExerciseMode, type FindingId, ViewMode } from "../domain/models";
+import { getExercise } from "../exercises";
 
 export type VoiceLanguage = "en" | "hi";
 
 export const MAX_RECORDED_COUNT = 30;
 
 export interface SpeechCatalog {
+  readonly id: VoiceLanguage;
   readonly bcp47: string;
   readonly label: string;
   readonly recordingVoice: string;
@@ -21,7 +23,8 @@ export interface SpeechCatalog {
   readonly goalReached: string;
   readonly moveIntoView: string;
   readonly view: Record<ViewMode, string>;
-  readonly mode: Record<ExerciseMode, string>;
+  /** Spoken when posture check is selected; exercises carry their own announcements. */
+  readonly postureMode: string;
   readonly timerStarted: string;
   readonly timerPaused: string;
   readonly saved: string;
@@ -37,6 +40,7 @@ const HINDI_NUMBERS = [
 ];
 
 const en: SpeechCatalog = {
+  id: "en",
   bcp47: "en-IN",
   label: "English",
   recordingVoice: "Tara",
@@ -49,15 +53,7 @@ const en: SpeechCatalog = {
     [ViewMode.Front]: "Front view. Face the camera.",
     [ViewMode.Side]: "Side view. Turn sideways to the camera.",
   },
-  mode: {
-    [ExerciseMode.Posture]: "Posture observation selected.",
-    [ExerciseMode.ArmRaise]: "Shoulder raise selected. Raise your arms slowly.",
-    [ExerciseMode.ElbowCurl]: "Elbow curl selected. Bend your elbows slowly towards your shoulders.",
-    [ExerciseMode.Marching]: "Marching selected. Lift one knee at a time.",
-    [ExerciseMode.SideLegRaise]: "Side leg raise selected. Hold a chair for support.",
-    [ExerciseMode.SideBend]: "Side bend selected. Lean gently to one side, then return.",
-    [ExerciseMode.SitToStand]: "Sit to stand selected. Use a sturdy chair for support.",
-  },
+  postureMode: "Posture observation selected.",
   timerStarted: "Session timer started.",
   timerPaused: "Session timer paused.",
   saved: "Session saved.",
@@ -75,6 +71,7 @@ const en: SpeechCatalog = {
 };
 
 const hi: SpeechCatalog = {
+  id: "hi",
   bcp47: "hi-IN",
   label: "हिन्दी",
   recordingVoice: "Lekha",
@@ -87,15 +84,7 @@ const hi: SpeechCatalog = {
     [ViewMode.Front]: "सामने का व्यू। कैमरे की ओर मुँह कीजिए।",
     [ViewMode.Side]: "साइड व्यू। कैमरे की ओर बगल से खड़े होइए।",
   },
-  mode: {
-    [ExerciseMode.Posture]: "पोस्चर जाँच चुनी गई।",
-    [ExerciseMode.ArmRaise]: "कंधा उठाने का व्यायाम चुना गया। बाँहें धीरे-धीरे उठाइए।",
-    [ExerciseMode.ElbowCurl]: "कोहनी मोड़ने का व्यायाम चुना गया। हाथ धीरे-धीरे कंधे की ओर लाइए।",
-    [ExerciseMode.Marching]: "कदमताल चुना गया। एक-एक करके घुटने उठाइए।",
-    [ExerciseMode.SideLegRaise]: "पैर बगल में उठाने का व्यायाम चुना गया। सहारे के लिए कुर्सी पकड़िए।",
-    [ExerciseMode.SideBend]: "बगल में झुकने का व्यायाम चुना गया। धीरे से एक ओर झुकिए, फिर सीधे होइए।",
-    [ExerciseMode.SitToStand]: "बैठकर खड़े होने का व्यायाम चुना गया। सहारे के लिए मज़बूत कुर्सी रखिए।",
-  },
+  postureMode: "पोस्चर जाँच चुनी गई।",
   timerStarted: "सत्र टाइमर शुरू हुआ।",
   timerPaused: "सत्र टाइमर रुका।",
   saved: "सत्र सहेजा गया।",
@@ -116,6 +105,11 @@ export const SPEECH_CATALOGS: Record<VoiceLanguage, SpeechCatalog> = { en, hi };
 export const VOICE_LANGUAGES = Object.keys(SPEECH_CATALOGS) as VoiceLanguage[];
 
 const slug = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+
+/** Spoken announcement for a mode in a catalog's language. */
+export function modePhrase(catalog: SpeechCatalog, mode: ExerciseMode): string {
+  return mode === ExerciseMode.Posture ? catalog.postureMode : getExercise(mode).announcement[catalog.id];
+}
 
 /** Builders for stable phrase keys, which double as clip file names. */
 export const PhraseKey = {
@@ -146,7 +140,7 @@ export function phraseTable(catalog: SpeechCatalog): Map<string, string> {
     [PhraseKey.routineComplete, catalog.routineComplete],
   ]);
   for (const view of Object.values(ViewMode)) table.set(PhraseKey.view(view), catalog.view[view]);
-  for (const mode of Object.values(ExerciseMode)) table.set(PhraseKey.mode(mode), catalog.mode[mode]);
+  for (const mode of Object.values(ExerciseMode)) table.set(PhraseKey.mode(mode), modePhrase(catalog, mode));
   for (const [id, text] of Object.entries(catalog.corrections)) {
     table.set(PhraseKey.correction(id as FindingId), text);
   }

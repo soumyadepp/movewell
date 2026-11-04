@@ -1,5 +1,6 @@
 """Pose estimation port and its MediaPipe adapter."""
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from types import TracebackType
 from typing import Any, Protocol
@@ -9,7 +10,7 @@ import mediapipe as mp
 import numpy as np
 
 from physio_assistant.config import PoseConfig
-from physio_assistant.domain.models import BodyPoints, Joint
+from physio_assistant.domain.models import BodyPoints, Joint, Point, Point3
 
 _mp_pose = mp.solutions.pose
 _mp_drawing = mp.solutions.drawing_utils
@@ -17,6 +18,42 @@ _mp_drawing = mp.solutions.drawing_utils
 _LANDMARK_IDS: dict[Joint, int] = {
     joint: _mp_pose.PoseLandmark[joint.name].value for joint in Joint
 }
+
+
+def to_body_points(
+    landmarks: Sequence[Any],
+    world: Sequence[Any],
+    width: int,
+    height: int,
+    visibility_threshold: float,
+) -> BodyPoints:
+    """Converts MediaPipe landmarks into body points.
+
+    Image points use the frame's real pixel size, so proportions are correct
+    for any camera aspect ratio. World points (metres, 3-D) are kept for the
+    same visible joints and are used for joint angles.
+
+    Args:
+        landmarks: Normalized image landmarks with ``x``, ``y`` and ``visibility``.
+        world: World landmarks with ``x``, ``y`` and ``z``, possibly empty.
+        width: Frame width in pixels.
+        height: Frame height in pixels.
+        visibility_threshold: Minimum visibility for a joint to be kept.
+
+    Returns:
+        Body points for the frame.
+    """
+    points: dict[Joint, Point] = {}
+    world_points: dict[Joint, Point3] = {}
+    for joint, landmark_id in _LANDMARK_IDS.items():
+        lm = landmarks[landmark_id]
+        if lm.visibility < visibility_threshold:
+            continue
+        points[joint] = (lm.x * width, lm.y * height)
+        if landmark_id < len(world):
+            w = world[landmark_id]
+            world_points[joint] = (w.x, w.y, w.z)
+    return BodyPoints(points, world_points)
 
 
 @dataclass(frozen=True)
@@ -94,13 +131,11 @@ class MediaPipePoseEstimator:
         if not results.pose_landmarks:
             return None
         height, width = frame_bgr.shape[:2]
-        landmarks = results.pose_landmarks.landmark
-        points = {}
-        for joint, landmark_id in _LANDMARK_IDS.items():
-            lm = landmarks[landmark_id]
-            if lm.visibility >= self._config.visibility_threshold:
-                points[joint] = (int(lm.x * width), int(lm.y * height))
-        return PoseDetection(points=BodyPoints(points), raw=results.pose_landmarks)
+        world = results.pose_world_landmarks.landmark if results.pose_world_landmarks else []
+        points = to_body_points(
+            results.pose_landmarks.landmark, world, width, height, self._config.visibility_threshold
+        )
+        return PoseDetection(points=points, raw=results.pose_landmarks)
 
     def draw(self, frame_bgr: np.ndarray, detection: PoseDetection) -> None:
         """Draws the MediaPipe skeleton onto the frame in place."""

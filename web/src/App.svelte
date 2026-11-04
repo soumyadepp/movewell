@@ -2,6 +2,7 @@
   import AppHeader from "./lib/components/AppHeader.svelte";
   import { CoachController } from "./lib/controller.svelte";
   import { isCounted } from "./lib/domain/models";
+  import { modeLabel } from "./lib/exercises";
   import * as msg from "./lib/messages";
   import ExerciseDetail from "./lib/screens/ExerciseDetail.svelte";
   import HomeScreen from "./lib/screens/HomeScreen.svelte";
@@ -25,7 +26,7 @@
       progress: msg.NAV_PROGRESS,
       summary: `${msg.SUMMARY_TITLE_LEAD} ${msg.SUMMARY_TITLE_ACCENT}`,
       workout: msg.NAV_EXERCISES,
-      detail: route.name === "detail" ? msg.MODE_LABELS[route.mode] : "",
+      detail: route.name === "detail" ? modeLabel(route.mode) : "",
     };
     document.title = `${titles[route.name] ?? ""} · ${msg.APP_NAME}`;
   });

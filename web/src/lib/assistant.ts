@@ -2,12 +2,12 @@
  * Application service that owns session state. No DOM, camera or speech
  * code, so it runs under Vitest exactly as in the browser.
  */
-import { createCounter, type ExerciseCounter } from "./analysis/exercises";
+import { createCounter, type ExerciseCounter } from "./analysis/counting";
 import { createPostureAnalyzer, type PostureAnalyzer } from "./analysis/posture";
 import { localIso } from "./analysis/progress";
-import { DEFAULT_GOAL, type ExerciseThresholds, type PostureThresholds } from "./config";
+import { DEFAULT_GOAL, type PostureThresholds } from "./config";
+import { getExercise } from "./exercises";
 import {
-  BEST_VIEW,
   type BodyPoints,
   ExerciseMode,
   type Finding,
@@ -35,7 +35,6 @@ export interface FrameState {
 
 export interface AssistantDeps {
   posture: PostureThresholds;
-  exercises: ExerciseThresholds;
   events: EventBus;
   repository: SessionRepository;
   clock: Clock;
@@ -72,7 +71,7 @@ export class Assistant {
     this.timer = new SessionTimer(deps.clock);
     this.history = deps.repository.loadAll();
     this.analyzer = createPostureAnalyzer(this.view, deps.posture);
-    this.counter = createCounter(this.mode, deps.exercises, deps.events, deps.clock);
+    this.counter = createCounter(this.mode, deps.events, deps.clock);
   }
 
   get progress(): { totalSessions: number; recentAverageReps: number } {
@@ -129,12 +128,12 @@ export class Assistant {
 
   selectMode(mode: ExerciseMode): void {
     this.mode = mode;
-    if (isCounted(mode) && this.view !== BEST_VIEW[mode]) {
-      this.view = BEST_VIEW[mode];
+    if (isCounted(mode) && this.view !== getExercise(mode).bestView) {
+      this.view = getExercise(mode).bestView;
       this.analyzer = createPostureAnalyzer(this.view, this.deps.posture);
       this.stableFindings.reset([]);
     }
-    this.counter = createCounter(mode, this.deps.exercises, this.deps.events, this.deps.clock);
+    this.counter = createCounter(mode, this.deps.events, this.deps.clock);
     this.statusMessage = "";
     this.deps.events.publish("modeChanged", { mode });
   }

@@ -7,7 +7,7 @@
  */
 import { Assistant } from "./assistant";
 import { dayStreak } from "./analysis/progress";
-import { DEFAULT_GOAL, EXERCISES, POSTURE, PREFERENCES_KEY, STORAGE_KEY } from "./config";
+import { DEFAULT_GOAL, POSTURE, PREFERENCES_KEY, STORAGE_KEY } from "./config";
 import {
   type CountedExercise,
   ExerciseMode,
@@ -178,7 +178,6 @@ export class CoachController {
   constructor() {
     this.assistant = new Assistant({
       posture: POSTURE,
-      exercises: EXERCISES,
       events: this.events,
       repository: this.repository,
       clock: secondsClock,

@@ -2,13 +2,14 @@
   import Pictogram from "../components/Pictogram.svelte";
   import { DEFAULT_GOAL, GOAL_OPTIONS } from "../config";
   import { href } from "../controller.svelte";
-  import { BEST_VIEW, type CountedExercise, ViewMode } from "../domain/models";
-  import { ILLUSTRATIONS } from "../illustrations";
+  import { type CountedExercise, ViewMode } from "../domain/models";
+  import { getExercise } from "../exercises";
   import * as msg from "../messages";
 
   let { mode }: { mode: CountedExercise } = $props();
   let target = $state<number>(DEFAULT_GOAL);
-  const copy = $derived(msg.EXERCISE_COPY[mode]);
+  const exercise = $derived(getExercise(mode));
+  const copy = $derived(exercise.copy);
 </script>
 
 <article class="detail">
@@ -16,8 +17,8 @@
 
   <div class="layout">
     <div class="demo card">
-      <Pictogram illustration={ILLUSTRATIONS[mode]} label={msg.DEMO_LABEL(copy.label)} size={260} />
-      <span class="view">{BEST_VIEW[mode] === ViewMode.Side ? msg.VIEW_SIDE_LABEL : msg.VIEW_FRONT_LABEL}</span>
+      <Pictogram illustration={exercise.illustration} label={msg.DEMO_LABEL(copy.label)} size={260} />
+      <span class="view">{exercise.bestView === ViewMode.Side ? msg.VIEW_SIDE_LABEL : msg.VIEW_FRONT_LABEL}</span>
     </div>
 
     <div class="info">

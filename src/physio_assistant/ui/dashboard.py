@@ -5,7 +5,9 @@ import numpy as np
 
 from physio_assistant import messages
 from physio_assistant.assistant import Assistant
-from physio_assistant.domain.models import ExerciseMode
+from physio_assistant.domain.models import ExerciseMode, MovementPhase
+from physio_assistant.exercises import get_exercise
+from physio_assistant.ui.commands import mode_label
 
 Color = tuple[int, int, int]
 
@@ -33,6 +35,14 @@ def _text(
     thickness: int = 1,
 ) -> None:
     cv2.putText(image, text, xy, cv2.FONT_HERSHEY_SIMPLEX, scale, color, thickness, cv2.LINE_AA)
+
+
+def _phase_label(a: Assistant) -> str:
+    phase = a.counter.phase
+    if a.mode is ExerciseMode.POSTURE or phase is MovementPhase.READY:
+        return phase.value.title()
+    copy = get_exercise(a.mode).copy
+    return copy.low_label if phase is MovementPhase.LOW else copy.high_label
 
 
 class DashboardRenderer:
@@ -69,7 +79,7 @@ class DashboardRenderer:
         _text(panel, messages.APP_TITLE, (15, 29), 0.58, ACCENT, 2)
         _text(panel, messages.APP_SUBTITLE, (15, 51), 0.36, MUTED)
         _text(panel, messages.LABEL_VIEW.format(value=a.view.value), (15, 95), 0.55, VIEW, 2)
-        _text(panel, messages.LABEL_MODE.format(value=a.mode.value), (15, 127), 0.52)
+        _text(panel, messages.LABEL_MODE.format(value=mode_label(a.mode)), (15, 127), 0.52)
         elapsed = a.timer.elapsed_seconds()
         _text(
             panel,
@@ -123,7 +133,17 @@ class DashboardRenderer:
         y += 35
         _text(panel, messages.LABEL_REPS.format(value=a.counter.reps), (18, y), 0.65, GOOD, 2)
         y += 28
-        _text(panel, messages.LABEL_PHASE.format(value=a.counter.phase.value), (18, y), 0.40)
+        _text(panel, messages.LABEL_PHASE.format(value=_phase_label(a)), (18, y), 0.40)
+        if a.mode is not ExerciseMode.POSTURE:
+            copy = get_exercise(a.mode).copy
+            angle = a.counter.last_angle
+            value = messages.ANGLE_UNKNOWN if angle is None else f"{angle:.0f} deg"
+            _text(
+                panel,
+                messages.LABEL_ANGLE.format(label=copy.angle_label, value=value),
+                (18, y + 22),
+                0.36,
+            )
         return y + 27
 
     def _footer(self, panel: np.ndarray, a: Assistant, y: int) -> None:

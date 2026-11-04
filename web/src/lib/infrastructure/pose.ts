@@ -74,6 +74,7 @@ export class BrowserPoseEstimator {
       runningMode: "VIDEO" as const,
       numPoses: 1,
       minPoseDetectionConfidence: POSE.minDetectionConfidence,
+      minPosePresenceConfidence: POSE.minPresenceConfidence,
       minTrackingConfidence: POSE.minTrackingConfidence,
     });
     try {

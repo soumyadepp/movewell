@@ -52,16 +52,6 @@ export const COUNTED_EXERCISES = [
 
 export type CountedExercise = (typeof COUNTED_EXERCISES)[number];
 
-/** Camera orientation each exercise is measured from. */
-export const BEST_VIEW: Record<CountedExercise, ViewMode> = {
-  [ExerciseMode.ArmRaise]: ViewMode.Front,
-  [ExerciseMode.ElbowCurl]: ViewMode.Front,
-  [ExerciseMode.Marching]: ViewMode.Front,
-  [ExerciseMode.SideLegRaise]: ViewMode.Front,
-  [ExerciseMode.SideBend]: ViewMode.Front,
-  [ExerciseMode.SitToStand]: ViewMode.Front,
-};
-
 export const isCounted = (mode: ExerciseMode): mode is CountedExercise => mode !== ExerciseMode.Posture;
 
 /** URL-safe identifier for an exercise, e.g. "side-leg-raise". */

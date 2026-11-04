@@ -8,7 +8,8 @@
   import RepCounter from "../components/RepCounter.svelte";
   import type { CoachController } from "../controller.svelte";
   import { href } from "../controller.svelte";
-  import { BEST_VIEW, ExerciseMode, isCounted, ViewMode } from "../domain/models";
+  import { ExerciseMode, isCounted, ViewMode } from "../domain/models";
+  import { getExercise, modeLabel } from "../exercises";
   import * as msg from "../messages";
   import { DAILY_ROUTINE } from "../routine";
 
@@ -49,13 +50,13 @@
         <ol class="pips" aria-hidden="true">
           {#each r.steps as step, i (i)}
             <li class:done={i < r.index} class:current={i === r.index}>
-              <span>{msg.EXERCISE_COPY[step.mode].label}</span>
+              <span>{getExercise(step.mode).copy.label}</span>
             </li>
           {/each}
         </ol>
       </div>
     {:else}
-      <h1 class="title">{msg.MODE_LABELS[routeMode]}</h1>
+      <h1 class="title">{modeLabel(routeMode)}</h1>
     {/if}
     <div class="actions">
       {#if r && r.phase === "exercise" && !r.isSingle}
@@ -83,8 +84,8 @@
           <p class="eyebrow on-stage">{msg.REST_TITLE}</p>
           <p class="countdown serif">{r.restRemainingS}</p>
           {#if nextMode}
-            <p class="next">{msg.REST_NEXT(msg.EXERCISE_COPY[nextMode].label)}</p>
-            <p class="turn">{msg.REST_TURN(BEST_VIEW[nextMode] === ViewMode.Side)}</p>
+            <p class="next">{msg.REST_NEXT(getExercise(nextMode).copy.label)}</p>
+            <p class="turn">{msg.REST_TURN(getExercise(nextMode).bestView === ViewMode.Side)}</p>
           {/if}
           <button class="btn btn-primary" onclick={() => coach.skipRest()}>{msg.REST_SKIP}</button>
         </div>
@@ -107,7 +108,7 @@
         <BodyCheck findings={s.findings} />
       {/if}
       {#if r?.next && !resting}
-        <p class="up-next">{msg.WORKOUT_NEXT(msg.EXERCISE_COPY[r.next.mode].label)}</p>
+        <p class="up-next">{msg.WORKOUT_NEXT(getExercise(r.next.mode).copy.label)}</p>
       {/if}
       <DiagnosticsPanel {coach} />
     </aside>

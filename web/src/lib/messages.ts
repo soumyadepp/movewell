@@ -1,5 +1,5 @@
 /** All user-facing copy lives here so wording can change without touching logic. */
-import { type CountedExercise, ExerciseMode, ViewMode } from "./domain/models";
+import { ViewMode } from "./domain/models";
 
 export const APP_NAME = "MoveWell";
 export const APP_NAME_LEAD = "Move";
@@ -23,102 +23,6 @@ export const CAMERA_DENIED =
 export const MODEL_FAILED = "The pose model could not load. Check the internet connection and refresh.";
 export const TRY_AGAIN = "Try again";
 
-export interface ExerciseCopy {
-  label: string;
-  angleLabel: string;
-  low: string;
-  high: string;
-  guidance: string;
-  notVisible: string;
-  bestView: ViewMode;
-  summary: string;
-  steps: readonly [string, string, string];
-  benefit: string;
-  safety: string;
-}
-
-export const EXERCISE_COPY: Record<CountedExercise, ExerciseCopy> = {
-  [ExerciseMode.ArmRaise]: {
-    label: "Shoulder raise",
-    angleLabel: "Shoulder angle",
-    low: "Arms down",
-    high: "Arms raised",
-    guidance: "Raise both arms out to the side slowly, then lower them.",
-    notVisible: "Show both shoulders and elbows to the camera.",
-    bestView: ViewMode.Front,
-    summary: "Lifts both arms out to the side to keep shoulders mobile.",
-    steps: ["Stand tall with arms relaxed by your sides.", "Raise both arms out to the side to shoulder height.", "Lower them slowly and repeat."],
-    benefit: "Shoulder mobility for reaching and dressing.",
-    safety: "Stop below any point of shoulder pain.",
-  },
-  [ExerciseMode.ElbowCurl]: {
-    label: "Elbow curl",
-    angleLabel: "Elbow bend",
-    low: "Arm straight",
-    high: "Elbow bent",
-    guidance: "Keep elbows by your sides and bring your hands up towards your shoulders.",
-    notVisible: "Show your shoulders, elbows and wrists to the camera.",
-    bestView: ViewMode.Front,
-    summary: "Bends the elbows to strengthen the front of the arms.",
-    steps: ["Stand or sit with arms straight down.", "Keep elbows by your sides and lift your hands towards your shoulders.", "Lower slowly and repeat."],
-    benefit: "Arm strength for lifting and carrying.",
-    safety: "Hold light objects only if your physiotherapist agrees.",
-  },
-  [ExerciseMode.Marching]: {
-    label: "Marching",
-    angleLabel: "Knee lift",
-    low: "Feet down",
-    high: "Knee lifted",
-    guidance: "Lift one knee at a time, as high as is comfortable. Hold a chair if needed.",
-    notVisible: "Make sure both hips and knees are in view of the camera.",
-    bestView: ViewMode.Front,
-    summary: "Lifts one knee at a time, like marching on the spot.",
-    steps: ["Stand facing the camera, holding a chair if needed.", "Lift one knee as high as is comfortable.", "Lower it and lift the other knee."],
-    benefit: "Hip strength and balance for walking.",
-    safety: "Keep a hand on a sturdy chair for balance.",
-  },
-  [ExerciseMode.SideLegRaise]: {
-    label: "Side leg raise",
-    angleLabel: "Leg angle",
-    low: "Feet together",
-    high: "Leg raised",
-    guidance: "Hold a chair, keep your back straight and lift one leg out to the side.",
-    notVisible: "Face the camera so it can see your hips and ankles.",
-    bestView: ViewMode.Front,
-    summary: "Lifts one leg out to the side while holding a chair.",
-    steps: ["Face the camera and hold the back of a sturdy chair.", "Keep your back straight and lift one leg out to the side.", "Lower it slowly and switch legs."],
-    benefit: "Hip strength that supports balance and helps prevent falls.",
-    safety: "Keep the movement small and controlled.",
-  },
-  [ExerciseMode.SideBend]: {
-    label: "Side bend",
-    angleLabel: "Trunk lean",
-    low: "Upright",
-    high: "Leaning",
-    guidance: "Slide one hand down the side of your leg, then come back to upright.",
-    notVisible: "Face the camera so it can see your shoulders and hips.",
-    bestView: ViewMode.Front,
-    summary: "Leans gently to one side to stretch the waist.",
-    steps: ["Stand tall with feet hip-width apart.", "Slide one hand down the side of your leg.", "Return upright and repeat on the other side."],
-    benefit: "Flexibility in the trunk and lower back.",
-    safety: "Bend only as far as is comfortable; do not twist.",
-  },
-  [ExerciseMode.SitToStand]: {
-    label: "Sit-to-stand",
-    angleLabel: "Knee angle",
-    low: "Seated",
-    high: "Standing",
-    guidance: "Stand up slowly from a sturdy chair, then sit back down with control.",
-    notVisible: "Make sure your hips and knees are in view of the camera.",
-    bestView: ViewMode.Front,
-    summary: "Stands up from a chair and sits back down with control.",
-    steps: ["Sit near the front of a sturdy chair, facing the camera.", "Lean forward slightly and stand up, using your hands if needed.", "Sit back down slowly."],
-    benefit: "Leg strength for everyday independence.",
-    safety: "Use a chair that cannot slide, ideally against a wall.",
-  },
-};
-
-export const POSTURE_LABEL = "Posture check";
 export const POSTURE_SUMMARY = "Stand still while the camera looks at how you are standing, from the front or side.";
 
 export const NAV_LABEL = "Main";
@@ -188,11 +92,6 @@ export const CHART_DAY = "Day";
 export const RECENT_TITLE = "Recent sessions";
 export const RECENT_EMPTY = "Your completed exercises will appear here.";
 
-
-export const MODE_LABELS: Record<ExerciseMode, string> = {
-  [ExerciseMode.Posture]: POSTURE_LABEL,
-  ...Object.fromEntries(Object.entries(EXERCISE_COPY).map(([mode, copy]) => [mode, copy.label])),
-} as Record<ExerciseMode, string>;
 
 export const PHASE_READY = "Ready";
 export const BEST_VIEW = (view: ViewMode) => `Best with ${view === ViewMode.Front ? "front" : "side"} view`;

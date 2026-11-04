@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import * as catalog from "./analysis/findings";
 import { Assistant, type SessionRepository } from "./assistant";
-import { EXERCISES, POSTURE } from "./config";
+import { POSTURE } from "./config";
 import { ExerciseMode, Joint, type SessionRecord, ViewMode } from "./domain/models";
 import { EventBus, type EventMap } from "./events";
 import { LocalStorageRepository, toCsv } from "./infrastructure/storage";
@@ -33,7 +33,6 @@ function setup(repo: SessionRepository = new MemoryRepo()) {
   }
   const assistant = new Assistant({
     posture: POSTURE,
-    exercises: EXERCISES,
     events,
     repository: repo,
     clock: clock.read,

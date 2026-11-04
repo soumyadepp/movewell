@@ -5,7 +5,7 @@ from physio_assistant.domain.models import ExerciseMode, SessionRecord, ViewMode
 from physio_assistant.events import Announcement, BodyLost, FindingChanged
 from physio_assistant.ui.commands import SPACE, dispatch
 from tests.conftest import InMemoryRepository
-from tests.poses import arms_at, body
+from tests.poses import arms_at, body, hold
 
 
 def make(config, bus, clock, fixed_now, repo=None):
@@ -52,9 +52,8 @@ def test_toggle_view_switches_analyzer(config, bus, clock, fixed_now):
 def test_select_mode_resets_counter(config, bus, clock, fixed_now):
     assistant = make(config, bus, clock, fixed_now)
     assistant.select_mode(ExerciseMode.ARM_RAISE)
-    assistant.process(arms_at(10))
-    clock.advance(2)
-    assistant.process(arms_at(90))
+    hold(assistant.process, arms_at(10), clock, 0.8)
+    hold(assistant.process, arms_at(100), clock, 0.8)
     assert assistant.counter.reps == 1
 
     assistant.select_mode(ExerciseMode.ARM_RAISE)

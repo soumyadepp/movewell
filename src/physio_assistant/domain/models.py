@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from enum import Enum, StrEnum
 
 Point = tuple[float, float]
+Point3 = tuple[float, float, float]
 
 
 class Joint(StrEnum):
@@ -29,15 +30,31 @@ class Joint(StrEnum):
 
 @dataclass(frozen=True)
 class BodyPoints:
-    """Pixel coordinates of each visible joint in one frame.
+    """Visible joints for one frame.
 
     Joints below the visibility threshold are absent, so lookups return None.
+    Image points are used for anything relative to gravity or the camera;
+    world points are used for joint angles because they are not foreshortened
+    when a limb moves toward the camera.
 
     Attributes:
         points: Mapping from joint to pixel coordinate.
+        world: Optional mapping from joint to 3-D world coordinate in metres.
     """
 
     points: Mapping[Joint, Point] = field(default_factory=dict)
+    world: Mapping[Joint, Point3] = field(default_factory=dict)
+
+    def get3(self, joint: Joint) -> Point3 | None:
+        """Returns the 3-D world position, or None when unavailable.
+
+        Args:
+            joint: Joint to look up.
+
+        Returns:
+            The world coordinate or None.
+        """
+        return self.world.get(joint)
 
     def get(self, joint: Joint) -> Point | None:
         """Returns the joint position, or None when it is not visible.
@@ -82,17 +99,19 @@ class ExerciseMode(Enum):
 
     POSTURE = "POSTURE"
     ARM_RAISE = "ARM RAISE"
+    ELBOW_CURL = "ELBOW CURL"
+    MARCHING = "MARCHING"
+    SIDE_LEG_RAISE = "SIDE LEG RAISE"
+    SIDE_BEND = "SIDE BEND"
     SIT_TO_STAND = "SIT-TO-STAND"
 
 
 class MovementPhase(StrEnum):
-    """Phase of the current repetition."""
+    """Phase of the current repetition. Each exercise names LOW and HIGH in its own words."""
 
     READY = "READY"
-    LOWERED = "LOWERED"
-    RAISED = "RAISED"
-    SITTING_OR_BENT = "SITTING_OR_BENT"
-    STANDING = "STANDING"
+    LOW = "LOW"
+    HIGH = "HIGH"
 
 
 @dataclass(frozen=True)

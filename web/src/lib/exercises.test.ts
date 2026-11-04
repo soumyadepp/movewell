@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createCounter, type ExerciseCounter } from "./analysis/exercises";
-import { EXERCISES } from "./config";
+import { createCounter, type ExerciseCounter } from "./analysis/counting";
 import { BodyPoints, COUNTED_EXERCISES, ExerciseMode, Joint, MovementPhase, type Point3 } from "./domain/models";
 import { EventBus } from "./events";
+import { EXERCISES, getExercise } from "./exercises";
+import { VOICE_LANGUAGES } from "./i18n/speech";
 import * as msg from "./messages";
 import {
   armsAt,
@@ -23,7 +24,7 @@ function setup(mode: ExerciseMode) {
   const clock = new FakeClock();
   const counted: number[] = [];
   events.subscribe("repCounted", ({ total }) => counted.push(total));
-  const counter = createCounter(mode, EXERCISES, events, clock.read);
+  const counter = createCounter(mode, events, clock.read);
   const holdPose = (points: BodyPoints, seconds = 0.5) => hold((p) => counter.update(p), points, clock, seconds);
   const reps = (low: BodyPoints, high: BodyPoints, cycles = 1) => {
     for (let i = 0; i < cycles; i++) {
@@ -232,17 +233,23 @@ describe("sit-to-stand", () => {
 });
 
 describe("registry", () => {
-  it("has thresholds, copy and spoken phrases for every counted exercise", async () => {
-    const { SPEECH_CATALOGS } = await import("./i18n/speech");
-    for (const mode of COUNTED_EXERCISES) {
-      expect(EXERCISES[mode].highDeg).toBeGreaterThan(EXERCISES[mode].lowDeg);
-      expect(msg.EXERCISE_COPY[mode].label).toBeTruthy();
-      for (const speech of Object.values(SPEECH_CATALOGS)) expect(speech.mode[mode]).toBeTruthy();
+  it("registers every counted mode exactly once, with complete definitions", () => {
+    expect(EXERCISES.map((e) => e.mode).sort()).toEqual([...COUNTED_EXERCISES].sort());
+    for (const exercise of EXERCISES) {
+      expect(getExercise(exercise.mode)).toBe(exercise);
+      expect(exercise.thresholds.highDeg).toBeGreaterThan(exercise.thresholds.lowDeg);
+      for (const text of Object.values(exercise.copy)) expect(text).toBeTruthy();
+      for (const language of VOICE_LANGUAGES) expect(exercise.announcement[language]).toBeTruthy();
+      expect(exercise.illustration.start).toBeDefined();
     }
   });
 
+  it("rejects posture, which has no exercise definition", () => {
+    expect(() => getExercise(ExerciseMode.Posture)).toThrow();
+  });
+
   it("posture mode never counts", () => {
-    const counter: ExerciseCounter = createCounter(ExerciseMode.Posture, EXERCISES, new EventBus(), () => 0);
+    const counter: ExerciseCounter = createCounter(ExerciseMode.Posture, new EventBus(), () => 0);
     expect(counter.update(armsAt(100))).toBe(msg.GUIDANCE_POSTURE_MODE);
     expect(counter.reps).toBe(0);
   });
@@ -317,7 +324,7 @@ describe("tracking dropouts", () => {
     const { counter, holdPose } = setup(ExerciseMode.ElbowCurl);
     holdPose(curled(5));
     holdPose(dropWrists(curled(5)), 1);
-    expect(counter.update(dropWrists(curled(5)))).toBe(msg.EXERCISE_COPY[ExerciseMode.ElbowCurl].notVisible);
+    expect(counter.update(dropWrists(curled(5)))).toBe(getExercise(ExerciseMode.ElbowCurl).copy.notVisible);
   });
 });
 
@@ -333,5 +340,35 @@ describe("form checks never fake a zero reading", () => {
       }
     }
     expect(counter.reps).toBe(3);
+  });
+});
+
+describe("low and uneven frame rates", () => {
+  it("counts a quick rep seen in only two frames at 8 fps", () => {
+    const { counter, clock } = setup(ExerciseMode.ArmRaise);
+    for (let i = 0; i < 3; i++) {
+      for (const deg of [10, 10, 10, 10, 60, 100, 110, 60, 10, 10]) {
+        counter.update(armsAt(deg));
+        clock.advance(1 / 8);
+      }
+    }
+    expect(counter.reps).toBe(3);
+  });
+
+  it("still ignores a single-frame spike at 30 fps", () => {
+    const { counter, clock, holdPose } = setup(ExerciseMode.ArmRaise);
+    holdPose(armsAt(10), 1);
+    counter.update(armsAt(120));
+    clock.advance(1 / 30);
+    holdPose(armsAt(10), 1);
+    expect(counter.reps).toBe(0);
+  });
+
+  it("keeps counting across a dropped-frame gap", () => {
+    const { counter, clock, holdPose } = setup(ExerciseMode.ArmRaise);
+    holdPose(armsAt(10), 0.5);
+    clock.advance(0.3);
+    holdPose(armsAt(100), 0.3);
+    expect(counter.reps).toBe(1);
   });
 });

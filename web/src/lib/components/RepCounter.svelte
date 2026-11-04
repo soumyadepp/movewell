@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { EXERCISES } from "../config";
+  import { getExercise } from "../exercises";
   import { type CountedExercise, MovementPhase } from "../domain/models";
   import * as msg from "../messages";
 
@@ -19,8 +19,8 @@
     celebrating: boolean;
   } = $props();
 
-  const copy = $derived(msg.EXERCISE_COPY[mode]);
-  const band = $derived(EXERCISES[mode]);
+  const copy = $derived(getExercise(mode).copy);
+  const band = $derived(getExercise(mode).thresholds);
   const percent = $derived(Math.min(100, Math.round((reps / goal) * 100)));
   const phaseLabel = $derived(
     phase === MovementPhase.Ready ? msg.PHASE_READY : phase === MovementPhase.Low ? copy.low : copy.high,

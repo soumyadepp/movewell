@@ -1,8 +1,9 @@
 <script lang="ts">
   import Pictogram from "../components/Pictogram.svelte";
   import { href } from "../controller.svelte";
-  import { BEST_VIEW, COUNTED_EXERCISES, ViewMode } from "../domain/models";
-  import { ILLUSTRATIONS, POSTURE_ILLUSTRATION } from "../illustrations";
+  import { ViewMode } from "../domain/models";
+  import { EXERCISES, POSTURE_LABEL } from "../exercises";
+  import { POSTURE_ILLUSTRATION } from "../illustrations";
   import * as msg from "../messages";
 </script>
 
@@ -13,17 +14,17 @@
   </header>
 
   <ul class="grid">
-    {#each COUNTED_EXERCISES as mode (mode)}
-      {@const copy = msg.EXERCISE_COPY[mode]}
+    {#each EXERCISES as exercise (exercise.mode)}
+      {@const copy = exercise.copy}
       <li>
-        <a class="item card" href={href.detail(mode)}>
+        <a class="item card" href={href.detail(exercise.mode)}>
           <div class="figure" aria-hidden="true">
-            <Pictogram illustration={ILLUSTRATIONS[mode]} label="" animate={false} size={96} />
+            <Pictogram illustration={exercise.illustration} label="" animate={false} size={96} />
           </div>
           <div class="text">
             <h2>{copy.label}</h2>
             <p>{copy.summary}</p>
-            <span class="view">{BEST_VIEW[mode] === ViewMode.Side ? msg.VIEW_SIDE_LABEL : msg.VIEW_FRONT_LABEL}</span>
+            <span class="view">{exercise.bestView === ViewMode.Side ? msg.VIEW_SIDE_LABEL : msg.VIEW_FRONT_LABEL}</span>
           </div>
         </a>
       </li>
@@ -34,7 +35,7 @@
           <Pictogram illustration={POSTURE_ILLUSTRATION} label="" animate={false} size={96} />
         </div>
         <div class="text">
-          <h2>{msg.POSTURE_LABEL}</h2>
+          <h2>{POSTURE_LABEL}</h2>
           <p>{msg.POSTURE_SUMMARY}</p>
           <span class="view">{msg.VIEW_FRONT_LABEL}</span>
         </div>

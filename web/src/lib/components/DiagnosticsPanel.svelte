@@ -1,12 +1,13 @@
 <script lang="ts">
   import type { CoachController } from "../controller.svelte";
   import { isCounted } from "../domain/models";
+  import { getExercise } from "../exercises";
   import * as msg from "../messages";
 
   let { coach }: { coach: CoachController } = $props();
 
   const s = $derived(coach.snapshot);
-  const angleLabel = $derived(isCounted(s.mode) ? msg.EXERCISE_COPY[s.mode].angleLabel : "");
+  const angleLabel = $derived(isCounted(s.mode) ? getExercise(s.mode).copy.angleLabel : "");
 </script>
 
 <details class="panel">

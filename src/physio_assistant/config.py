@@ -32,10 +32,10 @@ class PoseConfig:
         min_tracking_confidence: Minimum confidence to keep tracking between frames.
     """
 
-    visibility_threshold: float = 0.60
+    visibility_threshold: float = 0.5
     model_complexity: int = 1
-    min_detection_confidence: float = 0.65
-    min_tracking_confidence: float = 0.65
+    min_detection_confidence: float = 0.5
+    min_tracking_confidence: float = 0.5
 
 
 @dataclass(frozen=True)
@@ -59,38 +59,6 @@ class PostureThresholds:
     head_forward_px: float = 45
     trunk_incline_px: float = 65
     bent_knee_deg: float = 145
-
-
-@dataclass(frozen=True)
-class RepThresholds:
-    """Hysteresis band for one exercise counter.
-
-    Attributes:
-        low_deg: Angle below which the movement is in its low phase.
-        high_deg: Angle above which the movement is in its high phase.
-        min_interval_s: Minimum seconds between two counted repetitions.
-    """
-
-    low_deg: float
-    high_deg: float
-    min_interval_s: float
-
-
-@dataclass(frozen=True)
-class ExerciseThresholds:
-    """Thresholds for each exercise counter.
-
-    Attributes:
-        arm_raise: Shoulder angle band (elbow, shoulder, hip).
-        sit_to_stand: Knee angle band (hip, knee, ankle).
-    """
-
-    arm_raise: RepThresholds = field(
-        default_factory=lambda: RepThresholds(low_deg=35, high_deg=70, min_interval_s=1.0)
-    )
-    sit_to_stand: RepThresholds = field(
-        default_factory=lambda: RepThresholds(low_deg=105, high_deg=155, min_interval_s=1.2)
-    )
 
 
 @dataclass(frozen=True)
@@ -120,7 +88,6 @@ class AppConfig:
         camera: Webcam settings.
         pose: Pose model settings.
         posture: Posture rule thresholds.
-        exercises: Exercise counter thresholds.
         voice: Spoken feedback settings.
     """
 
@@ -129,5 +96,4 @@ class AppConfig:
     camera: CameraConfig = field(default_factory=CameraConfig)
     pose: PoseConfig = field(default_factory=PoseConfig)
     posture: PostureThresholds = field(default_factory=PostureThresholds)
-    exercises: ExerciseThresholds = field(default_factory=ExerciseThresholds)
     voice: VoiceConfig = field(default_factory=VoiceConfig)

@@ -5,6 +5,7 @@
   import StatTile from "../components/StatTile.svelte";
   import type { CoachController } from "../controller.svelte";
   import { COUNTED_EXERCISES, type CountedExercise, isCounted } from "../domain/models";
+  import { getExercise, POSTURE_LABEL } from "../exercises";
   import * as msg from "../messages";
 
   let { coach }: { coach: CoachController } = $props();
@@ -17,7 +18,7 @@
   const when = (iso: string) =>
     new Date(iso).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
   const label = (exercise: string) =>
-    COUNTED_EXERCISES.find((m) => m === exercise) ? msg.EXERCISE_COPY[exercise as CountedExercise].label : msg.POSTURE_LABEL;
+    COUNTED_EXERCISES.find((m) => m === exercise) ? getExercise(exercise as CountedExercise).copy.label : POSTURE_LABEL;
 </script>
 
 <div class="progress">
@@ -38,11 +39,11 @@
       <span id="chart-pick" class="eyebrow">{msg.CHART_PICK}</span>
       {#each COUNTED_EXERCISES as mode (mode)}
         <button class="chip" aria-pressed={selected === mode} onclick={() => (selected = mode)}>
-          {msg.EXERCISE_COPY[mode].label}
+          {getExercise(mode).copy.label}
         </button>
       {/each}
     </div>
-    <BarChart title={msg.CHART_TITLE(msg.EXERCISE_COPY[selected].label)} {points} />
+    <BarChart title={msg.CHART_TITLE(getExercise(selected).copy.label)} {points} />
   </section>
 
   <section class="card" aria-labelledby="recent-title">

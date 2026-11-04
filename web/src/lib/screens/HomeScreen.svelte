@@ -4,8 +4,8 @@
   import StatTile from "../components/StatTile.svelte";
   import type { CoachController } from "../controller.svelte";
   import { href } from "../controller.svelte";
-  import { COUNTED_EXERCISES } from "../domain/models";
-  import { ILLUSTRATIONS, POSTURE_ILLUSTRATION } from "../illustrations";
+  import { POSTURE_ILLUSTRATION } from "../illustrations";
+  import { EXERCISES, getExercise, POSTURE_LABEL } from "../exercises";
   import * as msg from "../messages";
   import { DAILY_ROUTINE, estimatedMinutes } from "../routine";
 
@@ -27,7 +27,7 @@
         {#each DAILY_ROUTINE.steps as step, i (step.mode)}
           <li>
             <span class="num" aria-hidden="true">{i + 1}</span>
-            <span class="name">{msg.EXERCISE_COPY[step.mode].label}</span>
+            <span class="name">{getExercise(step.mode).copy.label}</span>
             <span class="target">{msg.ROUTINE_TARGET(step.target)}</span>
           </li>
         {/each}
@@ -35,7 +35,7 @@
       <a class="btn btn-primary btn-lg" href={href.routine}>{msg.ROUTINE_START}</a>
     </div>
     <div class="hero-figure" aria-hidden="true">
-      <Pictogram illustration={ILLUSTRATIONS[DAILY_ROUTINE.steps[0].mode]} label="" size={220} />
+      <Pictogram illustration={getExercise(DAILY_ROUTINE.steps[0].mode).illustration} label="" size={220} />
     </div>
   </section>
 
@@ -51,18 +51,18 @@
       <a href={href.library}>{msg.EXPLORE_ALL}</a>
     </div>
     <ul class="grid">
-      {#each COUNTED_EXERCISES as mode (mode)}
+      {#each EXERCISES as exercise (exercise.mode)}
         <li>
-          <a class="tile card" href={href.detail(mode)}>
-            <Pictogram illustration={ILLUSTRATIONS[mode]} label="" animate={false} size={72} />
-            <span class="tile-name">{msg.EXERCISE_COPY[mode].label}</span>
+          <a class="tile card" href={href.detail(exercise.mode)}>
+            <Pictogram illustration={exercise.illustration} label="" animate={false} size={72} />
+            <span class="tile-name">{exercise.copy.label}</span>
           </a>
         </li>
       {/each}
       <li>
         <a class="tile card" href={href.posture}>
           <Pictogram illustration={POSTURE_ILLUSTRATION} label="" animate={false} size={72} />
-          <span class="tile-name">{msg.POSTURE_LABEL}</span>
+          <span class="tile-name">{POSTURE_LABEL}</span>
         </a>
       </li>
     </ul>

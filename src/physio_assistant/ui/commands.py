@@ -10,9 +10,22 @@ from typing import Protocol
 from physio_assistant import messages
 from physio_assistant.assistant import Assistant
 from physio_assistant.domain.models import ExerciseMode
+from physio_assistant.exercises import counted_modes, get_exercise
 
 ESC = 27
 SPACE = 32
+
+
+def mode_label(mode: ExerciseMode) -> str:
+    """Returns the display name for a mode.
+
+    Args:
+        mode: Any mode, including posture.
+
+    Returns:
+        The label.
+    """
+    return messages.POSTURE_LABEL if mode is ExerciseMode.POSTURE else get_exercise(mode).copy.label
 
 
 class Command(Protocol):
@@ -86,17 +99,19 @@ class ShowHelp:
 
     def execute(self, assistant: Assistant) -> bool:
         """Prints help."""
-        print(messages.HELP_TEXT)
+        modes = "\n".join(f"{i}: {mode_label(mode)}" for i, mode in enumerate(MODE_ORDER, start=1))
+        print(messages.HELP_TEXT.format(modes=modes))
         return True
 
+
+MODE_ORDER: tuple[ExerciseMode, ...] = (ExerciseMode.POSTURE, *counted_modes())
+"""Modes in keyboard order: 1 is posture, 2 onward follow the exercise registry."""
 
 KEY_BINDINGS: dict[int, Command] = {
     ord("q"): Quit(),
     ESC: Quit(),
     ord("v"): ToggleView(),
-    ord("1"): SelectMode(ExerciseMode.POSTURE),
-    ord("2"): SelectMode(ExerciseMode.ARM_RAISE),
-    ord("3"): SelectMode(ExerciseMode.SIT_TO_STAND),
+    **{ord(str(i)): SelectMode(mode) for i, mode in enumerate(MODE_ORDER, start=1)},
     SPACE: ToggleTimer(),
     ord("s"): SaveSession(),
     ord("h"): ShowHelp(),

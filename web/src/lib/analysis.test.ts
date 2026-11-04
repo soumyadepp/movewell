@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { createCounter } from "./analysis/exercises";
+import { createCounter } from "./analysis/counting";
 import * as catalog from "./analysis/findings";
 import { createPostureAnalyzer } from "./analysis/posture";
-import { EXERCISES, POSTURE } from "./config";
+import { POSTURE } from "./config";
 import { calculateAngle, jointAngle, safeAverage } from "./domain/geometry";
 import { BodyPoints, ExerciseMode, Joint, MovementPhase, ViewMode } from "./domain/models";
 import { EventBus } from "./events";
@@ -82,11 +82,11 @@ describe("landmark conversion", () => {
 
 describe("speech catalogs", () => {
   it("cover every finding, mode and view in every language", async () => {
-    const { SPEECH_CATALOGS } = await import("./i18n/speech");
+    const { SPEECH_CATALOGS, modePhrase } = await import("./i18n/speech");
     const findingIds = Object.values(catalog).map((f) => f.id);
     for (const speech of Object.values(SPEECH_CATALOGS)) {
       for (const id of findingIds) expect(speech.corrections[id]).toBeTruthy();
-      for (const mode of Object.values(ExerciseMode)) expect(speech.mode[mode]).toBeTruthy();
+      for (const mode of Object.values(ExerciseMode)) expect(modePhrase(speech, mode)).toBeTruthy();
       for (const view of Object.values(ViewMode)) expect(speech.view[view]).toBeTruthy();
     }
   });

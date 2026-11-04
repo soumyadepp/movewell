@@ -2,6 +2,7 @@
   import StatTile from "../components/StatTile.svelte";
   import type { SessionSummary } from "../controller.svelte";
   import { href } from "../controller.svelte";
+  import { getExercise } from "../exercises";
   import * as msg from "../messages";
 
   let { summary }: { summary: SessionSummary | null } = $props();
@@ -37,7 +38,7 @@
           <tbody>
             {#each summary.results as result, i (i)}
               <tr>
-                <th scope="row">{msg.EXERCISE_COPY[result.mode].label}</th>
+                <th scope="row">{getExercise(result.mode).copy.label}</th>
                 <td>{result.reps} / {result.target}</td>
                 <td>{msg.DURATION(result.durationS)}</td>
                 <td>
