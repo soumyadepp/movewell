@@ -25,6 +25,8 @@ export interface SpeechCatalog {
   readonly timerStarted: string;
   readonly timerPaused: string;
   readonly saved: string;
+  readonly routineStart: string;
+  readonly routineComplete: string;
   readonly corrections: Record<FindingId, string>;
 }
 
@@ -59,6 +61,8 @@ const en: SpeechCatalog = {
   timerStarted: "Session timer started.",
   timerPaused: "Session timer paused.",
   saved: "Session saved.",
+  routineStart: "Let's begin today's routine.",
+  routineComplete: "Routine complete. Great work today!",
   corrections: {
     shoulder_height: "Stand comfortably; avoid deliberately forcing one shoulder down.",
     hip_height: "Stand naturally with weight shared comfortably across both feet.",
@@ -95,6 +99,8 @@ const hi: SpeechCatalog = {
   timerStarted: "सत्र टाइमर शुरू हुआ।",
   timerPaused: "सत्र टाइमर रुका।",
   saved: "सत्र सहेजा गया।",
+  routineStart: "चलिए, आज का व्यायाम शुरू करते हैं।",
+  routineComplete: "आज का व्यायाम पूरा हुआ। बहुत बढ़िया!",
   corrections: {
     shoulder_height: "आराम से खड़े रहिए; एक कंधे को जानबूझकर नीचे मत दबाइए।",
     hip_height: "दोनों पैरों पर बराबर वज़न रखकर सहज रूप से खड़े रहिए।",
@@ -119,6 +125,8 @@ export const PhraseKey = {
   timerStarted: "timer_started",
   timerPaused: "timer_paused",
   saved: "saved",
+  routineStart: "routine_start",
+  routineComplete: "routine_complete",
   count: (total: number) => `count_${total}`,
   view: (view: ViewMode) => `view_${slug(view)}`,
   mode: (mode: ExerciseMode) => `mode_${slug(mode)}`,
@@ -134,6 +142,8 @@ export function phraseTable(catalog: SpeechCatalog): Map<string, string> {
     [PhraseKey.timerStarted, catalog.timerStarted],
     [PhraseKey.timerPaused, catalog.timerPaused],
     [PhraseKey.saved, catalog.saved],
+    [PhraseKey.routineStart, catalog.routineStart],
+    [PhraseKey.routineComplete, catalog.routineComplete],
   ]);
   for (const view of Object.values(ViewMode)) table.set(PhraseKey.view(view), catalog.view[view]);
   for (const mode of Object.values(ExerciseMode)) table.set(PhraseKey.mode(mode), catalog.mode[mode]);

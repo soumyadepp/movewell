@@ -50,6 +50,24 @@ export const COUNTED_EXERCISES = [
 
 export type CountedExercise = (typeof COUNTED_EXERCISES)[number];
 
+/** Camera orientation each exercise is measured from. */
+export const BEST_VIEW: Record<CountedExercise, ViewMode> = {
+  [ExerciseMode.ArmRaise]: ViewMode.Front,
+  [ExerciseMode.ElbowCurl]: ViewMode.Front,
+  [ExerciseMode.Marching]: ViewMode.Side,
+  [ExerciseMode.SideLegRaise]: ViewMode.Front,
+  [ExerciseMode.SideBend]: ViewMode.Front,
+  [ExerciseMode.SitToStand]: ViewMode.Side,
+};
+
+export const isCounted = (mode: ExerciseMode): mode is CountedExercise => mode !== ExerciseMode.Posture;
+
+/** URL-safe identifier for an exercise, e.g. "side-leg-raise". */
+export const exerciseSlug = (mode: ExerciseMode): string => mode.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+
+export const exerciseFromSlug = (slug: string): ExerciseMode | null =>
+  Object.values(ExerciseMode).find((mode) => exerciseSlug(mode) === slug) ?? null;
+
 /** Phase of the current repetition. Each exercise names Low and High in its own words. */
 export enum MovementPhase {
   Ready = "READY",

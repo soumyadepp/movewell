@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { EXERCISES, GOAL_OPTIONS } from "../config";
-  import { ExerciseMode, MovementPhase } from "../domain/models";
+  import { EXERCISES } from "../config";
+  import { type CountedExercise, MovementPhase } from "../domain/models";
   import * as msg from "../messages";
 
   let {
@@ -10,140 +10,117 @@
     phase,
     angle,
     celebrating,
-    onGoal,
   }: {
-    mode: ExerciseMode;
+    mode: CountedExercise;
     reps: number;
     goal: number;
     phase: MovementPhase;
     angle: number | null;
     celebrating: boolean;
-    onGoal: (goal: number) => void;
   } = $props();
 
-  const counting = $derived(mode !== ExerciseMode.Posture);
+  const copy = $derived(msg.EXERCISE_COPY[mode]);
+  const band = $derived(EXERCISES[mode]);
   const percent = $derived(Math.min(100, Math.round((reps / goal) * 100)));
-  const copy = $derived(mode === ExerciseMode.Posture ? null : msg.EXERCISE_COPY[mode]);
-  const band = $derived(mode === ExerciseMode.Posture ? null : EXERCISES[mode]);
   const phaseLabel = $derived(
-    !copy || phase === MovementPhase.Ready ? msg.PHASE_READY : phase === MovementPhase.Low ? copy.low : copy.high,
+    phase === MovementPhase.Ready ? msg.PHASE_READY : phase === MovementPhase.Low ? copy.low : copy.high,
   );
 </script>
 
-<section class="card glass" class:celebrating aria-labelledby="counter-title">
+<section class="card counter" class:celebrating aria-labelledby="counter-title">
   <div class="head">
-    <h2 id="counter-title" class="eyebrow">{msg.MODE_LABELS[mode]}</h2>
-    {#if counting}
-      <span class="phase">{phaseLabel}</span>
-    {/if}
+    <h2 id="counter-title" class="eyebrow">{copy.label}</h2>
+    <span class="phase">{phaseLabel}</span>
   </div>
 
-  {#if copy && band}
-    <p class="count" aria-live="polite" aria-atomic="true">
-      <span class="serif num">{reps}</span>
-      <span class="of">/ {goal} {msg.REPS_LABEL}</span>
-    </p>
-    <div
-      class="bar"
-      role="progressbar"
-      aria-label={msg.TARGET_LABEL(goal)}
-      aria-valuemin="0"
-      aria-valuemax={goal}
-      aria-valuenow={Math.min(reps, goal)}
-    >
-      <span style:width="{percent}%"></span>
-    </div>
+  <p class="count" aria-live="polite" aria-atomic="true">
+    <span class="serif num">{reps}</span>
+    <span class="of">/ {goal} {msg.REPS_LABEL}</span>
+  </p>
+  <div
+    class="bar"
+    role="progressbar"
+    aria-label={msg.TARGET_LABEL(goal)}
+    aria-valuemin="0"
+    aria-valuemax={goal}
+    aria-valuenow={Math.min(reps, goal)}
+  >
+    <span style:width="{percent}%"></span>
+  </div>
 
-    <p class="view-hint">{msg.BEST_VIEW(copy.bestView)}</p>
+  {#if celebrating}
+    <p class="reached serif" role="status">{msg.TARGET_REACHED}</p>
+  {:else}
     <p class="angle">
       {copy.angleLabel}:
       <strong>{angle === null ? msg.ANGLE_UNKNOWN : `${Math.round(angle)}°`}</strong>
       <span>({msg.ANGLE_THRESHOLDS(band.lowDeg, band.highDeg)})</span>
     </p>
-
-    {#if celebrating}
-      <p class="reached serif" role="status">{msg.TARGET_REACHED}</p>
-    {:else}
-      <div class="goals" role="group" aria-label={msg.TARGET_PICK}>
-        <span class="eyebrow">{msg.TARGET_PICK}</span>
-        {#each GOAL_OPTIONS as option (option)}
-          <button class="goal" aria-pressed={goal === option} onclick={() => onGoal(option)}>{option}</button>
-        {/each}
-      </div>
-    {/if}
-  {:else}
-    <p class="hint">{msg.POSTURE_COUNTER_HINT}</p>
   {/if}
 </section>
 
 <style>
-  .card {
-    padding: 1.25rem 1.5rem 1.5rem;
-    transition: box-shadow 300ms ease;
+  .counter {
+    transition: box-shadow var(--duration-slow) var(--easing-standard);
   }
 
   .celebrating {
-    box-shadow: 0 0 0 3px var(--accent-deep), var(--glow);
+    box-shadow: 0 0 0 3px var(--color-primary), var(--card-shadow);
   }
 
   .head {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: var(--space-2);
   }
 
   .phase {
-    padding: 0.25rem 0.75rem;
-    border-radius: var(--radius-pill);
-    background: var(--accent);
-    color: var(--accent-ink);
-    font-weight: 600;
-    font-size: 0.875rem;
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-full);
+    background: var(--badge-bg);
+    color: var(--badge-text);
+    font-weight: var(--font-weight-semibold);
+    font-size: var(--font-size-sm);
   }
 
   .count {
     display: flex;
     align-items: baseline;
-    gap: 0.75rem;
-    margin: 0.25rem 0 0.75rem;
+    gap: var(--space-3);
+    margin: var(--space-1) 0 var(--space-3);
   }
 
   .num {
-    font-size: clamp(5rem, 10vw, 8.5rem);
+    font-size: var(--font-size-display);
     line-height: 0.9;
-    color: var(--accent-deep);
+    color: var(--color-primary);
   }
 
   .of {
-    font-size: clamp(1.125rem, 2vw, 1.5rem);
-    font-weight: 500;
-    color: var(--muted);
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-muted);
   }
 
   .bar {
-    height: 12px;
-    border-radius: var(--radius-pill);
-    background: var(--line);
+    height: var(--progress-height);
+    border-radius: var(--radius-full);
+    background: var(--progress-track);
     overflow: hidden;
   }
 
   .bar span {
     display: block;
     height: 100%;
-    background: var(--gloss);
+    background: var(--progress-fill);
     border-radius: inherit;
-    transition: width 300ms ease;
-  }
-
-  .view-hint {
-    margin: 0.75rem 0 0;
-    font-weight: 600;
-    color: var(--accent-deep);
+    transition: width var(--duration-slow) var(--easing-standard);
   }
 
   .angle {
-    margin: 0.25rem 0 0;
-    font-size: 0.9375rem;
+    margin: var(--space-3) 0 0;
+    font-size: var(--font-size-sm);
   }
 
   .angle strong {
@@ -151,48 +128,15 @@
   }
 
   .angle span {
-    color: var(--muted);
-    font-size: 0.8125rem;
-  }
-
-  .goals {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-top: 1rem;
-  }
-
-  .goals .eyebrow {
-    margin-right: 0.25rem;
-  }
-
-  .goal {
-    flex: 1;
-    min-height: 40px;
-    border-radius: var(--radius-pill);
-    border: 1px solid var(--line);
-    background: transparent;
-    color: var(--ink);
-    font: 600 0.9375rem/1 var(--font-sans);
-    cursor: pointer;
-  }
-
-  .goal[aria-pressed="true"] {
-    border-color: var(--accent-deep);
-    background: color-mix(in srgb, var(--accent-deep) 14%, transparent);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
   }
 
   .reached {
-    margin: 1rem 0 0;
-    font-size: clamp(1.75rem, 3vw, 2.25rem);
-    color: var(--accent-deep);
-    animation: rise 400ms ease-out;
-  }
-
-  .hint {
-    font-size: 1.0625rem;
-    color: var(--muted);
-    margin: 0.75rem 0 0;
+    margin: var(--space-3) 0 0;
+    font-size: var(--font-size-3xl);
+    color: var(--color-primary);
+    animation: rise var(--duration-slow) var(--easing-standard);
   }
 
   @keyframes rise {

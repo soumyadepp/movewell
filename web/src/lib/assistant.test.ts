@@ -37,7 +37,7 @@ function setup(repo: SessionRepository = new MemoryRepo()) {
     events,
     repository: repo,
     clock: clock.read,
-    now: () => new Date("2026-11-04T09:30:00Z"),
+    now: () => new Date(2026, 10, 4, 9, 30, 0),
   });
   const of = (type: keyof EventMap) => seen.filter((e) => e.type === type).map((e) => e.payload);
   return { assistant, clock, of, repo, seen };
@@ -112,6 +112,8 @@ describe("Assistant", () => {
     expect(assistant.view).toBe(ViewMode.Side);
     expect(of("viewChanged")).toEqual([{ view: ViewMode.Side }]);
     expect(of("modeChanged")).toEqual([{ mode: ExerciseMode.SitToStand }]);
+    assistant.selectMode(ExerciseMode.ElbowCurl);
+    expect(assistant.view).toBe(ViewMode.Front);
   });
 
   it("saves a session with paused time excluded", () => {

@@ -1,22 +1,80 @@
 /**
- * Reactive facade between Svelte components and the pure Assistant.
- * Components read `snapshot` and call actions; they never touch the camera,
- * MediaPipe or speech directly.
+ * Reactive facade between Svelte components and the pure application core.
+ *
+ * Owns routing, the guided routine, the camera lifecycle and preferences.
+ * Components read reactive state and call actions; they never touch the
+ * camera, MediaPipe, audio or storage directly.
  */
 import { Assistant } from "./assistant";
-import { EXERCISES, POSTURE, PREFERENCES_KEY, STORAGE_KEY } from "./config";
-import type { ExerciseMode, Finding, MovementPhase, ViewMode } from "./domain/models";
+import { dayStreak } from "./analysis/progress";
+import { DEFAULT_GOAL, EXERCISES, POSTURE, PREFERENCES_KEY, STORAGE_KEY } from "./config";
+import {
+  type CountedExercise,
+  ExerciseMode,
+  exerciseFromSlug,
+  exerciseSlug,
+  type Finding,
+  isCounted,
+  type MovementPhase,
+  type SessionRecord,
+  type ViewMode,
+} from "./domain/models";
 import { EventBus } from "./events";
-import { PhraseKey, SPEECH_CATALOGS, type VoiceLanguage } from "./i18n/speech";
+import { SPEECH_CATALOGS, PhraseKey, type VoiceLanguage } from "./i18n/speech";
 import { BrowserPoseEstimator } from "./infrastructure/pose";
 import { downloadText, LocalStorageRepository, toCsv } from "./infrastructure/storage";
 import { attachVoice, ClipSpeaker, pickVoice, WebSpeechSpeaker } from "./infrastructure/voice";
 import * as msg from "./messages";
+import { DAILY_ROUTINE, type RoutinePhase, RoutineRun, type RoutineStep, type StepResult, singleExercise } from "./routine";
 import { secondsClock } from "./session";
 import { Smoothed } from "./stable";
 
 export type Stage = "onboarding" | "loading" | "running" | "error";
 export type TextSize = "md" | "lg" | "xl";
+
+export type Route =
+  | { name: "home" }
+  | { name: "library" }
+  | { name: "detail"; mode: ExerciseMode }
+  | { name: "workout"; kind: "routine" }
+  | { name: "workout"; kind: "single"; mode: CountedExercise; target: number }
+  | { name: "workout"; kind: "posture" }
+  | { name: "summary" }
+  | { name: "progress" };
+
+export const href = {
+  home: "#/",
+  library: "#/exercises",
+  detail: (mode: ExerciseMode) => `#/exercises/${exerciseSlug(mode)}`,
+  routine: "#/workout/routine",
+  single: (mode: ExerciseMode, target: number) => `#/workout/${exerciseSlug(mode)}?target=${target}`,
+  posture: "#/workout/posture",
+  summary: "#/summary",
+  progress: "#/progress",
+};
+
+/** Parses a location hash into a route, falling back to home. */
+export function parseRoute(hash: string): Route {
+  const [path, query = ""] = hash.replace(/^#/, "").split("?");
+  const parts = path.split("/").filter(Boolean);
+  if (parts[0] === "exercises" && parts[1]) {
+    const mode = exerciseFromSlug(parts[1]);
+    return mode ? { name: "detail", mode } : { name: "library" };
+  }
+  if (parts[0] === "exercises") return { name: "library" };
+  if (parts[0] === "progress") return { name: "progress" };
+  if (parts[0] === "summary") return { name: "summary" };
+  if (parts[0] === "workout") {
+    if (parts[1] === "routine") return { name: "workout", kind: "routine" };
+    if (parts[1] === "posture") return { name: "workout", kind: "posture" };
+    const mode = parts[1] ? exerciseFromSlug(parts[1]) : null;
+    if (mode && isCounted(mode)) {
+      const target = Number(new URLSearchParams(query).get("target")) || DEFAULT_GOAL;
+      return { name: "workout", kind: "single", mode, target };
+    }
+  }
+  return { name: "home" };
+}
 
 interface Preferences {
   textSize: TextSize;
@@ -45,16 +103,30 @@ export interface Snapshot {
   bodyDetected: boolean;
   findings: Finding[];
   guidance: string[];
-  elapsedSeconds: number;
-  timerRunning: boolean;
-  statusMessage: string;
-  totalSessions: number;
-  recentAverageReps: number;
+}
+
+export interface RoutineSnapshot {
+  steps: RoutineStep[];
+  index: number;
+  phase: RoutinePhase;
+  restRemainingS: number;
+  next: RoutineStep | null;
+  isSingle: boolean;
+}
+
+export interface SessionSummary {
+  results: StepResult[];
+  totalReps: number;
+  totalS: number;
+  completed: number;
+  streak: number;
 }
 
 const CELEBRATION_MS = 3500;
+const FINISH_DELAY_MS = 2500;
 
 export class CoachController {
+  route = $state<Route>({ name: "home" });
   stage = $state<Stage>("onboarding");
   errorMessage = $state("");
   celebrating = $state(false);
@@ -63,17 +135,23 @@ export class CoachController {
   language = $state<VoiceLanguage>("en");
   voiceMissing = $state(false);
   snapshot = $state<Snapshot>() as Snapshot;
+  routine = $state<RoutineSnapshot | null>(null);
+  summary = $state<SessionSummary | null>(null);
+  history = $state<SessionRecord[]>([]);
 
   private readonly events = new EventBus();
   private readonly speaker = new ClipSpeaker(import.meta.env.BASE_URL, new WebSpeechSpeaker(), secondsClock);
-  private readonly voiceReady: Promise<void>;
   private readonly repository = new LocalStorageRepository(STORAGE_KEY);
   private readonly assistant: Assistant;
+  private readonly voiceReady: Promise<void>;
+  private readonly angle = new Smoothed(0.3);
   private estimator: BrowserPoseEstimator | null = null;
   private stream: MediaStream | null = null;
   private frameHandle = 0;
   private celebrationTimer: ReturnType<typeof setTimeout> | undefined;
-  private readonly angle = new Smoothed(0.3);
+  private finishTimer: ReturnType<typeof setTimeout> | undefined;
+  private run: RoutineRun | null = null;
+  private cameraGranted = false;
 
   constructor() {
     this.assistant = new Assistant({
@@ -90,14 +168,33 @@ export class CoachController {
     this.speaker.enabled = !prefs.muted;
     this.language = prefs.language;
     this.voiceReady = this.speaker.load().then(() => this.setLanguage(this.language));
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.addEventListener("voiceschanged", () => this.setLanguage(this.language));
+    if (typeof window !== "undefined") {
+      if ("speechSynthesis" in window) {
+        window.speechSynthesis.addEventListener("voiceschanged", () => this.setLanguage(this.language));
+      }
+      window.addEventListener("hashchange", () => this.onRouteChange());
     }
-    this.events.subscribe("goalReached", () => this.celebrate());
+    this.events.subscribe("goalReached", () => this.onGoalReached());
     this.refresh();
+    this.onRouteChange();
+  }
+
+  /** Whether the camera can start without showing the setup sheet. */
+  get canAutoStart(): boolean {
+    return this.cameraGranted;
+  }
+
+  get streak(): number {
+    return dayStreak(this.history, new Date());
+  }
+
+  navigate(hash: string): void {
+    if (window.location.hash === hash) this.onRouteChange();
+    else window.location.hash = hash;
   }
 
   async start(video: HTMLVideoElement, canvas: HTMLCanvasElement): Promise<void> {
+    if (this.stage === "loading") return;
     this.stage = "loading";
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({
@@ -117,41 +214,45 @@ export class CoachController {
       return;
     }
     await this.voiceReady;
+    this.cameraGranted = true;
     this.stage = "running";
-    this.assistant.selectMode(this.assistant.mode);
+    this.beginWorkout();
     this.loop(video, canvas);
   }
 
   stop(): void {
     cancelAnimationFrame(this.frameHandle);
     for (const track of this.stream?.getTracks() ?? []) track.stop();
-    this.speaker.stop();
     this.stream = null;
+    this.speaker.stop();
+    clearTimeout(this.finishTimer);
+    if (this.stage !== "error") this.stage = "onboarding";
   }
 
-  selectMode(mode: ExerciseMode): void {
-    this.assistant.selectMode(mode);
-    this.celebrating = false;
-    this.refresh();
+  skipExercise(): void {
+    if (!this.run || this.run.phase !== "exercise") return;
+    this.recordStep(this.run.completeStep(this.assistant.counter.reps, false));
   }
 
-  setGoal(goal: number): void {
-    this.assistant.setGoal(goal);
-    this.refresh();
+  skipRest(): void {
+    if (!this.run) return;
+    this.run.skipRest();
+    this.beginStep();
+  }
+
+  endSession(): void {
+    if (this.run) {
+      const before = this.run.results.length;
+      this.run.finish(this.assistant.counter.reps);
+      this.logResults(this.run.results.slice(before));
+      this.showSummary();
+    } else {
+      this.navigate(href.home);
+    }
   }
 
   toggleView(): void {
     this.assistant.toggleView();
-    this.refresh();
-  }
-
-  toggleTimer(): void {
-    this.assistant.toggleTimer();
-    this.refresh();
-  }
-
-  save(): void {
-    this.assistant.saveSession();
     this.refresh();
   }
 
@@ -179,6 +280,91 @@ export class CoachController {
     this.savePreferences();
   }
 
+  downloadHistory(): void {
+    downloadText(msg.CSV_FILENAME, toCsv(this.assistant.history));
+  }
+
+  clearHistory(): void {
+    this.assistant.clearHistory();
+    this.refresh();
+  }
+
+  private onRouteChange(): void {
+    const route = parseRoute(typeof window === "undefined" ? "" : window.location.hash);
+    if (this.route.name === "workout" && route.name !== "workout") this.stop();
+    this.route = route;
+    if (route.name === "workout") {
+      this.run = null;
+      this.routine = null;
+      if (this.stage === "running") this.beginWorkout();
+    }
+    if (typeof window !== "undefined") window.scrollTo({ top: 0 });
+  }
+
+  /** Creates the routine for the current workout route and starts its first step. */
+  private beginWorkout(): void {
+    const route = this.route;
+    if (route.name !== "workout") return;
+    this.summary = null;
+    this.celebrating = false;
+    if (route.kind === "posture") {
+      this.run = null;
+      this.assistant.selectMode(ExerciseMode.Posture);
+      this.refresh();
+      return;
+    }
+    const plan = route.kind === "routine" ? DAILY_ROUTINE : singleExercise(route.mode, route.target);
+    this.run = new RoutineRun(plan, secondsClock);
+    if (!this.run.isSingle) this.events.publish("routineStarted", { steps: plan.steps.length });
+    this.beginStep();
+  }
+
+  private beginStep(): void {
+    const step = this.run?.current;
+    if (!step) return;
+    this.celebrating = false;
+    this.assistant.setGoal(step.target);
+    this.assistant.selectMode(step.mode);
+    this.angle.update(null);
+    this.refresh();
+  }
+
+  private onGoalReached(): void {
+    this.celebrate();
+    if (!this.run || this.run.phase !== "exercise") return;
+    this.recordStep(this.run.completeStep(this.assistant.counter.reps, true));
+  }
+
+  private recordStep(phase: RoutinePhase): void {
+    if (!this.run) return;
+    this.logResults(this.run.results.slice(-1));
+    if (phase === "done") {
+      if (!this.run.isSingle) this.events.publish("routineCompleted", {});
+      clearTimeout(this.finishTimer);
+      this.finishTimer = setTimeout(() => this.showSummary(), FINISH_DELAY_MS);
+    }
+    this.refresh();
+  }
+
+  private logResults(results: StepResult[]): void {
+    for (const result of results) {
+      if (result.reps > 0) this.assistant.logExercise(result.mode, result.reps, result.durationS);
+    }
+  }
+
+  private showSummary(): void {
+    const results = this.run?.results ?? [];
+    this.summary = {
+      results,
+      totalReps: results.reduce((sum, r) => sum + r.reps, 0),
+      totalS: results.reduce((sum, r) => sum + r.durationS, 0),
+      completed: results.filter((r) => r.completed).length,
+      streak: dayStreak(this.assistant.history, new Date()),
+    };
+    this.run = null;
+    this.navigate(href.summary);
+  }
+
   private hasSystemVoice(language: VoiceLanguage): boolean {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return false;
     const voices = window.speechSynthesis.getVoices();
@@ -194,15 +380,6 @@ export class CoachController {
     }
   }
 
-  downloadHistory(): void {
-    downloadText(msg.CSV_FILENAME, toCsv(this.assistant.history));
-  }
-
-  clearHistory(): void {
-    this.assistant.clearHistory();
-    this.refresh();
-  }
-
   private loop(video: HTMLVideoElement, canvas: HTMLCanvasElement): void {
     let lastVideoTime = -1;
     const styles = getComputedStyle(document.documentElement);
@@ -212,7 +389,11 @@ export class CoachController {
     };
     const tick = () => {
       this.frameHandle = requestAnimationFrame(tick);
-      if (!this.estimator || video.readyState < 2 || video.currentTime === lastVideoTime) return;
+      if (this.run?.tick()) this.beginStep();
+      if (!this.estimator || video.readyState < 2 || video.currentTime === lastVideoTime) {
+        this.refreshRoutine();
+        return;
+      }
       lastVideoTime = video.currentTime;
       if (canvas.width !== video.videoWidth) {
         canvas.width = video.videoWidth;
@@ -220,7 +401,7 @@ export class CoachController {
       }
       const detection = this.estimator.detect(video, performance.now());
       this.estimator.draw(canvas, detection, skeleton);
-      this.assistant.process(detection?.points ?? null);
+      if (!this.run || this.run.phase === "exercise") this.assistant.process(detection?.points ?? null);
       this.refresh();
     };
     tick();
@@ -238,9 +419,22 @@ export class CoachController {
     this.stage = "error";
   }
 
+  private refreshRoutine(): void {
+    const run = this.run;
+    this.routine = run
+      ? {
+          steps: run.plan.steps,
+          index: run.index,
+          phase: run.phase,
+          restRemainingS: run.restRemainingS(),
+          next: run.next,
+          isSingle: run.isSingle,
+        }
+      : null;
+  }
+
   private refresh(): void {
     const a = this.assistant;
-    const progress = a.progress;
     this.snapshot = {
       view: a.view,
       mode: a.mode,
@@ -251,11 +445,8 @@ export class CoachController {
       bodyDetected: a.frame.bodyDetected,
       findings: a.frame.findings,
       guidance: a.frame.guidance,
-      elapsedSeconds: a.timer.elapsedSeconds(),
-      timerRunning: a.timer.running,
-      statusMessage: a.statusMessage,
-      totalSessions: progress.totalSessions,
-      recentAverageReps: progress.recentAverageReps,
     };
+    if (this.history !== a.history) this.history = a.history;
+    this.refreshRoutine();
   }
 }

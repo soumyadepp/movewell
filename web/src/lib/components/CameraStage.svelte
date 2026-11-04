@@ -9,6 +9,7 @@
     bodyDetected,
     running,
     onToggleView,
+    canSwitchView = true,
   }: {
     video?: HTMLVideoElement;
     canvas?: HTMLCanvasElement;
@@ -16,6 +17,7 @@
     bodyDetected: boolean;
     running: boolean;
     onToggleView: () => void;
+    canSwitchView?: boolean;
   } = $props();
 </script>
 
@@ -27,7 +29,9 @@
 
   <div class="top">
     <span class="badge">{msg.VIEW_LABELS[view]}</span>
-    <button class="btn switch" onclick={onToggleView}>{msg.VIEW_SWITCH}</button>
+    {#if canSwitchView}
+      <button class="btn switch" onclick={onToggleView}>{msg.VIEW_SWITCH}</button>
+    {/if}
   </div>
 
   {#if running && !bodyDetected}
@@ -42,11 +46,11 @@
     position: relative;
     margin: 0;
     aspect-ratio: 4 / 3;
-    border-radius: var(--radius-stage);
+    border-radius: var(--stage-radius);
     overflow: hidden;
     background: var(--stage-bg);
-    border: 1px solid var(--line);
-    box-shadow: var(--glow);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--card-shadow);
   }
 
   .mirror {
@@ -75,7 +79,7 @@
 
   .badge {
     padding: 0.5rem 1rem;
-    border-radius: var(--radius-pill);
+    border-radius: var(--radius-full);
     background: #1b2130e6;
     color: #ffffff;
     font-weight: 600;
@@ -96,8 +100,8 @@
     gap: 0.75rem;
     padding: 0.875rem 1.25rem;
     border-radius: 20px;
-    background: var(--accent);
-    color: var(--accent-ink);
+    background: var(--color-accent);
+    color: var(--color-on-accent);
     font-weight: 600;
     font-size: clamp(1rem, 2.2vw, 1.375rem);
   }

@@ -1,200 +1,107 @@
 <script lang="ts">
-  import { onDestroy } from "svelte";
-  import AboutPanel from "./lib/components/AboutPanel.svelte";
-  import BodyCheck from "./lib/components/BodyCheck.svelte";
-  import CameraStage from "./lib/components/CameraStage.svelte";
-  import Guidance from "./lib/components/Guidance.svelte";
-  import ModePicker from "./lib/components/ModePicker.svelte";
-  import Onboarding from "./lib/components/Onboarding.svelte";
-  import RepCounter from "./lib/components/RepCounter.svelte";
-  import SessionBar from "./lib/components/SessionBar.svelte";
-  import SettingsBar from "./lib/components/SettingsBar.svelte";
+  import AppHeader from "./lib/components/AppHeader.svelte";
   import { CoachController } from "./lib/controller.svelte";
-  import { COUNTED_EXERCISES, ExerciseMode } from "./lib/domain/models";
+  import { isCounted } from "./lib/domain/models";
   import * as msg from "./lib/messages";
+  import ExerciseDetail from "./lib/screens/ExerciseDetail.svelte";
+  import HomeScreen from "./lib/screens/HomeScreen.svelte";
+  import LibraryScreen from "./lib/screens/LibraryScreen.svelte";
+  import ProgressScreen from "./lib/screens/ProgressScreen.svelte";
+  import SummaryScreen from "./lib/screens/SummaryScreen.svelte";
+  import WorkoutScreen from "./lib/screens/WorkoutScreen.svelte";
 
   const coach = new CoachController();
-  let video = $state<HTMLVideoElement>();
-  let canvas = $state<HTMLCanvasElement>();
-  const s = $derived(coach.snapshot);
-  const running = $derived(coach.stage === "running");
+  const route = $derived(coach.route);
+  const workoutKey = $derived(route.name === "workout" ? JSON.stringify(route) : "");
 
   $effect(() => {
     document.documentElement.dataset.textSize = coach.textSize;
   });
 
-  const modeOrder: ExerciseMode[] = [...COUNTED_EXERCISES, ExerciseMode.Posture];
-  const shortcuts: Record<string, () => void> = {
-    ...Object.fromEntries(modeOrder.map((mode, i) => [String(i + 1), () => coach.selectMode(mode)])),
-    v: () => coach.toggleView(),
-    " ": () => coach.toggleTimer(),
-    s: () => coach.save(),
-  };
+  $effect(() => {
+    const titles: Record<string, string> = {
+      home: msg.NAV_HOME,
+      library: msg.NAV_EXERCISES,
+      progress: msg.NAV_PROGRESS,
+      summary: `${msg.SUMMARY_TITLE_LEAD} ${msg.SUMMARY_TITLE_ACCENT}`,
+      workout: msg.NAV_EXERCISES,
+      detail: route.name === "detail" ? msg.MODE_LABELS[route.mode] : "",
+    };
+    document.title = `${titles[route.name] ?? ""} · ${msg.APP_NAME}`;
+  });
 
-  function onKeydown(event: KeyboardEvent) {
-    if (!running || event.metaKey || event.ctrlKey || event.altKey) return;
-    if ((event.target as HTMLElement).closest("button, input, summary, select")) return;
-    const action = shortcuts[event.key.toLowerCase()];
-    if (action) {
-      event.preventDefault();
-      action();
-    }
+  function skipToMain(event: MouseEvent) {
+    event.preventDefault();
+    document.getElementById("main")?.focus();
   }
-
-  function start() {
-    if (video && canvas) coach.start(video, canvas);
-  }
-
-  onDestroy(() => coach.stop());
 </script>
 
-<svelte:window onkeydown={onKeydown} />
+<a class="skip" href="#main" onclick={skipToMain}>{msg.SKIP_LINK}</a>
 
-<a class="skip" href="#main">Skip to exercise</a>
+<div class="page">
+  <AppHeader {coach} />
 
-<div class="page" inert={!running}>
-  <header>
-    <div class="title">
-      <h1 class="brand">AI Physiotherapy <em>Assistant</em></h1>
-      <p class="tagline">{msg.APP_TAGLINE}</p>
-    </div>
-    <SettingsBar
-      textSize={coach.textSize}
-      muted={coach.muted}
-      language={coach.language}
-      voiceMissing={coach.voiceMissing}
-      onTextSize={(size) => coach.setTextSize(size)}
-      onMuted={(m) => coach.setMuted(m)}
-      onLanguage={(l) => coach.chooseLanguage(l)}
-    />
-  </header>
-
-  <main id="main">
-    <div class="left">
-      <ModePicker mode={s.mode} onSelect={(m) => coach.selectMode(m)} />
-      <CameraStage
-        bind:video
-        bind:canvas
-        view={s.view}
-        bodyDetected={s.bodyDetected}
-        {running}
-        onToggleView={() => coach.toggleView()}
-      />
-      <p class="safety" role="note">{msg.SAFETY}</p>
-    </div>
-
-    <aside class="right" aria-label="Exercise feedback">
-      <RepCounter
-        mode={s.mode}
-        reps={s.reps}
-        goal={s.goal}
-        phase={s.phase}
-        angle={s.angle}
-        celebrating={coach.celebrating}
-        onGoal={(g) => coach.setGoal(g)}
-      />
-      <Guidance lines={s.guidance} />
-      {#if s.mode === ExerciseMode.Posture}
-        <BodyCheck findings={s.findings} />
-      {/if}
-      <SessionBar
-        elapsedSeconds={s.elapsedSeconds}
-        timerRunning={s.timerRunning}
-        statusMessage={s.statusMessage}
-        totalSessions={s.totalSessions}
-        recentAverageReps={s.recentAverageReps}
-        showAverage={s.mode !== ExerciseMode.Posture}
-        onToggleTimer={() => coach.toggleTimer()}
-        onSave={() => coach.save()}
-      />
-    </aside>
+  <main id="main" tabindex="-1">
+    {#if route.name === "library"}
+      <LibraryScreen />
+    {:else if route.name === "detail" && isCounted(route.mode)}
+      <ExerciseDetail mode={route.mode} />
+    {:else if route.name === "workout"}
+      {#key workoutKey}
+        <WorkoutScreen {coach} />
+      {/key}
+    {:else if route.name === "summary"}
+      <SummaryScreen summary={coach.summary} />
+    {:else if route.name === "progress"}
+      <ProgressScreen {coach} />
+    {:else}
+      <HomeScreen {coach} />
+    {/if}
   </main>
 
-  <AboutPanel
-    totalSessions={s.totalSessions}
-    onDownload={() => coach.downloadHistory()}
-    onClear={() => coach.clearHistory()}
-  />
+  <footer>
+    <p>{msg.FOOTER}</p>
+  </footer>
 </div>
-
-{#if !running}
-  <Onboarding stage={coach.stage} errorMessage={coach.errorMessage} onStart={start} />
-{/if}
 
 <style>
   .skip {
     position: absolute;
-    left: 16px;
+    left: var(--space-4);
     top: -100px;
     z-index: 50;
-    padding: 0.75rem 1.25rem;
-    border-radius: var(--radius-pill);
-    background: var(--accent-deep);
-    color: var(--accent-deep-ink);
-    font-weight: 600;
+    padding: var(--space-3) var(--space-5);
+    border-radius: var(--radius-full);
+    background: var(--color-primary);
+    color: var(--color-on-primary);
+    font-weight: var(--font-weight-semibold);
   }
 
   .skip:focus {
-    top: 16px;
+    top: var(--space-4);
   }
 
   .page {
-    max-width: 1440px;
+    max-width: 1320px;
     margin: 0 auto;
-    padding: 20px clamp(16px, 3vw, 32px) 32px;
+    padding: var(--space-5) clamp(16px, 3vw, 40px) var(--space-8);
     display: grid;
-    gap: 1.25rem;
+    gap: var(--space-8);
   }
 
-  header {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 1rem 2rem;
+  main:focus {
+    outline: none;
   }
 
-  .brand {
-    font-size: clamp(1.625rem, 3vw, 2.25rem);
-    font-weight: 700;
-    letter-spacing: -0.035em;
+  footer {
+    padding-top: var(--space-6);
+    border-top: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
   }
 
-  .brand em {
-    color: var(--accent-deep);
-  }
-
-  .tagline {
-    margin: 0.25rem 0 0;
-    color: var(--muted);
-  }
-
-  main {
-    display: grid;
-    grid-template-columns: minmax(0, 1.6fr) minmax(340px, 1fr);
-    gap: 1.25rem;
-    align-items: start;
-  }
-
-  .left,
-  .right {
-    display: grid;
-    gap: 1rem;
-  }
-
-  .safety {
+  footer p {
     margin: 0;
-    padding: 0.875rem 1.25rem;
-    border-radius: 18px;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-left: 6px solid var(--accent);
-    font-weight: 500;
-  }
-
-  @media (max-width: 1024px) {
-    main {
-      grid-template-columns: minmax(0, 1fr);
-    }
+    max-width: 60rem;
   }
 </style>

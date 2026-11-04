@@ -5,7 +5,7 @@
   const [main, ...rest] = $derived(lines);
 </script>
 
-<section class="card glass" aria-labelledby="guidance-title">
+<section class="card" aria-labelledby="guidance-title">
   <h2 id="guidance-title" class="eyebrow">{msg.GUIDANCE_TITLE}</h2>
   <p class="main" aria-live="polite">{main}</p>
   {#each rest.slice(0, 2) as line (line)}
@@ -29,7 +29,7 @@
 
   .sub {
     margin: 0.5rem 0 0;
-    color: var(--muted);
+    color: var(--color-text-muted);
     font-size: 1rem;
   }
 </style>

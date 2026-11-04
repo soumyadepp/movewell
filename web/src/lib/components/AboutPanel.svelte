@@ -21,9 +21,9 @@
 <style>
   .panel {
     padding: 1rem 1.5rem;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-card);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
   }
 
   summary {
@@ -35,7 +35,7 @@
   }
 
   p {
-    color: var(--muted);
+    color: var(--color-text-muted);
     margin: 0.75rem 0 0;
     max-width: 70ch;
   }

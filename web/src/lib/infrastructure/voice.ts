@@ -235,4 +235,6 @@ export function attachVoice(events: EventBus, speaker: Speaker, language: () => 
     say(running ? PhraseKey.timerStarted : PhraseKey.timerPaused, "interrupt"),
   );
   events.subscribe("sessionSaved", () => say(PhraseKey.saved, "interrupt"));
+  events.subscribe("routineStarted", () => say(PhraseKey.routineStart, "interrupt"));
+  events.subscribe("routineCompleted", () => say(PhraseKey.routineComplete, "queue"));
 }

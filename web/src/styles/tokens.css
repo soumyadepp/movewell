@@ -1,0 +1,239 @@
+/*
+ * MoveWell design tokens.
+ *
+ * Three tiers:
+ *   1. Primitives  raw values (palette ramps, scales). Never used by components.
+ *   2. Semantic    roles (text, surface, primary...). The only tier that changes
+ *                  between light, dark and high-contrast themes.
+ *   3. Component   per-component decisions built from semantic tokens.
+ *
+ * Palette chosen for older eyes: strong luminance contrast rather than subtle
+ * hue differences. All text pairs meet WCAG AA; body text meets AAA.
+ */
+
+:root {
+  /* 1. Primitives: color ramps */
+  --indigo-50: #eef2fc;
+  --indigo-100: #e9edf8;
+  --indigo-200: #c3d0ff;
+  --indigo-300: #9db3ff;
+  --indigo-400: #7088de;
+  --indigo-500: #4a68c4;
+  --indigo-700: #2e4a9e;
+  --indigo-900: #172040;
+  --indigo-950: #0d1430;
+
+  --terracotta-100: #f8e4da;
+  --terracotta-300: #f2946f;
+  --terracotta-700: #b4492a;
+  --terracotta-900: #3a231b;
+  --terracotta-950: #2a0e04;
+
+  --amber-50: #fff1e2;
+  --amber-300: #ffb86b;
+  --amber-800: #8f4300;
+  --amber-950: #3a2614;
+
+  --sand-50: #faf7f2;
+  --sand-100: #f6e6dc;
+  --sand-300: #d9d2c6;
+
+  --slate-50: #f3efe8;
+  --slate-300: #b7bdcc;
+  --slate-600: #4a5163;
+  --slate-700: #323a4d;
+  --slate-800: #1a1f2b;
+  --slate-850: #1b2130;
+  --slate-900: #11141b;
+  --slate-950: #0a0c11;
+
+  --white: #ffffff;
+
+  /* 1. Primitives: type */
+  --font-family-sans: "Poppins", system-ui, sans-serif;
+  --font-family-display: "Instrument Serif", Georgia, serif;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-size-xs: 0.8125rem;
+  --font-size-sm: 0.9375rem;
+  --font-size-md: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.375rem;
+  --font-size-2xl: 1.75rem;
+  --font-size-3xl: 2.25rem;
+  --font-size-4xl: 3rem;
+  --font-size-display: clamp(4.5rem, 9vw, 8rem);
+  --line-height-tight: 1.15;
+  --line-height-body: 1.55;
+  --letter-spacing-tight: -0.03em;
+  --letter-spacing-caps: 0.06em;
+
+  /* 1. Primitives: space (4px grid), radius, elevation, motion */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-xl: 26px;
+  --radius-full: 999px;
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 400ms;
+  --easing-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  /* 2. Semantic: light theme */
+  --color-bg: var(--sand-50);
+  --color-bg-tint-1: var(--indigo-100);
+  --color-bg-tint-2: var(--sand-100);
+  --color-surface: var(--white);
+  --color-surface-sunken: var(--sand-50);
+  --color-text: var(--slate-850);
+  --color-text-muted: var(--slate-600);
+  --color-border: var(--sand-300);
+  --color-primary: var(--indigo-700);
+  --color-primary-hover: var(--indigo-500);
+  --color-on-primary: var(--white);
+  --color-primary-subtle: var(--indigo-50);
+  --color-accent: var(--terracotta-700);
+  --color-on-accent: var(--white);
+  --color-accent-subtle: var(--terracotta-100);
+  --color-warning: var(--amber-800);
+  --color-warning-surface: var(--amber-50);
+  --color-success: var(--indigo-700);
+  --color-focus: var(--terracotta-700);
+  --color-stage: var(--slate-850);
+  --color-on-stage: var(--white);
+  --color-chart-series: var(--indigo-700);
+  --color-chart-grid: var(--sand-300);
+  --shadow-card: 0 1px 2px #1b213014, 0 12px 32px -16px #1b213033;
+  --shadow-raised: 0 2px 4px #1b21301f, 0 20px 40px -20px #1b213052;
+  --gradient-progress: linear-gradient(90deg, var(--indigo-700), var(--indigo-500));
+
+  /* Accessibility scale, driven by the text-size control */
+  --text-scale: 1.125;
+  --size-tap: 56px;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-bg: var(--slate-900);
+    --color-bg-tint-1: var(--indigo-900);
+    --color-bg-tint-2: #2a1a14;
+    --color-surface: var(--slate-800);
+    --color-surface-sunken: var(--slate-900);
+    --color-text: var(--slate-50);
+    --color-text-muted: var(--slate-300);
+    --color-border: var(--slate-700);
+    --color-primary: var(--indigo-300);
+    --color-primary-hover: var(--indigo-200);
+    --color-on-primary: var(--indigo-950);
+    --color-primary-subtle: #1d2645;
+    --color-accent: var(--terracotta-300);
+    --color-on-accent: var(--terracotta-950);
+    --color-accent-subtle: var(--terracotta-900);
+    --color-warning: var(--amber-300);
+    --color-warning-surface: var(--amber-950);
+    --color-success: var(--indigo-300);
+    --color-focus: var(--terracotta-300);
+    --color-stage: var(--slate-950);
+    --color-chart-series: var(--indigo-400);
+    --color-chart-grid: var(--slate-700);
+    --shadow-card: 0 1px 2px #00000066, 0 12px 32px -16px #000000aa;
+    --shadow-raised: 0 2px 4px #00000080, 0 20px 40px -20px #000000cc;
+    --gradient-progress: linear-gradient(90deg, var(--indigo-300), var(--indigo-200));
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --color-bg: var(--slate-900);
+  --color-bg-tint-1: var(--indigo-900);
+  --color-bg-tint-2: #2a1a14;
+  --color-surface: var(--slate-800);
+  --color-surface-sunken: var(--slate-900);
+  --color-text: var(--slate-50);
+  --color-text-muted: var(--slate-300);
+  --color-border: var(--slate-700);
+  --color-primary: var(--indigo-300);
+  --color-primary-hover: var(--indigo-200);
+  --color-on-primary: var(--indigo-950);
+  --color-primary-subtle: #1d2645;
+  --color-accent: var(--terracotta-300);
+  --color-on-accent: var(--terracotta-950);
+  --color-accent-subtle: var(--terracotta-900);
+  --color-warning: var(--amber-300);
+  --color-warning-surface: var(--amber-950);
+  --color-success: var(--indigo-300);
+  --color-focus: var(--terracotta-300);
+  --color-stage: var(--slate-950);
+  --color-chart-series: var(--indigo-400);
+  --color-chart-grid: var(--slate-700);
+  --shadow-card: 0 1px 2px #00000066, 0 12px 32px -16px #000000aa;
+  --shadow-raised: 0 2px 4px #00000080, 0 20px 40px -20px #000000cc;
+  --gradient-progress: linear-gradient(90deg, var(--indigo-300), var(--indigo-200));
+  color-scheme: dark;
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --color-text-muted: var(--color-text);
+    --color-border: var(--color-text);
+  }
+}
+
+:root[data-text-size="md"] {
+  --text-scale: 1;
+}
+
+:root[data-text-size="lg"] {
+  --text-scale: 1.125;
+}
+
+:root[data-text-size="xl"] {
+  --text-scale: 1.3;
+}
+
+/* 3. Component tokens */
+:root {
+  --button-height: var(--size-tap);
+  --button-radius: var(--radius-full);
+  --button-padding-x: var(--space-6);
+  --button-font: var(--font-weight-semibold) var(--font-size-md) / 1.2 var(--font-family-sans);
+
+  --card-bg: var(--color-surface);
+  --card-border: 1px solid var(--color-border);
+  --card-radius: var(--radius-lg);
+  --card-padding: var(--space-5) var(--space-6);
+  --card-shadow: var(--shadow-card);
+
+  --chip-radius: var(--radius-md);
+  --badge-bg: var(--color-accent);
+  --badge-text: var(--color-on-accent);
+
+  --stage-bg: var(--color-stage);
+  --stage-radius: var(--radius-xl);
+
+  --progress-track: var(--color-border);
+  --progress-fill: var(--gradient-progress);
+  --progress-height: 12px;
+
+  --chart-bar: var(--color-chart-series);
+  --chart-grid: var(--color-chart-grid);
+  --chart-bar-radius: 4px;
+
+  --skeleton-joint: var(--terracotta-300);
+  --skeleton-bone: #ffffffe6;
+  --figure-stroke: var(--color-primary);
+  --figure-ghost: var(--color-border);
+}

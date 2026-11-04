@@ -5,7 +5,7 @@
   let { findings }: { findings: Finding[] } = $props();
 </script>
 
-<section class="card glass" aria-labelledby="observations-title">
+<section class="card" aria-labelledby="observations-title">
   <h2 id="observations-title" class="eyebrow">{msg.OBSERVATIONS_TITLE}</h2>
   {#if findings.length === 0}
     <p class="ok">{msg.OBSERVATIONS_EMPTY}</p>
@@ -41,8 +41,8 @@
     gap: 0.25rem;
     padding: 0.75rem 1rem;
     border-radius: 16px;
-    background: var(--warn-bg);
-    border-left: 4px solid var(--warn);
+    background: var(--color-warning-surface);
+    border-left: 4px solid var(--color-warning);
     font-size: 0.9375rem;
   }
 
@@ -53,11 +53,11 @@
   em {
     font-size: 1.125em;
     margin-right: 0.25rem;
-    color: var(--warn);
+    color: var(--color-warning);
   }
 
   .ex em {
-    color: var(--accent-deep);
+    color: var(--color-primary);
   }
 
   .ok {
@@ -68,6 +68,6 @@
   .caveat {
     margin: 0.75rem 0 0;
     font-size: 0.8125rem;
-    color: var(--muted);
+    color: var(--color-text-muted);
   }
 </style>

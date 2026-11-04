@@ -13,6 +13,8 @@ export interface EventMap {
   modeChanged: { mode: ExerciseMode };
   timerToggled: { running: boolean };
   sessionSaved: Record<string, never>;
+  routineStarted: { steps: number };
+  routineCompleted: Record<string, never>;
 }
 
 type Handler<K extends keyof EventMap> = (payload: EventMap[K]) => void;

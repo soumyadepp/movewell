@@ -4,11 +4,14 @@
  */
 import { createCounter, type ExerciseCounter } from "./analysis/exercises";
 import { createPostureAnalyzer, type PostureAnalyzer } from "./analysis/posture";
+import { localIso } from "./analysis/progress";
 import { DEFAULT_GOAL, type ExerciseThresholds, type PostureThresholds } from "./config";
 import {
+  BEST_VIEW,
   type BodyPoints,
   ExerciseMode,
   type Finding,
+  isCounted,
   type SessionRecord,
   toggledView,
   ViewMode,
@@ -126,6 +129,11 @@ export class Assistant {
 
   selectMode(mode: ExerciseMode): void {
     this.mode = mode;
+    if (isCounted(mode) && this.view !== BEST_VIEW[mode]) {
+      this.view = BEST_VIEW[mode];
+      this.analyzer = createPostureAnalyzer(this.view, this.deps.posture);
+      this.stableFindings.reset([]);
+    }
     this.counter = createCounter(mode, this.deps.exercises, this.deps.events, this.deps.clock);
     this.statusMessage = "";
     this.deps.events.publish("modeChanged", { mode });
@@ -142,12 +150,21 @@ export class Assistant {
   }
 
   saveSession(): boolean {
+    return this.logExercise(this.mode, this.counter.reps, this.timer.elapsedSeconds());
+  }
+
+  /**
+   * Appends one exercise result to the session history.
+   *
+   * @returns True if it was persisted.
+   */
+  logExercise(mode: ExerciseMode, reps: number, durationS: number): boolean {
     const record: SessionRecord = {
-      date_time: this.now().toISOString().slice(0, 19),
-      duration_seconds: this.timer.elapsedSeconds(),
+      date_time: localIso(this.now()),
+      duration_seconds: durationS,
       view_mode: this.view,
-      exercise: this.mode,
-      repetitions: this.counter.reps,
+      exercise: mode,
+      repetitions: reps,
       posture_observations: this.frame.findings.map((f) => f.title).join("; "),
     };
     if (!this.deps.repository.append(record)) {

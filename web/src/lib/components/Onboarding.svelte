@@ -2,12 +2,17 @@
   import type { Stage } from "../controller.svelte";
   import * as msg from "../messages";
 
-  let { stage, errorMessage, onStart }: { stage: Stage; errorMessage: string; onStart: () => void } = $props();
+  let {
+    stage,
+    errorMessage,
+    cancelHref,
+    onStart,
+  }: { stage: Stage; errorMessage: string; cancelHref: string; onStart: () => void } = $props();
   const loading = $derived(stage === "loading");
 </script>
 
 <div class="backdrop">
-  <div class="card" role="dialog" aria-modal="true" aria-labelledby="setup-title">
+  <div class="sheet card" role="dialog" aria-modal="true" aria-labelledby="setup-title">
     <p class="eyebrow">{msg.SETUP_EYEBROW}</p>
     <h1 id="setup-title">{msg.SETUP_TITLE_LEAD} <em>{msg.SETUP_TITLE_ACCENT}</em></h1>
 
@@ -27,16 +32,19 @@
       <p class="error" role="alert">{errorMessage}</p>
     {/if}
 
-    <!-- svelte-ignore a11y_autofocus -->
-    <button class="btn btn-primary start" disabled={loading} aria-busy={loading} onclick={onStart} autofocus>
-      {#if loading}
-        {msg.LOADING_MODEL}
-      {:else if stage === "error"}
-        {msg.TRY_AGAIN}
-      {:else}
-        {msg.SETUP_START}
-      {/if}
-    </button>
+    <div class="actions">
+      <a class="btn" href={cancelHref}>{msg.CANCEL}</a>
+      <!-- svelte-ignore a11y_autofocus -->
+      <button class="btn btn-primary btn-lg start" disabled={loading} aria-busy={loading} onclick={onStart} autofocus>
+        {#if loading}
+          {msg.LOADING_MODEL}
+        {:else if stage === "error"}
+          {msg.TRY_AGAIN}
+        {:else}
+          {msg.SETUP_START}
+        {/if}
+      </button>
+    </div>
     <p class="privacy">{msg.SETUP_PRIVACY}</p>
   </div>
 </div>
@@ -48,46 +56,43 @@
     z-index: 20;
     display: grid;
     place-items: center;
-    padding: 16px;
-    background: color-mix(in srgb, var(--bg) 85%, transparent);
+    padding: var(--space-4);
+    background: color-mix(in srgb, var(--color-bg) 85%, transparent);
     overflow-y: auto;
   }
 
-  .card {
+  .sheet {
     width: min(640px, 100%);
-    padding: clamp(1.5rem, 4vw, 2.5rem);
-    background: var(--surface-strong);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-card);
-    box-shadow: var(--glow);
+    padding: var(--space-10);
+    box-shadow: var(--shadow-raised);
   }
 
   h1 {
-    font-size: clamp(2rem, 5vw, 2.75rem);
-    font-weight: 700;
-    margin: 0.5rem 0 1.5rem;
+    margin: var(--space-2) 0 var(--space-6);
+    font-size: var(--font-size-4xl);
+    font-weight: var(--font-weight-bold);
   }
 
   h1 em {
-    color: var(--accent-deep);
+    color: var(--color-primary);
   }
 
   .steps {
-    list-style: none;
-    padding: 0;
-    margin: 0 0 1.5rem;
     display: grid;
-    gap: 0.75rem;
+    gap: var(--space-3);
+    margin: 0 0 var(--space-6);
+    padding: 0;
+    list-style: none;
   }
 
   .steps li {
     display: flex;
-    gap: 1rem;
+    gap: var(--space-4);
     align-items: center;
-    padding: 1rem 1.25rem;
-    border-radius: 18px;
-    background: var(--bg);
-    border: 1px solid var(--line);
+    padding: var(--space-4) var(--space-5);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-sunken);
+    border: 1px solid var(--color-border);
   }
 
   .num {
@@ -97,39 +102,53 @@
     width: 2.75rem;
     height: 2.75rem;
     border-radius: 50%;
-    background: var(--accent-deep);
-    color: var(--accent-deep-ink);
-    font-weight: 700;
-    font-size: 1.25rem;
+    background: var(--color-primary);
+    color: var(--color-on-primary);
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-xl);
   }
 
   .steps h2 {
-    font-size: 1.125rem;
-    font-weight: 600;
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
   }
 
   .steps p {
-    margin: 0.25rem 0 0;
-    color: var(--muted);
+    margin: var(--space-1) 0 0;
+    color: var(--color-text-muted);
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--space-3);
   }
 
   .start {
     width: 100%;
-    min-height: 64px;
-    font-size: 1.25rem;
   }
 
   .error {
-    background: var(--warn-bg);
-    color: var(--warn);
-    padding: 1rem 1.25rem;
-    border-radius: 16px;
-    font-weight: 500;
+    background: var(--color-warning-surface);
+    color: var(--color-warning);
+    padding: var(--space-4) var(--space-5);
+    border-radius: var(--radius-md);
+    font-weight: var(--font-weight-medium);
   }
 
   .privacy {
+    margin: var(--space-4) 0 0;
     text-align: center;
-    color: var(--muted);
-    margin: 1rem 0 0;
+    color: var(--color-text-muted);
+  }
+
+  @media (max-width: 560px) {
+    .sheet {
+      padding: var(--space-6);
+    }
+
+    .actions {
+      grid-template-columns: 1fr;
+    }
   }
 </style>

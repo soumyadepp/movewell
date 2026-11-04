@@ -79,16 +79,16 @@
   .label {
     font-size: 0.8125rem;
     font-weight: 600;
-    color: var(--muted);
+    color: var(--color-text-muted);
   }
 
   .segmented {
     display: inline-flex;
     padding: 4px;
     gap: 4px;
-    border-radius: var(--radius-pill);
-    background: var(--surface-strong);
-    border: 1px solid var(--line);
+    border-radius: var(--radius-full);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
   }
 
   .segmented button {
@@ -96,16 +96,16 @@
     min-width: 52px;
     padding: 0 1rem;
     border: none;
-    border-radius: var(--radius-pill);
+    border-radius: var(--radius-full);
     background: transparent;
-    color: var(--ink);
-    font: 600 1rem/1 var(--font-sans);
+    color: var(--color-text);
+    font: 600 1rem/1 var(--font-family-sans);
     cursor: pointer;
   }
 
   .segmented button[aria-pressed="true"] {
-    background: var(--accent-deep);
-    color: var(--accent-deep-ink);
+    background: var(--color-primary);
+    color: var(--color-on-primary);
   }
 
   .size-md {
@@ -125,8 +125,8 @@
     margin: 0;
     padding: 0.625rem 1rem;
     border-radius: 14px;
-    background: var(--warn-bg);
-    color: var(--warn);
+    background: var(--color-warning-surface);
+    color: var(--color-warning);
     font-weight: 500;
   }
 </style>
