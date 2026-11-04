@@ -1,0 +1,119 @@
+"""Keyboard commands (Command pattern).
+
+Each key maps to a small command object, so adding a shortcut is one entry in
+``KEY_BINDINGS`` rather than another branch in the frame loop.
+"""
+
+from dataclasses import dataclass
+from typing import Protocol
+
+from physio_assistant import messages
+from physio_assistant.assistant import Assistant
+from physio_assistant.domain.models import ExerciseMode
+
+ESC = 27
+SPACE = 32
+
+
+class Command(Protocol):
+    """Action triggered by a key press."""
+
+    def execute(self, assistant: Assistant) -> bool:
+        """Runs the action.
+
+        Args:
+            assistant: Application service to act on.
+
+        Returns:
+            False if the app should quit, True otherwise.
+        """
+        ...
+
+
+class Quit:
+    """Stops the frame loop."""
+
+    def execute(self, assistant: Assistant) -> bool:
+        """Signals the loop to exit."""
+        return False
+
+
+class ToggleView:
+    """Switches between front and side view."""
+
+    def execute(self, assistant: Assistant) -> bool:
+        """Toggles the view."""
+        assistant.toggle_view()
+        return True
+
+
+@dataclass(frozen=True)
+class SelectMode:
+    """Activates an exercise mode.
+
+    Attributes:
+        mode: Mode to activate.
+    """
+
+    mode: ExerciseMode
+
+    def execute(self, assistant: Assistant) -> bool:
+        """Selects the mode."""
+        assistant.select_mode(self.mode)
+        return True
+
+
+class ToggleTimer:
+    """Starts or pauses the session timer."""
+
+    def execute(self, assistant: Assistant) -> bool:
+        """Toggles the timer."""
+        assistant.toggle_timer()
+        return True
+
+
+class SaveSession:
+    """Saves a session summary."""
+
+    def execute(self, assistant: Assistant) -> bool:
+        """Saves the session."""
+        assistant.save_session()
+        return True
+
+
+class ShowHelp:
+    """Prints the controls to the terminal."""
+
+    def execute(self, assistant: Assistant) -> bool:
+        """Prints help."""
+        print(messages.HELP_TEXT)
+        return True
+
+
+KEY_BINDINGS: dict[int, Command] = {
+    ord("q"): Quit(),
+    ESC: Quit(),
+    ord("v"): ToggleView(),
+    ord("1"): SelectMode(ExerciseMode.POSTURE),
+    ord("2"): SelectMode(ExerciseMode.ARM_RAISE),
+    ord("3"): SelectMode(ExerciseMode.SIT_TO_STAND),
+    SPACE: ToggleTimer(),
+    ord("s"): SaveSession(),
+    ord("h"): ShowHelp(),
+}
+
+
+def dispatch(key: int, assistant: Assistant) -> bool:
+    """Runs the command bound to a key, if any.
+
+    Args:
+        key: Key code from ``cv2.waitKey`` masked to 8 bits.
+        assistant: Application service.
+
+    Returns:
+        False if the app should quit.
+    """
+    if ord("A") <= key <= ord("Z"):
+        key = ord(chr(key).lower())
+    command = KEY_BINDINGS.get(key)
+    return command.execute(assistant) if command else True
