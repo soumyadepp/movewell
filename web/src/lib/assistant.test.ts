@@ -6,7 +6,7 @@ import { ExerciseMode, Joint, type SessionRecord, ViewMode } from "./domain/mode
 import { EventBus, type EventMap } from "./events";
 import { LocalStorageRepository, toCsv } from "./infrastructure/storage";
 import * as msg from "./messages";
-import { armsAt, body, FakeClock } from "./testing/poses";
+import { armsAt, body, FakeClock, hold } from "./testing/poses";
 
 class MemoryRepo implements SessionRepository {
   records: SessionRecord[] = [];
@@ -96,9 +96,8 @@ describe("Assistant", () => {
     const { assistant, clock, seen } = setup();
     assistant.setGoal(2);
     for (let i = 0; i < 3; i++) {
-      assistant.process(armsAt(10));
-      clock.advance(2);
-      assistant.process(armsAt(90));
+      hold((p) => assistant.process(p), armsAt(10), clock, 0.8);
+      hold((p) => assistant.process(p), armsAt(100), clock, 0.8);
     }
     expect(assistant.counter.reps).toBe(3);
     const order = seen.filter((e) => e.type === "repCounted" || e.type === "goalReached").map((e) => e.type);

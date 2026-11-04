@@ -268,3 +268,5 @@ export const CANCEL = "Cancel";
 export const SKIP_LINK = "Skip to content";
 export const FOOTER =
   "MoveWell is an educational prototype, not a medical device. Camera-based estimates are approximate. Ask your physiotherapist which exercises suit you. Video is processed on this device and never uploaded.";
+export const GUIDANCE_TURN_FRONT = "Face the camera so both shoulders are visible.";
+export const GUIDANCE_TURN_SIDE = "Turn side-on to the camera for this exercise.";

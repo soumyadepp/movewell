@@ -49,11 +49,11 @@ export const POSTURE: PostureThresholds = {
  * then rise above highDeg, for one repetition to count.
  */
 export const EXERCISES: ExerciseThresholds = {
-  [ExerciseMode.ArmRaise]: { lowDeg: 35, highDeg: 70, minIntervalS: 1.0 },
-  [ExerciseMode.ElbowCurl]: { lowDeg: 40, highDeg: 100, minIntervalS: 1.0 },
-  [ExerciseMode.Marching]: { lowDeg: 15, highDeg: 40, minIntervalS: 0.6 },
-  [ExerciseMode.SideLegRaise]: { lowDeg: 8, highDeg: 20, minIntervalS: 1.0 },
-  [ExerciseMode.SideBend]: { lowDeg: 5, highDeg: 15, minIntervalS: 1.2 },
+  [ExerciseMode.ArmRaise]: { lowDeg: 35, highDeg: 75, minIntervalS: 1.0 },
+  [ExerciseMode.ElbowCurl]: { lowDeg: 35, highDeg: 95, minIntervalS: 1.0 },
+  [ExerciseMode.Marching]: { lowDeg: 15, highDeg: 45, minIntervalS: 0.6 },
+  [ExerciseMode.SideLegRaise]: { lowDeg: 8, highDeg: 22, minIntervalS: 1.0 },
+  [ExerciseMode.SideBend]: { lowDeg: 6, highDeg: 18, minIntervalS: 1.2 },
   [ExerciseMode.SitToStand]: { lowDeg: 105, highDeg: 155, minIntervalS: 1.2 },
 };
 
