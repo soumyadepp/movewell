@@ -24,6 +24,8 @@ interface Recognition {
   onerror: ((event: { error: string }) => void) | null;
   onend: (() => void) | null;
   onstart: (() => void) | null;
+  onspeechstart: (() => void) | null;
+  onspeechend: (() => void) | null;
   start(): void;
   stop(): void;
   abort(): void;
@@ -34,6 +36,14 @@ type RecognitionConstructor = new () => Recognition;
 const RESTART_DELAY_MS = 250;
 const NETWORK_RETRY_MS = 3000;
 const MAX_NETWORK_RETRIES = 3;
+/** A session aborted sooner than this was taken over by another recogniser. */
+const QUICK_ABORT_MS = 1500;
+/** Quick aborts in a row before giving up and saying something else is listening. */
+const MAX_QUICK_ABORTS = 5;
+const MAX_BACKOFF_MS = 4000;
+/** Sessions longer than this were healthy, so earlier aborts are forgiven. */
+const HEALTHY_SESSION_MS = 3000;
+const CHANNEL = "movewell-voice-commands";
 
 function recognitionClass(): RecognitionConstructor | null {
   if (typeof window === "undefined") return null;
@@ -50,9 +60,16 @@ function recognitionClass(): RecognitionConstructor | null {
  * no-microphone: no working microphone was found.
  * network: the browser's online speech service could not be reached.
  * unavailable: this browser or language cannot recognise speech.
+ * busy: something else in the browser keeps taking the speech recogniser.
+ * other-tab: another MoveWell tab started listening, so this one stopped.
  */
 export type ListenerProblem =
-  "blocked" | "no-microphone" | "network" | "unavailable";
+  | "busy"
+  | "other-tab"
+  | "blocked"
+  | "no-microphone"
+  | "network"
+  | "unavailable";
 
 /**
  * Called with each transcript, final or still in progress. Returns true when
@@ -66,12 +83,30 @@ export class CommandListener {
   private restartTimer: ReturnType<typeof setTimeout> | undefined;
   private networkRetries = 0;
   private handled = new Set<number>();
+  private startedAt = 0;
+  private quickAborts = 0;
+  private readonly id = Math.random().toString(36).slice(2);
+  private readonly channel: BroadcastChannel | null =
+    typeof BroadcastChannel === "undefined"
+      ? null
+      : new BroadcastChannel(CHANNEL);
 
   constructor(
     private readonly onHeard: HeardHandler,
     private readonly onProblem: (problem: ListenerProblem) => void,
     private readonly onStarted: () => void = () => undefined,
-  ) {}
+    private readonly onSpeech: (speaking: boolean) => void = () => undefined,
+  ) {
+    this.channel?.addEventListener(
+      "message",
+      (event: MessageEvent<{ claim?: string }>) => {
+        if (event.data?.claim && event.data.claim !== this.id && this.wanted) {
+          this.stop();
+          this.onProblem("other-tab");
+        }
+      },
+    );
+  }
 
   /** True when this browser can recognise speech at all. */
   static get supported(): boolean {
@@ -93,17 +128,23 @@ export class CommandListener {
     this.stop();
     this.wanted = true;
     this.networkRetries = 0;
+    this.quickAborts = 0;
+    this.channel?.postMessage({ claim: this.id });
     const recognition = new Recognition();
     recognition.lang = bcp47;
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
+    recognition.onspeechstart = () => this.onSpeech(true);
+    recognition.onspeechend = () => this.onSpeech(false);
     recognition.onstart = () => {
+      this.startedAt = Date.now();
       this.handled = new Set();
       this.onStarted();
     };
     recognition.onresult = (event) => {
       this.networkRetries = 0;
+      this.quickAborts = 0;
       for (let i = event.resultIndex; i < event.results.length; i++) {
         if (this.handled.has(i)) continue;
         const result = event.results[i];
@@ -113,9 +154,14 @@ export class CommandListener {
     };
     recognition.onerror = (event) => this.onError(event.error);
     recognition.onend = () => {
+      this.onSpeech(false);
       if (!this.wanted) return;
+      if (Date.now() - this.startedAt > HEALTHY_SESSION_MS)
+        this.quickAborts = 0;
       const delay =
-        this.networkRetries > 0 ? NETWORK_RETRY_MS : RESTART_DELAY_MS;
+        this.networkRetries > 0
+          ? NETWORK_RETRY_MS
+          : Math.min(MAX_BACKOFF_MS, RESTART_DELAY_MS * 2 ** this.quickAborts);
       this.restartTimer = setTimeout(() => {
         try {
           if (this.wanted) recognition.start();
@@ -143,7 +189,15 @@ export class CommandListener {
   }
 
   private onError(error: string): void {
-    if (error === "no-speech" || error === "aborted") return;
+    if (error === "no-speech") return;
+    if (error === "aborted") {
+      if (!this.wanted || Date.now() - this.startedAt > QUICK_ABORT_MS) return;
+      this.quickAborts += 1;
+      if (this.quickAborts < MAX_QUICK_ABORTS) return;
+      this.wanted = false;
+      this.onProblem("busy");
+      return;
+    }
     if (error === "network") {
       this.networkRetries += 1;
       if (this.networkRetries <= MAX_NETWORK_RETRIES) return;

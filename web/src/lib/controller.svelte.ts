@@ -275,6 +275,7 @@ export class CoachController {
   listenerProblem = $state<ListenerProblem | null>(null);
   heard = $state<Command | null>(null);
   heardText = $state("");
+  hearing = $state(false);
   confirmingEnd = $state(false);
   devMode = $state(devModeRequested());
   inspection = $state<FrameInspection | null>(null);
@@ -298,6 +299,7 @@ export class CoachController {
       this.listening = false;
     },
     () => (this.listening = true),
+    (speaking) => (this.hearing = speaking),
   );
   private heardTimer: ReturnType<typeof setTimeout> | undefined;
   private lastSeenAt = -Infinity;
@@ -491,6 +493,7 @@ export class CoachController {
   stop(): void {
     this.listener.stop();
     this.listening = false;
+    this.hearing = false;
     this.confirmingEnd = false;
     this.finishRecording();
     cancelAnimationFrame(this.frameHandle);
@@ -552,6 +555,7 @@ export class CoachController {
       else {
         this.listener.stop();
         this.listening = false;
+        this.hearing = false;
       }
     }
   }

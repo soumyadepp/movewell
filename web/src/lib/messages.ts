@@ -137,8 +137,18 @@ export const HEARD_OTHER = (text: string, next: string, pause: string) =>
   `Heard "${text}". Try "${next}" or "${pause}".`;
 export const VOICE_PROBLEM_NETWORK =
   "Voice commands need an internet connection to the browser's speech service. Use the buttons for now.";
+export const VOICE_PROBLEM_BUSY =
+  "Something else is using speech recognition, such as another tab or app. Close it, then try again.";
+export const VOICE_PROBLEM_OTHER_TAB =
+  "Voice commands moved to another MoveWell tab.";
 export const VOICE_PROBLEM_MICROPHONE =
   "No microphone was found. Use the buttons for now.";
+export const VOICE_OFF_ACTION = "Turn on voice commands";
+export const VOICE_LISTENING = "Listening";
+export const VOICE_HEARING = "Hearing you…";
+export const VOICE_SAY = (next: string, pause: string, end: string) =>
+  `Say "${next}", "${pause}" or "${end}".`;
+export const VOICE_TRY_AGAIN = "Try again";
 export const VOICE_STARTING = "Starting the microphone…";
 export const KEEP_GOING = "Keep going";
 export const END_NOW = "End now";

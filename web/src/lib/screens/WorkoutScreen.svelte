@@ -9,7 +9,7 @@
   import { getExercise } from "../exercises";
   import * as msg from "../messages";
   import Handwritten from "../components/Handwritten.svelte";
-  import { commandHints } from "../commands";
+  import VoiceStatus from "../components/VoiceStatus.svelte";
 
   let { coach }: { coach: CoachController } = $props();
   let video = $state<HTMLVideoElement>();
@@ -38,24 +38,6 @@
             ? msg.GET_READY
             : (s.guidance[0] ?? ""),
   );
-  const hints = $derived(commandHints(coach.language));
-  const problemText = {
-    blocked: msg.VOICE_COMMANDS_BLOCKED,
-    "no-microphone": msg.VOICE_PROBLEM_MICROPHONE,
-    network: msg.VOICE_PROBLEM_NETWORK,
-    unavailable: msg.VOICE_COMMANDS_UNSUPPORTED,
-  } as const;
-  const voiceLine = $derived(
-    coach.listenerProblem
-      ? problemText[coach.listenerProblem]
-      : !coach.listening
-        ? msg.VOICE_STARTING
-        : coach.heard
-          ? msg.HEARD(hints[coach.heard])
-          : coach.heardText
-            ? msg.HEARD_OTHER(coach.heardText, hints.next, hints.pause)
-            : msg.LISTENING_FOR(hints.next, hints.pause, hints.end),
-  );
   const percent = $derived(Math.min(100, Math.round((s.reps / Math.max(1, s.goal)) * 100)));
 
   function start() {
@@ -72,6 +54,12 @@
 <div class="session">
   {#if r && !r.isSingle}
     <div class="track" aria-hidden="true"><span style:width="{progress}%"></span></div>
+  {/if}
+
+  {#if phase !== "camera"}
+    <div class="topbar">
+      <VoiceStatus {coach} />
+    </div>
   {/if}
 
   <div class="layout" class:intro={phase === "intro" || phase === "camera"}>
@@ -171,14 +159,6 @@
               </button>
             </div>
           {/if}
-          {#if coach.voiceCommands}
-            <p class="listening" class:problem={coach.listenerProblem} aria-live="polite">
-              <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"
-                ><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg
-              >
-              <span>{voiceLine}</span>
-            </p>
-          {/if}
         </div>
       {/if}
     </aside>
@@ -205,6 +185,15 @@
     height: 100%;
     background: var(--color-on-deep);
     transition: width var(--duration-bar) var(--ease-out);
+  }
+
+  .topbar {
+    display: flex;
+    justify-content: flex-end;
+    width: 100%;
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: var(--space-4) var(--gutter) 0;
   }
 
   .layout {
@@ -432,29 +421,7 @@
     padding: 0 var(--space-4);
   }
 
-  .listening {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    font-size: var(--type-small);
-    opacity: 0.85;
-  }
 
-  .listening.problem {
-    padding: var(--space-3) var(--space-4);
-    border-radius: var(--radius-md);
-    background: var(--color-warning-surface);
-    color: var(--color-warning);
-    opacity: 1;
-  }
-
-  .listening svg {
-    flex: none;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 2;
-    stroke-linecap: round;
-  }
 
   .error {
     padding: var(--space-4) var(--space-5);

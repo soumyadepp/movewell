@@ -17,6 +17,7 @@
   import WorkoutScreen from "./lib/screens/WorkoutScreen.svelte";
 
   const coach = new CoachController();
+  if (import.meta.hot) import.meta.hot.dispose(() => coach.stop());
   const route = $derived(coach.route);
   const workoutKey = $derived(route.name === "workout" ? JSON.stringify(route) : "");
   const screenKey = $derived(route.name === "workout" ? "workout" : JSON.stringify(route));
