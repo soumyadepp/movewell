@@ -27,7 +27,8 @@
     </div>
     <dl class="state">
       <div><dt>{msg.DEV.smoothed}</dt><dd>{formatValue(inspection.smoothed)}°</dd></div>
-      <div><dt>{msg.DEV.band}</dt><dd>{inspection.lowDeg} / {inspection.highDeg}</dd></div>
+      <div><dt>{msg.DEV.band}</dt><dd>{formatValue(inspection.lowDeg)} / {formatValue(inspection.highDeg)}</dd></div>
+      <div><dt>{msg.DEV.range}</dt><dd>{inspection.rangeStatus}</dd></div>
       <div><dt>{msg.DEV.zone}</dt><dd>{inspection.zone}</dd></div>
       <div><dt>{msg.DEV.phase}</dt><dd>{inspection.phase}</dd></div>
       <div><dt>{msg.DEV.reps}</dt><dd>{inspection.reps} / {inspection.goal}</dd></div>

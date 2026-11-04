@@ -29,6 +29,8 @@ export interface FrameInspection {
   readonly reading: string;
   readonly smoothed: number | null;
   readonly lowDeg: number | null;
+  /** Whether the thresholds are standard, being learned, or personal. */
+  readonly rangeStatus: string;
   readonly highDeg: number | null;
   readonly zone: Zone;
   readonly phase: MovementPhase;
@@ -46,6 +48,7 @@ export interface InspectionInput {
   points: BodyPoints | null;
   visibility: (joint: Joint) => number | null;
   now: number;
+  rangeStatus?: string;
 }
 
 const ORDER: Joint[] = [
@@ -106,8 +109,9 @@ export function inspectFrame(input: InspectionInput): FrameInspection {
       ? describeReading(exercise ? exercise.measure(points) : null)
       : "no body",
     smoothed: counter.lastAngle,
-    lowDeg: exercise?.thresholds.lowDeg ?? null,
-    highDeg: exercise?.thresholds.highDeg ?? null,
+    lowDeg: counter.thresholds?.lowDeg ?? null,
+    highDeg: counter.thresholds?.highDeg ?? null,
+    rangeStatus: input.rangeStatus ?? "standard",
     zone: counter.zone,
     phase: counter.phase,
     reps: counter.reps,

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import * as catalog from "./analysis/findings";
-import { Assistant, type SessionRepository } from "./assistant";
+import {
+  Assistant,
+  type RangeRepository,
+  type SessionRepository,
+} from "./assistant";
+import type { PersonalRange } from "./analysis/range";
 import { POSTURE } from "./config";
 import {
   ExerciseMode,
@@ -11,7 +16,7 @@ import {
 import { EventBus, type EventMap } from "./events";
 import { LocalStorageRepository, toCsv } from "./infrastructure/storage";
 import * as msg from "./messages";
-import { armsAt, body, FakeClock, hold } from "./testing/poses";
+import { armsAt, body, curled, FakeClock, hold } from "./testing/poses";
 
 class MemoryRepo implements SessionRepository {
   records: SessionRecord[] = [];
@@ -207,5 +212,69 @@ describe("storage", () => {
     expect(toCsv([record])).toBe(
       'date_time,duration_seconds,view_mode,exercise,repetitions,posture_observations\n2026-11-04T09:30:00,60,FRONT,ARM RAISE,7,"Leaning, ""a bit"""\n',
     );
+  });
+});
+
+describe("personal range", () => {
+  class MemoryRanges implements RangeRepository {
+    saved = new Map<ExerciseMode, PersonalRange>();
+    get(mode: ExerciseMode) {
+      return this.saved.get(mode) ?? null;
+    }
+    set(mode: ExerciseMode, range: PersonalRange) {
+      this.saved.set(mode, range);
+    }
+    clear() {
+      this.saved.clear();
+    }
+  }
+
+  function curlSession(ranges?: RangeRepository) {
+    const events = new EventBus();
+    const clock = new FakeClock();
+    const assistant = new Assistant({
+      posture: POSTURE,
+      events,
+      repository: new MemoryRepo(),
+      clock: clock.read,
+      ranges,
+    });
+    assistant.selectMode(ExerciseMode.ElbowCurl);
+    assistant.setGoal(10);
+    const curls = (times: number) => {
+      for (let i = 0; i < times; i++) {
+        hold((p) => assistant.process(p), curled(5), clock, 1);
+        hold((p) => assistant.process(p), curled(60), clock, 1);
+      }
+      hold((p) => assistant.process(p), curled(5), clock, 1);
+    };
+    return { assistant, curls };
+  }
+
+  it("misses a limited curl with standard thresholds", () => {
+    const { assistant, curls } = curlSession();
+    curls(4);
+    expect(assistant.counter.reps).toBe(0);
+  });
+
+  it("learns the range from the first two curls, counts them, and keeps counting", () => {
+    const ranges = new MemoryRanges();
+    const { assistant, curls } = curlSession(ranges);
+    expect(assistant.rangeStatus).toBe("learning");
+    curls(2);
+    expect(assistant.rangeStatus).toBe("personal");
+    expect(assistant.counter.reps).toBe(2);
+    curls(3);
+    expect(assistant.counter.reps).toBe(5);
+    expect(ranges.saved.get(ExerciseMode.ElbowCurl)).toBeDefined();
+  });
+
+  it("uses a saved range from the first curl next time", () => {
+    const ranges = new MemoryRanges();
+    curlSession(ranges).curls(3);
+    const { assistant, curls } = curlSession(ranges);
+    expect(assistant.rangeStatus).toBe("personal");
+    curls(1);
+    expect(assistant.counter.reps).toBe(1);
   });
 });

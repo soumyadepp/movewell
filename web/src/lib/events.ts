@@ -19,6 +19,10 @@ export interface EventMap {
   sessionSaved: Record<string, never>;
   routineStarted: { steps: number };
   routineCompleted: Record<string, never>;
+  countdownTick: { remaining: number };
+  rangeLearned: { mode: ExerciseMode };
+  countdownFinished: Record<string, never>;
+  sessionPaused: { reason: "away" | "user" };
 }
 
 type Handler<K extends keyof EventMap> = (payload: EventMap[K]) => void;
@@ -26,7 +30,10 @@ type Handler<K extends keyof EventMap> = (payload: EventMap[K]) => void;
 export class EventBus {
   private handlers: { [K in keyof EventMap]?: Handler<K>[] } = {};
 
-  subscribe<K extends keyof EventMap>(type: K, handler: Handler<K>): () => void {
+  subscribe<K extends keyof EventMap>(
+    type: K,
+    handler: Handler<K>,
+  ): () => void {
     const list = (this.handlers[type] ?? []) as Handler<K>[];
     list.push(handler);
     this.handlers[type] = list as (typeof this.handlers)[K];
@@ -34,6 +41,7 @@ export class EventBus {
   }
 
   publish<K extends keyof EventMap>(type: K, payload: EventMap[K]): void {
-    for (const handler of (this.handlers[type] ?? []) as Handler<K>[]) handler(payload);
+    for (const handler of (this.handlers[type] ?? []) as Handler<K>[])
+      handler(payload);
   }
 }

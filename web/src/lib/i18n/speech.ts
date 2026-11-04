@@ -30,13 +30,42 @@ export interface SpeechCatalog {
   readonly saved: string;
   readonly routineStart: string;
   readonly routineComplete: string;
+  readonly pausedAway: string;
+  readonly pausedUser: string;
   readonly corrections: Record<FindingId, string>;
 }
 
 const HINDI_NUMBERS = [
-  "एक", "दो", "तीन", "चार", "पाँच", "छह", "सात", "आठ", "नौ", "दस",
-  "ग्यारह", "बारह", "तेरह", "चौदह", "पंद्रह", "सोलह", "सत्रह", "अठारह", "उन्नीस", "बीस",
-  "इक्कीस", "बाईस", "तेईस", "चौबीस", "पच्चीस", "छब्बीस", "सत्ताईस", "अट्ठाईस", "उनतीस", "तीस",
+  "एक",
+  "दो",
+  "तीन",
+  "चार",
+  "पाँच",
+  "छह",
+  "सात",
+  "आठ",
+  "नौ",
+  "दस",
+  "ग्यारह",
+  "बारह",
+  "तेरह",
+  "चौदह",
+  "पंद्रह",
+  "सोलह",
+  "सत्रह",
+  "अठारह",
+  "उन्नीस",
+  "बीस",
+  "इक्कीस",
+  "बाईस",
+  "तेईस",
+  "चौबीस",
+  "पच्चीस",
+  "छब्बीस",
+  "सत्ताईस",
+  "अट्ठाईस",
+  "उनतीस",
+  "तीस",
 ];
 
 const en: SpeechCatalog = {
@@ -59,14 +88,22 @@ const en: SpeechCatalog = {
   saved: "Session saved.",
   routineStart: "Let's begin today's routine.",
   routineComplete: "Routine complete. Great work today!",
+  pausedAway: "Paused. Step back into view and we'll carry on.",
+  pausedUser: "Paused. Carry on when you're ready.",
   corrections: {
-    shoulder_height: "Stand comfortably; avoid deliberately forcing one shoulder down.",
-    hip_height: "Stand naturally with weight shared comfortably across both feet.",
+    shoulder_height:
+      "Stand comfortably; avoid deliberately forcing one shoulder down.",
+    hip_height:
+      "Stand naturally with weight shared comfortably across both feet.",
     trunk_shift: "Try standing comfortably without leaning to one side.",
-    knee_alignment: "During a bend, keep each knee generally tracking in the direction of its foot.",
-    head_forward: "Gently bring your head back over your shoulders; keep your gaze level.",
-    trunk_incline: "Find a comfortable upright position without forcing your back.",
-    knee_bent: "If you are standing for posture assessment, stand comfortably and avoid locking the knees.",
+    knee_alignment:
+      "During a bend, keep each knee generally tracking in the direction of its foot.",
+    head_forward:
+      "Gently bring your head back over your shoulders; keep your gaze level.",
+    trunk_incline:
+      "Find a comfortable upright position without forcing your back.",
+    knee_bent:
+      "If you are standing for posture assessment, stand comfortably and avoid locking the knees.",
   },
 };
 
@@ -90,6 +127,8 @@ const hi: SpeechCatalog = {
   saved: "सत्र सहेजा गया।",
   routineStart: "चलिए, आज का व्यायाम शुरू करते हैं।",
   routineComplete: "आज की कसरत पूरी हो गई। बहुत बढ़िया!",
+  pausedAway: "रुक गए हैं। कैमरे के सामने आइए, फिर आगे बढ़ेंगे।",
+  pausedUser: "रुक गए हैं। तैयार हों तो आगे बढ़िए।",
   corrections: {
     shoulder_height: "आराम से खड़े रहिए; एक कंधे को जानबूझकर नीचे मत दबाइए।",
     hip_height: "दोनों पैरों पर बराबर वज़न रखकर सहज रूप से खड़े रहिए।",
@@ -97,7 +136,8 @@ const hi: SpeechCatalog = {
     knee_alignment: "झुकते समय हर घुटने को उसके पैर की दिशा में रखिए।",
     head_forward: "धीरे से सिर को कंधों के ऊपर पीछे लाइए; नज़र सीधी रखिए।",
     trunk_incline: "पीठ पर ज़ोर डाले बिना आराम से सीधे खड़े होइए।",
-    knee_bent: "पोस्चर जाँच के लिए आराम से खड़े रहिए और घुटनों को लॉक मत कीजिए।",
+    knee_bent:
+      "पोस्चर जाँच के लिए आराम से खड़े रहिए और घुटनों को लॉक मत कीजिए।",
   },
 };
 
@@ -108,7 +148,9 @@ const slug = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "_");
 
 /** Spoken announcement for a mode in a catalog's language. */
 export function modePhrase(catalog: SpeechCatalog, mode: ExerciseMode): string {
-  return mode === ExerciseMode.Posture ? catalog.postureMode : getExercise(mode).announcement[catalog.id];
+  return mode === ExerciseMode.Posture
+    ? catalog.postureMode
+    : getExercise(mode).announcement[catalog.id];
 }
 
 /** Builders for stable phrase keys, which double as clip file names. */
@@ -121,6 +163,8 @@ export const PhraseKey = {
   saved: "saved",
   routineStart: "routine_start",
   routineComplete: "routine_complete",
+  pausedAway: "paused_away",
+  pausedUser: "paused_user",
   count: (total: number) => `count_${total}`,
   view: (view: ViewMode) => `view_${slug(view)}`,
   mode: (mode: ExerciseMode) => `mode_${slug(mode)}`,
@@ -138,13 +182,18 @@ export function phraseTable(catalog: SpeechCatalog): Map<string, string> {
     [PhraseKey.saved, catalog.saved],
     [PhraseKey.routineStart, catalog.routineStart],
     [PhraseKey.routineComplete, catalog.routineComplete],
+    [PhraseKey.pausedAway, catalog.pausedAway],
+    [PhraseKey.pausedUser, catalog.pausedUser],
   ]);
-  for (const view of Object.values(ViewMode)) table.set(PhraseKey.view(view), catalog.view[view]);
-  for (const mode of Object.values(ExerciseMode)) table.set(PhraseKey.mode(mode), modePhrase(catalog, mode));
+  for (const view of Object.values(ViewMode))
+    table.set(PhraseKey.view(view), catalog.view[view]);
+  for (const mode of Object.values(ExerciseMode))
+    table.set(PhraseKey.mode(mode), modePhrase(catalog, mode));
   for (const [id, text] of Object.entries(catalog.corrections)) {
     table.set(PhraseKey.correction(id as FindingId), text);
   }
-  for (let n = 1; n <= MAX_RECORDED_COUNT; n++) table.set(PhraseKey.count(n), catalog.countWord(n));
+  for (let n = 1; n <= MAX_RECORDED_COUNT; n++)
+    table.set(PhraseKey.count(n), catalog.countWord(n));
   return table;
 }
 

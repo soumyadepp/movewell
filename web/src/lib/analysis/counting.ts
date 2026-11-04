@@ -9,7 +9,12 @@
 import { type BodyPoints, ExerciseMode, MovementPhase } from "../domain/models";
 import type { EventBus } from "../events";
 import { type Exercise, getExercise } from "../exercises";
-import { GUIDANCE_POSTURE_MODE, GUIDANCE_TURN_FRONT, GUIDANCE_TURN_SIDE } from "../messages";
+import type { RepThresholds } from "../exercises/types";
+import {
+  GUIDANCE_POSTURE_MODE,
+  GUIDANCE_TURN_FRONT,
+  GUIDANCE_TURN_SIDE,
+} from "../messages";
 import type { Clock } from "../session";
 
 /** Seconds the angle must stay in a zone before it counts as reached. */
@@ -44,6 +49,8 @@ export interface ExerciseCounter {
   readonly zone: Zone;
   /** When the current run of blocked frames started, in clock seconds. */
   readonly blockedSince: number | null;
+  /** Thresholds in use, which may be personalised; null in posture mode. */
+  readonly thresholds: RepThresholds | null;
   update(points: BodyPoints): string;
 }
 
@@ -55,6 +62,7 @@ class PostureOnlyCounter implements ExerciseCounter {
   readonly lastAngle = null;
   readonly zone: Zone = "mid";
   readonly blockedSince = null;
+  readonly thresholds = null;
 
   update(): string {
     return GUIDANCE_POSTURE_MODE;
@@ -75,6 +83,7 @@ export class RepCounter implements ExerciseCounter {
   private blockAnnounced = false;
   private zoneFrames = 0;
   private lastSampleAt: number | null = null;
+  thresholds: RepThresholds;
 
   constructor(
     readonly exercise: Exercise,
@@ -82,10 +91,31 @@ export class RepCounter implements ExerciseCounter {
     private readonly clock: Clock,
   ) {
     this.mode = exercise.mode;
+    this.thresholds = exercise.thresholds;
+  }
+
+  /** Switches to new thresholds, for example once a personal range is known. */
+  setThresholds(thresholds: RepThresholds): void {
+    this.thresholds = thresholds;
+  }
+
+  /**
+   * Raises the count to a total found another way, announcing each new rep.
+   * Used when the movements that taught the personal range were real reps
+   * that the standard thresholds missed. Never lowers the count.
+   */
+  credit(total: number): void {
+    while (this.reps < total) {
+      this.reps += 1;
+      this.events.publish("repCounted", { mode: this.mode, total: this.reps });
+    }
+    this.lastRepTime = this.clock();
+    this.phase = MovementPhase.High;
   }
 
   update(points: BodyPoints): string {
-    const { copy, thresholds: t } = this.exercise;
+    const { copy } = this.exercise;
+    const t = this.thresholds;
     const result = this.exercise.measure(points);
     const now = this.clock();
     if ("blocked" in result) {
@@ -116,18 +146,26 @@ export class RepCounter implements ExerciseCounter {
     if (this.smoothed === null || dt > MAX_GAP_S) {
       this.smoothed = result.angle;
     } else {
-      this.smoothed += (1 - Math.exp(-dt / SMOOTHING_TAU_S)) * (result.angle - this.smoothed);
+      this.smoothed +=
+        (1 - Math.exp(-dt / SMOOTHING_TAU_S)) * (result.angle - this.smoothed);
     }
     this.lastAngle = this.smoothed;
 
-    const zone: Zone = this.smoothed < t.lowDeg ? "low" : this.smoothed > t.highDeg ? "high" : "mid";
+    const zone: Zone =
+      this.smoothed < t.lowDeg
+        ? "low"
+        : this.smoothed > t.highDeg
+          ? "high"
+          : "mid";
     if (zone !== this.zone) {
       this.zone = zone;
       this.zoneSince = now;
       this.zoneFrames = 0;
     }
     this.zoneFrames += 1;
-    const reached = this.zoneFrames >= DWELL_FRAMES || now - this.zoneSince + DWELL_EPSILON_S >= DWELL_S;
+    const reached =
+      this.zoneFrames >= DWELL_FRAMES ||
+      now - this.zoneSince + DWELL_EPSILON_S >= DWELL_S;
     if (zone === "low" && reached) {
       this.phase = MovementPhase.Low;
     } else if (zone === "high" && reached) {
@@ -141,7 +179,7 @@ export class RepCounter implements ExerciseCounter {
       this.phase = MovementPhase.High;
       return;
     }
-    if (now - this.lastRepTime > this.exercise.thresholds.minIntervalS) {
+    if (now - this.lastRepTime > this.thresholds.minIntervalS) {
       this.reps += 1;
       this.lastRepTime = now;
       this.phase = MovementPhase.High;
@@ -151,7 +189,11 @@ export class RepCounter implements ExerciseCounter {
 }
 
 /** Factory returning a fresh counter for a mode. */
-export function createCounter(mode: ExerciseMode, events: EventBus, clock: Clock): ExerciseCounter {
+export function createCounter(
+  mode: ExerciseMode,
+  events: EventBus,
+  clock: Clock,
+): ExerciseCounter {
   if (mode === ExerciseMode.Posture) return new PostureOnlyCounter();
   return new RepCounter(getExercise(mode), events, clock);
 }

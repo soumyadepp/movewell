@@ -105,6 +105,41 @@ export const PLAN_DONE = "Done";
 export const NEXT_EXERCISE = "Next exercise";
 export const END_CONFIRM = (done: number, total: number) =>
   `End the session now? You've done ${done} of ${total}.`;
+export const FORGET_RANGES = "Forget my movement ranges";
+export const RANGES_FORGOTTEN =
+  "Done. Each exercise will learn your range again next time.";
+export const LEARNING_RANGE =
+  "Do two slow, comfortable movements, as far as feels right. MoveWell will learn your range.";
+export const GET_READY = "Get ready";
+export const PAUSED_TITLE = "Paused";
+export const PAUSED_AWAY = "Step back into view and we'll carry on.";
+export const PAUSED_USER = "Take your time.";
+export const CARRY_ON = "Carry on";
+export const PAUSE = "Pause";
+export const VOICE_COMMANDS_LABEL = "Voice commands";
+export const VOICE_COMMANDS_HINT = (
+  next: string,
+  pause: string,
+  resume: string,
+  end: string,
+) =>
+  `Say "${next}", "${pause}", "${resume}" or "${end}" during a session, so you don't need to come back to the screen.`;
+export const VOICE_COMMANDS_PRIVACY =
+  "Your browser listens only during a session, and may send what you say to Google to understand it. Video never leaves this computer.";
+export const VOICE_COMMANDS_UNSUPPORTED =
+  "This browser can't listen for commands. Chrome and Edge can.";
+export const VOICE_COMMANDS_BLOCKED =
+  "The microphone is blocked. Allow it from the icon in the browser's address bar to use voice commands.";
+export const LISTENING_FOR = (next: string, pause: string, end: string) =>
+  `Listening. Say "${next}", "${pause}" or "${end}".`;
+export const HEARD = (word: string) => `Heard "${word}"`;
+export const HEARD_OTHER = (text: string, next: string, pause: string) =>
+  `Heard "${text}". Try "${next}" or "${pause}".`;
+export const VOICE_PROBLEM_NETWORK =
+  "Voice commands need an internet connection to the browser's speech service. Use the buttons for now.";
+export const VOICE_PROBLEM_MICROPHONE =
+  "No microphone was found. Use the buttons for now.";
+export const VOICE_STARTING = "Starting the microphone…";
 export const KEEP_GOING = "Keep going";
 export const END_NOW = "End now";
 export const DAY_DONE = "Done";
@@ -210,6 +245,7 @@ export const DEV = {
   reading: "raw",
   smoothed: "smoothed",
   band: "band",
+  range: "range",
   zone: "zone",
   phase: "phase",
   reps: "reps",

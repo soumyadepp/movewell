@@ -7,12 +7,21 @@
  */
 import { Assistant } from "./assistant";
 import { type FrameInspection, inspectFrame } from "./analysis/inspection";
+import {
+  type Command,
+  type CommandAction,
+  commandAction,
+  MAX_INTERIM_WORDS,
+  MAX_WORDS,
+  parseCommand,
+} from "./commands";
 import { dayStreak } from "./analysis/progress";
 import {
   DEFAULT_GOAL,
   PLAN_KEY,
   POSTURE,
   PREFERENCES_KEY,
+  RANGES_KEY,
   STORAGE_KEY,
 } from "./config";
 import {
@@ -29,9 +38,14 @@ import {
 import { EventBus } from "./events";
 import { SPEECH_CATALOGS, PhraseKey, type VoiceLanguage } from "./i18n/speech";
 import { attachCues, WebAudioCuePlayer } from "./infrastructure/cues";
+import {
+  CommandListener,
+  type ListenerProblem,
+} from "./infrastructure/listener";
 import { BrowserPoseEstimator, LANDMARK_INDEX } from "./infrastructure/pose";
 import {
   downloadText,
+  LocalStorageRangeRepository,
   LocalStorageRepository,
   toCsv,
 } from "./infrastructure/storage";
@@ -46,6 +60,7 @@ import {
   DAILY_ROUTINE,
   planFrom,
   type RoutinePhase,
+  type PauseReason,
   type RoutinePlan,
   RoutineRun,
   type RoutineStep,
@@ -121,11 +136,19 @@ interface Preferences {
   language: VoiceLanguage;
   muted: boolean;
   sounds: boolean;
+  voiceCommands: boolean;
   name: string;
   onboarded: boolean;
   showSkeleton: boolean;
   recordSessions: boolean;
 }
+
+/** Seconds out of view before an exercise pauses itself. */
+const AUTO_PAUSE_S = 3;
+/** Seconds back in view before an automatically paused exercise carries on. */
+const AUTO_RESUME_S = 1;
+/** How long the last heard command stays on screen, in milliseconds. */
+const HEARD_MS = 2500;
 
 /** Milliseconds between developer panel updates, so it never slows the frame loop. */
 const INSPECTION_INTERVAL_MS = 100;
@@ -147,6 +170,7 @@ const DEFAULT_PREFERENCES: Preferences = {
   language: "en",
   muted: false,
   sounds: true,
+  voiceCommands: false,
   name: "",
   onboarded: false,
   showSkeleton: false,
@@ -191,6 +215,8 @@ export interface RoutineSnapshot {
   index: number;
   phase: RoutinePhase;
   restRemainingS: number;
+  countdownS: number;
+  pauseReason: PauseReason | null;
   next: RoutineStep | null;
   isSingle: boolean;
 }
@@ -244,6 +270,12 @@ export class CoachController {
   onboarded = $state(false);
   cameraGranted = $state(false);
   plan = $state<RoutinePlan>(DAILY_ROUTINE);
+  voiceCommands = $state(false);
+  listening = $state(false);
+  listenerProblem = $state<ListenerProblem | null>(null);
+  heard = $state<Command | null>(null);
+  heardText = $state("");
+  confirmingEnd = $state(false);
   devMode = $state(devModeRequested());
   inspection = $state<FrameInspection | null>(null);
   diagnostics = $state<Diagnostics>({
@@ -259,7 +291,20 @@ export class CoachController {
     secondsClock,
   );
   private readonly cues = new WebAudioCuePlayer();
+  private readonly listener = new CommandListener(
+    (transcript, final) => this.onHeard(transcript, final),
+    (problem) => {
+      this.listenerProblem = problem;
+      this.listening = false;
+    },
+    () => (this.listening = true),
+  );
+  private heardTimer: ReturnType<typeof setTimeout> | undefined;
+  private lastSeenAt = -Infinity;
+  private seenSince: number | null = null;
+  private lastCountdown = 0;
   private readonly repository = new LocalStorageRepository(STORAGE_KEY);
+  private readonly ranges = new LocalStorageRangeRepository(RANGES_KEY);
   private readonly assistant: Assistant;
   private readonly voiceReady: Promise<void>;
   private readonly angle = new Smoothed(0.3);
@@ -278,6 +323,7 @@ export class CoachController {
       events: this.events,
       repository: this.repository,
       clock: secondsClock,
+      ranges: this.ranges,
     });
     attachVoice(this.events, this.speaker, () => this.language);
     attachCues(this.events, this.cues, secondsClock);
@@ -291,6 +337,7 @@ export class CoachController {
     this.muted = prefs.muted;
     this.speaker.enabled = !prefs.muted;
     this.sounds = prefs.sounds;
+    this.voiceCommands = prefs.voiceCommands;
     this.cues.enabled = prefs.sounds;
     this.language = prefs.language;
     this.voiceReady = this.speaker
@@ -437,10 +484,14 @@ export class CoachController {
     this.cameraGranted = true;
     this.stage = "running";
     this.beginWorkout();
+    this.startListening();
     this.loop(video, canvas);
   }
 
   stop(): void {
+    this.listener.stop();
+    this.listening = false;
+    this.confirmingEnd = false;
     this.finishRecording();
     cancelAnimationFrame(this.frameHandle);
     for (const track of this.stream?.getTracks() ?? []) track.stop();
@@ -452,7 +503,7 @@ export class CoachController {
 
   skipExercise(): void {
     if (this.run?.phase === "intro") this.run.begin();
-    if (!this.run || this.run.phase !== "exercise") return;
+    if (!this.run || !this.run.isActive) return;
     this.recordStep(this.run.completeStep(this.assistant.counter.reps, false));
   }
 
@@ -463,6 +514,7 @@ export class CoachController {
   }
 
   endSession(): void {
+    this.confirmingEnd = false;
     if (this.run) {
       const before = this.run.results.length;
       this.run.finish(this.assistant.counter.reps);
@@ -483,6 +535,52 @@ export class CoachController {
     this.speaker.enabled = !muted;
     if (muted) this.speaker.stop();
     this.savePreferences();
+  }
+
+  /** True when this browser can listen for spoken commands. */
+  get voiceCommandsSupported(): boolean {
+    return CommandListener.supported;
+  }
+
+  /** Turns spoken commands on or off; they only listen during a session. */
+  setVoiceCommands(on: boolean): void {
+    this.voiceCommands = on;
+    this.listenerProblem = null;
+    this.savePreferences();
+    if (this.stage === "running") {
+      if (on) this.startListening();
+      else {
+        this.listener.stop();
+        this.listening = false;
+      }
+    }
+  }
+
+  /** Pauses the current exercise from a button or spoken command. */
+  pause(): void {
+    if (!this.run) return;
+    const before = this.run.phase;
+    this.run.pause("user");
+    if (this.run.phase === "paused" && before !== "paused")
+      this.events.publish("sessionPaused", { reason: "user" });
+    this.refresh();
+  }
+
+  /** Carries on after a pause with a fresh countdown. */
+  resume(): void {
+    if (!this.run) return;
+    this.run.resume();
+    this.lastCountdown = 0;
+    this.refresh();
+  }
+
+  requestEnd(): void {
+    if (this.run && !this.run.isSingle) this.confirmingEnd = true;
+    else this.endSession();
+  }
+
+  cancelEnd(): void {
+    this.confirmingEnd = false;
   }
 
   /** Turns the non-verbal sound cues on or off, playing one as a sample when turned on. */
@@ -512,6 +610,7 @@ export class CoachController {
     this.voiceMissing =
       !this.speaker.hasClips(language) && !this.hasSystemVoice(language);
     this.savePreferences();
+    if (this.listening) this.startListening();
   }
 
   setDevMode(on: boolean): void {
@@ -552,6 +651,11 @@ export class CoachController {
 
   downloadHistory(): void {
     downloadText(msg.CSV_FILENAME, toCsv(this.assistant.history));
+  }
+
+  /** Forgets every learned range, so each exercise learns it again next time. */
+  clearRanges(): void {
+    this.ranges.clear();
   }
 
   clearHistory(): void {
@@ -659,6 +763,7 @@ export class CoachController {
         language: this.language,
         muted: this.muted,
         sounds: this.sounds,
+        voiceCommands: this.voiceCommands,
         name: this.name,
         onboarded: this.onboarded,
         showSkeleton: this.showSkeleton,
@@ -683,7 +788,7 @@ export class CoachController {
     let lastInspection = 0;
     const tick = () => {
       this.frameHandle = requestAnimationFrame(tick);
-      if (this.run?.tick()) this.beginStep();
+      this.tickRoutine();
       if (
         !this.estimator ||
         video.readyState < 2 ||
@@ -712,6 +817,7 @@ export class CoachController {
       }
       if (this.recording && detection)
         this.recordFrame(now, video, detection.landmarks, detection.world);
+      this.watchPresence(detection !== null, secondsClock());
       if (!this.run || this.run.phase === "exercise")
         this.assistant.process(detection?.points ?? null);
       if (this.devMode && now - lastInspection >= INSPECTION_INTERVAL_MS) {
@@ -721,6 +827,7 @@ export class CoachController {
           mode: this.assistant.mode,
           goal: this.assistant.goal,
           counter: this.assistant.counter,
+          rangeStatus: this.assistant.rangeStatus,
           points: detection?.points ?? null,
           visibility: (joint) =>
             detection?.landmarks[LANDMARK_INDEX[joint]]?.visibility ?? null,
@@ -776,6 +883,99 @@ export class CoachController {
     this.stage = "error";
   }
 
+  private tickRoutine(): void {
+    const run = this.run;
+    if (!run) return;
+    const before = run.phase;
+    if (run.tick()) {
+      this.lastCountdown = 0;
+      this.beginStep();
+    }
+    if (run.phase === "countdown") {
+      const remaining = run.countdownRemainingS();
+      if (remaining > 0 && remaining !== this.lastCountdown) {
+        this.lastCountdown = remaining;
+        this.events.publish("countdownTick", { remaining });
+      }
+    } else if (before === "countdown" && run.phase === "exercise") {
+      this.lastCountdown = 0;
+      this.events.publish("countdownFinished", {});
+    }
+  }
+
+  /**
+   * Pauses an exercise when nobody has been in view for a while, and carries
+   * on once the person has been back in view for a moment.
+   */
+  private watchPresence(present: boolean, now: number): void {
+    if (present) {
+      this.lastSeenAt = now;
+      this.seenSince ??= now;
+    } else {
+      this.seenSince = null;
+    }
+    const run = this.run;
+    if (!run) return;
+    if (run.phase === "exercise" && now - this.lastSeenAt >= AUTO_PAUSE_S) {
+      run.pause("away");
+      this.events.publish("sessionPaused", { reason: "away" });
+    } else if (
+      run.phase === "paused" &&
+      run.pauseReason === "away" &&
+      this.seenSince !== null &&
+      now - this.seenSince >= AUTO_RESUME_S
+    ) {
+      this.resume();
+    }
+  }
+
+  private startListening(): void {
+    if (!this.voiceCommands || this.stage !== "running") return;
+    this.listenerProblem = null;
+    this.listening = false;
+    this.listener.start(SPEECH_CATALOGS[this.language].bcp47);
+  }
+
+  private onHeard(transcript: string, final: boolean): boolean {
+    const text = transcript.trim();
+    if (!text) return false;
+    const command = parseCommand(
+      text,
+      this.language,
+      final ? MAX_WORDS : MAX_INTERIM_WORDS,
+    );
+    if (final || command) {
+      this.heardText = text;
+      this.heard = command;
+      clearTimeout(this.heardTimer);
+      this.heardTimer = setTimeout(() => {
+        this.heard = null;
+        this.heardText = "";
+      }, HEARD_MS);
+    }
+    if (!command || !this.run) return false;
+    this.handleCommand(command);
+    return true;
+  }
+
+  /** Applies a spoken command to whatever the session is doing right now. */
+  private handleCommand(command: Command): void {
+    if (!this.run) return;
+    const action = commandAction(command, this.run.phase, this.confirmingEnd);
+    const actions: Record<CommandAction, () => void> = {
+      begin: () => this.beginExercise(),
+      skipExercise: () => this.skipExercise(),
+      skipRest: () => this.skipRest(),
+      pause: () => this.pause(),
+      resume: () => this.resume(),
+      requestEnd: () => this.requestEnd(),
+      confirmEnd: () => this.endSession(),
+      cancelEnd: () => this.cancelEnd(),
+      none: () => undefined,
+    };
+    actions[action]();
+  }
+
   private refreshRoutine(): void {
     const run = this.run;
     this.routine = run
@@ -784,6 +984,8 @@ export class CoachController {
           index: run.index,
           phase: run.phase,
           restRemainingS: run.restRemainingS(),
+          countdownS: run.countdownRemainingS(),
+          pauseReason: run.pauseReason,
           next: run.next,
           isSingle: run.isSingle,
         }

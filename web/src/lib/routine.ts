@@ -33,7 +33,8 @@ export interface StepResult {
   completed: boolean;
 }
 
-export type RoutinePhase = "intro" | "exercise" | "rest" | "done";
+export type RoutinePhase =
+  "intro" | "countdown" | "exercise" | "paused" | "rest" | "done";
 
 /** Seconds per repetition used to estimate how long a routine takes. */
 const SECONDS_PER_REP = 4;
@@ -178,26 +179,36 @@ export function estimatedMinutes(plan: RoutinePlan): number {
   return Math.max(1, Math.round((reps * SECONDS_PER_REP + rest) / 60));
 }
 
+export type PauseReason = "away" | "user";
+
+/** Seconds of "3, 2, 1" before each exercise starts counting. */
+export const COUNTDOWN_S = 3;
+
+/** Phases in which the current exercise is underway and can be skipped or ended. */
+const ACTIVE: readonly RoutinePhase[] = ["countdown", "exercise", "paused"];
+
 export class RoutineRun {
   index = 0;
   phase: RoutinePhase;
+  pauseReason: PauseReason | null = null;
   readonly results: StepResult[] = [];
   private stepStartedAt: number;
   private restEndsAt = 0;
+  private countdownEndsAt = 0;
+  private pausedAt = 0;
 
   constructor(
     readonly plan: RoutinePlan,
     private readonly clock: Clock,
   ) {
     this.stepStartedAt = clock();
-    this.phase = plan.showIntro ? "intro" : "exercise";
+    this.phase = "intro";
+    if (!plan.showIntro) this.startCountdown();
   }
 
-  /** Starts the current exercise after its introduction. */
+  /** Starts the countdown into the current exercise after its introduction. */
   begin(): void {
-    if (this.phase !== "intro") return;
-    this.phase = "exercise";
-    this.stepStartedAt = this.clock();
+    if (this.phase === "intro") this.startCountdown();
   }
 
   get current(): RoutineStep | null {
@@ -212,10 +223,37 @@ export class RoutineRun {
     return this.plan.steps.length === 1;
   }
 
+  /** True while the current exercise is counting down, running or paused. */
+  get isActive(): boolean {
+    return ACTIVE.includes(this.phase);
+  }
+
   restRemainingS(): number {
     return this.phase === "rest"
       ? Math.max(0, Math.ceil(this.restEndsAt - this.clock()))
       : 0;
+  }
+
+  countdownRemainingS(): number {
+    return this.phase === "countdown"
+      ? Math.max(0, Math.ceil(this.countdownEndsAt - this.clock()))
+      : 0;
+  }
+
+  /** Pauses the current exercise; time spent paused is not counted. */
+  pause(reason: PauseReason): void {
+    if (this.phase !== "exercise" && this.phase !== "countdown") return;
+    this.phase = "paused";
+    this.pauseReason = reason;
+    this.pausedAt = this.clock();
+  }
+
+  /** Resumes a paused exercise with a fresh countdown. */
+  resume(): void {
+    if (this.phase !== "paused") return;
+    this.stepStartedAt += this.clock() - this.pausedAt;
+    this.pauseReason = null;
+    this.startCountdown(false);
   }
 
   /**
@@ -225,14 +263,20 @@ export class RoutineRun {
    */
   completeStep(reps: number, completed: boolean): RoutinePhase {
     const step = this.current;
-    if (!step || this.phase !== "exercise") return this.phase;
+    if (!step || !this.isActive) return this.phase;
+    const pausedFor =
+      this.phase === "paused" ? this.clock() - this.pausedAt : 0;
     this.results.push({
       mode: step.mode,
       target: step.target,
       reps,
-      durationS: Math.round(this.clock() - this.stepStartedAt),
+      durationS: Math.max(
+        0,
+        Math.round(this.clock() - this.stepStartedAt - pausedFor),
+      ),
       completed,
     });
+    this.pauseReason = null;
     if (!this.next) {
       this.phase = "done";
     } else if (this.plan.restS > 0) {
@@ -245,11 +289,15 @@ export class RoutineRun {
   }
 
   /**
-   * Advances out of rest once the countdown ends.
+   * Moves out of timed phases: rest into the next step, countdown into the exercise.
    *
    * @returns True if a new step started.
    */
   tick(): boolean {
+    if (this.phase === "countdown" && this.clock() >= this.countdownEndsAt) {
+      this.phase = "exercise";
+      return false;
+    }
     if (this.phase === "rest" && this.clock() >= this.restEndsAt) {
       this.advance();
       return true;
@@ -263,13 +311,19 @@ export class RoutineRun {
 
   /** Ends the routine early, keeping any partial progress on the current step. */
   finish(reps: number): void {
-    if (this.phase === "exercise" && reps > 0) this.completeStep(reps, false);
+    if (this.isActive && reps > 0) this.completeStep(reps, false);
     this.phase = "done";
+  }
+
+  private startCountdown(newStep = true): void {
+    this.phase = "countdown";
+    this.countdownEndsAt = this.clock() + COUNTDOWN_S;
+    if (newStep) this.stepStartedAt = this.countdownEndsAt;
   }
 
   private advance(): void {
     this.index += 1;
-    this.phase = this.plan.showIntro ? "intro" : "exercise";
-    this.stepStartedAt = this.clock();
+    this.phase = "intro";
+    if (!this.plan.showIntro) this.startCountdown();
   }
 }

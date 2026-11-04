@@ -7,7 +7,12 @@
  */
 import { VOICE } from "../config";
 import type { EventBus } from "../events";
-import { PhraseKey, phraseText, SPEECH_CATALOGS, type VoiceLanguage } from "../i18n/speech";
+import {
+  PhraseKey,
+  phraseText,
+  SPEECH_CATALOGS,
+  type VoiceLanguage,
+} from "../i18n/speech";
 import type { Clock } from "../session";
 
 const CANCEL_GAP_MS = 80;
@@ -62,7 +67,8 @@ export function pickVoice(
 ): SpeechSynthesisVoice | null {
   const lang = bcp47.toLowerCase();
   const base = lang.split("-")[0];
-  const norm = (v: SpeechSynthesisVoice) => v.lang.toLowerCase().replace("_", "-");
+  const norm = (v: SpeechSynthesisVoice) =>
+    v.lang.toLowerCase().replace("_", "-");
   const score = (v: SpeechSynthesisVoice) => {
     const tag = norm(v);
     if (tag !== lang && !tag.startsWith(`${base}-`) && tag !== base) return -1;
@@ -84,14 +90,19 @@ export function pickVoice(
   return best;
 }
 
-const speechSupported = () => typeof window !== "undefined" && "speechSynthesis" in window;
+const speechSupported = () =>
+  typeof window !== "undefined" && "speechSynthesis" in window;
 
 /** Web Speech fallback. Works around Chrome dropping utterances queued right after cancel(). */
 export class WebSpeechSpeaker implements Speaker {
   enabled = true;
   private pending: SpeechSynthesisUtterance | null = null;
 
-  say(language: VoiceLanguage, key: string, priority: Priority = "interrupt"): void {
+  say(
+    language: VoiceLanguage,
+    key: string,
+    priority: Priority = "interrupt",
+  ): void {
     const catalog = SPEECH_CATALOGS[language];
     const text = phraseText(catalog, key);
     if (!this.enabled || !text || !speechSupported()) return;
@@ -144,8 +155,11 @@ export class ClipSpeaker implements Speaker {
 
   async load(): Promise<void> {
     try {
-      const response = await fetch(`${this.baseUrl}voice/manifest.json`, { cache: "no-cache" });
-      if (response.ok) this.available = ((await response.json()) as VoiceManifest).languages;
+      const response = await fetch(`${this.baseUrl}voice/manifest.json`, {
+        cache: "no-cache",
+      });
+      if (response.ok)
+        this.available = ((await response.json()) as VoiceManifest).languages;
     } catch {
       this.available = {};
     }
@@ -160,7 +174,11 @@ export class ClipSpeaker implements Speaker {
     for (const key of this.available[language] ?? []) this.clip(language, key);
   }
 
-  say(language: VoiceLanguage, key: string, priority: Priority = "interrupt"): void {
+  say(
+    language: VoiceLanguage,
+    key: string,
+    priority: Priority = "interrupt",
+  ): void {
     if (!this.enabled) return;
     const busy = this.current !== null;
     if (priority === "hint") {
@@ -223,18 +241,44 @@ export class ClipSpeaker implements Speaker {
 }
 
 /** Observer that turns domain events into phrase keys in the active language. */
-export function attachVoice(events: EventBus, speaker: Speaker, language: () => VoiceLanguage): void {
-  const say = (key: string, priority: Priority) => speaker.say(language(), key, priority);
-  events.subscribe("repCounted", ({ total }) => say(PhraseKey.count(total), "queue"));
+export function attachVoice(
+  events: EventBus,
+  speaker: Speaker,
+  language: () => VoiceLanguage,
+): void {
+  const say = (key: string, priority: Priority) =>
+    speaker.say(language(), key, priority);
+  events.subscribe("repCounted", ({ total }) =>
+    say(PhraseKey.count(total), "queue"),
+  );
   events.subscribe("goalReached", () => say(PhraseKey.goalReached, "queue"));
-  events.subscribe("findingChanged", ({ finding }) => say(PhraseKey.correction(finding.id), "hint"));
+  events.subscribe("findingChanged", ({ finding }) =>
+    say(PhraseKey.correction(finding.id), "hint"),
+  );
   events.subscribe("bodyLost", () => say(PhraseKey.moveIntoView, "hint"));
-  events.subscribe("viewChanged", ({ view }) => say(PhraseKey.view(view), "interrupt"));
-  events.subscribe("modeChanged", ({ mode }) => say(PhraseKey.mode(mode), "interrupt"));
+  events.subscribe("viewChanged", ({ view }) =>
+    say(PhraseKey.view(view), "interrupt"),
+  );
+  events.subscribe("modeChanged", ({ mode }) =>
+    say(PhraseKey.mode(mode), "interrupt"),
+  );
   events.subscribe("timerToggled", ({ running }) =>
     say(running ? PhraseKey.timerStarted : PhraseKey.timerPaused, "interrupt"),
   );
   events.subscribe("sessionSaved", () => say(PhraseKey.saved, "interrupt"));
-  events.subscribe("routineStarted", () => say(PhraseKey.routineStart, "interrupt"));
-  events.subscribe("routineCompleted", () => say(PhraseKey.routineComplete, "queue"));
+  events.subscribe("routineStarted", () =>
+    say(PhraseKey.routineStart, "interrupt"),
+  );
+  events.subscribe("routineCompleted", () =>
+    say(PhraseKey.routineComplete, "queue"),
+  );
+  events.subscribe("countdownTick", ({ remaining }) =>
+    say(PhraseKey.count(remaining), "interrupt"),
+  );
+  events.subscribe("sessionPaused", ({ reason }) =>
+    say(
+      reason === "away" ? PhraseKey.pausedAway : PhraseKey.pausedUser,
+      "interrupt",
+    ),
+  );
 }

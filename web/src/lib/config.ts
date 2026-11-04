@@ -46,3 +46,5 @@ export const PREFERENCES_KEY = "physio-assistant.preferences.v1";
 export const STORAGE_KEY = "physio-assistant.sessions.v1";
 
 export const PLAN_KEY = "physio-assistant.plan.v1";
+
+export const RANGES_KEY = "physio-assistant.ranges.v1";

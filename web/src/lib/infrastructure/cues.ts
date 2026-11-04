@@ -139,4 +139,7 @@ export function attachCues(
   events.subscribe("positionBlocked", () => play("attention"));
   events.subscribe("repCounted", () => play("rep"));
   events.subscribe("goalReached", () => play("goal"));
+  events.subscribe("countdownFinished", () => play("ready"));
+  events.subscribe("rangeLearned", () => player.play("ready"));
+  events.subscribe("countdownTick", () => player.play("rep"));
 }

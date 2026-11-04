@@ -19,16 +19,78 @@ import {
   setRest,
   singleExercise,
   targetChoices,
+  COUNTDOWN_S,
 } from "./routine";
 import { FakeClock } from "./testing/poses";
 
 describe("RoutineRun", () => {
+  it("counts down 3, 2, 1 before an exercise starts", () => {
+    const clock = new FakeClock();
+    const run = new RoutineRun(
+      singleExercise(ExerciseMode.ArmRaise, 10),
+      clock.read,
+    );
+    expect(run.phase).toBe("countdown");
+    expect(run.countdownRemainingS()).toBe(3);
+    clock.advance(1.2);
+    expect(run.countdownRemainingS()).toBe(2);
+    run.tick();
+    expect(run.phase).toBe("countdown");
+    clock.advance(1.8);
+    run.tick();
+    expect(run.phase).toBe("exercise");
+  });
+
+  it("pauses without counting the time, then resumes with a fresh countdown", () => {
+    const clock = new FakeClock();
+    const run = new RoutineRun(
+      singleExercise(ExerciseMode.ArmRaise, 10),
+      clock.read,
+    );
+    clock.advance(COUNTDOWN_S);
+    run.tick();
+    clock.advance(10);
+    run.pause("away");
+    expect(run.phase).toBe("paused");
+    expect(run.pauseReason).toBe("away");
+    clock.advance(60);
+    run.resume();
+    expect(run.phase).toBe("countdown");
+    expect(run.pauseReason).toBeNull();
+    clock.advance(COUNTDOWN_S);
+    run.tick();
+    clock.advance(5);
+    run.completeStep(10, true);
+    expect(run.results[0].durationS).toBe(10 + COUNTDOWN_S + 5);
+  });
+
+  it("can skip or finish an exercise while it is paused", () => {
+    const clock = new FakeClock();
+    const run = new RoutineRun(DAILY_ROUTINE, clock.read);
+    run.begin();
+    run.pause("user");
+    expect(run.completeStep(4, false)).toBe("rest");
+    expect(run.results[0].reps).toBe(4);
+  });
+
+  it("ignores pause outside an exercise and resume when not paused", () => {
+    const run = new RoutineRun(DAILY_ROUTINE, new FakeClock().read);
+    run.pause("user");
+    expect(run.phase).toBe("intro");
+    run.resume();
+    expect(run.phase).toBe("intro");
+  });
+
   it("moves through exercise, rest and the next exercise", () => {
     const clock = new FakeClock();
     const run = new RoutineRun(DAILY_ROUTINE, clock.read);
     expect(run.phase).toBe("intro");
     expect(run.current?.mode).toBe(ExerciseMode.ArmRaise);
     run.begin();
+    expect(run.phase).toBe("countdown");
+    clock.advance(COUNTDOWN_S);
+    run.tick();
+    expect(run.phase).toBe("exercise");
     clock.advance(30);
     expect(run.completeStep(10, true)).toBe("rest");
     expect(run.restRemainingS()).toBe(15);

@@ -9,11 +9,11 @@
   import { getExercise } from "../exercises";
   import * as msg from "../messages";
   import Handwritten from "../components/Handwritten.svelte";
+  import { commandHints } from "../commands";
 
   let { coach }: { coach: CoachController } = $props();
   let video = $state<HTMLVideoElement>();
   let canvas = $state<HTMLCanvasElement>();
-  let confirmEnd = $state(false);
 
   const s = $derived(coach.snapshot);
   const r = $derived(coach.routine);
@@ -24,8 +24,38 @@
   const next = $derived(r?.next ? getExercise(r.next.mode) : null);
   const position = $derived(r && !r.isSingle ? msg.NEXT_POSITION(r.index + 1, r.steps.length) : "");
   const progress = $derived(r ? (r.index / r.steps.length) * 100 : 0);
-  const panelKey = $derived(`${phase === "rest" ? "exercise" : phase}-${r?.index ?? 0}`);
-  const coachLine = $derived(coach.celebrating ? msg.TARGET_REACHED : phase === "rest" ? msg.REST : (s.guidance[0] ?? ""));
+  const live = $derived(phase === "countdown" || phase === "exercise" || phase === "paused" || phase === "rest");
+  const active = $derived(phase === "countdown" || phase === "exercise" || phase === "paused");
+  const panelKey = $derived(`${live ? "live" : phase}-${r?.index ?? 0}`);
+  const coachLine = $derived(
+    coach.celebrating
+      ? msg.TARGET_REACHED
+      : phase === "rest"
+        ? msg.REST
+        : phase === "paused"
+          ? msg.PAUSED_TITLE
+          : phase === "countdown"
+            ? msg.GET_READY
+            : (s.guidance[0] ?? ""),
+  );
+  const hints = $derived(commandHints(coach.language));
+  const problemText = {
+    blocked: msg.VOICE_COMMANDS_BLOCKED,
+    "no-microphone": msg.VOICE_PROBLEM_MICROPHONE,
+    network: msg.VOICE_PROBLEM_NETWORK,
+    unavailable: msg.VOICE_COMMANDS_UNSUPPORTED,
+  } as const;
+  const voiceLine = $derived(
+    coach.listenerProblem
+      ? problemText[coach.listenerProblem]
+      : !coach.listening
+        ? msg.VOICE_STARTING
+        : coach.heard
+          ? msg.HEARD(hints[coach.heard])
+          : coach.heardText
+            ? msg.HEARD_OTHER(coach.heardText, hints.next, hints.pause)
+            : msg.LISTENING_FOR(hints.next, hints.pause, hints.end),
+  );
   const percent = $derived(Math.min(100, Math.round((s.reps / Math.max(1, s.goal)) * 100)));
 
   function start() {
@@ -52,8 +82,22 @@
             <DevPanel inspection={coach.inspection} />
           {/if}
         </CameraStage>
+        {#if phase === "countdown" && r}
+          <div class="overlay ready fade-in" role="status" aria-live="assertive">
+            <p class="title">{msg.GET_READY}</p>
+            {#key r.countdownS}
+              <p class="countdown"><Handwritten text={String(r.countdownS)} durationMs={500} scale={1.1} weight={36} /></p>
+            {/key}
+          </div>
+        {:else if phase === "paused" && r}
+          <div class="overlay rest fade-in" role="status" aria-live="polite">
+            <p class="title">{msg.PAUSED_TITLE}</p>
+            <p class="lead">{r.pauseReason === "away" ? msg.PAUSED_AWAY : msg.PAUSED_USER}</p>
+            <button class="btn btn-light" onclick={() => coach.resume()}>{msg.CARRY_ON}</button>
+          </div>
+        {/if}
         {#if phase === "rest" && r}
-          <div class="rest fade-in" role="status" aria-live="polite">
+          <div class="overlay rest fade-in" role="status" aria-live="polite">
             <p class="title">{msg.REST}</p>
             {#key r.restRemainingS}
               <p class="countdown"><Handwritten text={String(r.restRemainingS)} durationMs={600} scale={1.1} weight={36} /></p>
@@ -106,22 +150,34 @@
         </div>
         {#key coachLine}<p class="coach fade-in">{coachLine}</p>{/key}
         <div class="end">
-          {#if confirmEnd && r}
+          {#if coach.confirmingEnd && r}
             <p class="confirm" role="alert">{msg.END_CONFIRM(r.index, r.steps.length)}</p>
-            <button class="btn btn-light btn-block" onclick={() => (confirmEnd = false)}>{msg.KEEP_GOING}</button>
+            <button class="btn btn-light btn-block" onclick={() => coach.cancelEnd()}>{msg.KEEP_GOING}</button>
             <button class="btn btn-outline-light btn-block" onclick={() => coach.endSession()}>{msg.END_NOW}</button>
           {:else}
-            {#if phase === "exercise" && r && !r.isSingle}
+            {#if active && r && !r.isSingle}
               <button class="btn btn-light btn-block" onclick={() => coach.skipExercise()}>
                 {r.next ? msg.NEXT_EXERCISE : msg.FINISH}
               </button>
             {/if}
-            <button
-              class="btn btn-outline-light btn-block"
-              onclick={() => (r && !r.isSingle ? (confirmEnd = true) : coach.endSession())}
-            >
-              {r?.isSingle ? msg.FINISH : msg.END_SESSION}
-            </button>
+            <div class="pair">
+              {#if phase === "exercise" || phase === "countdown"}
+                <button class="btn btn-outline-light" onclick={() => coach.pause()}>{msg.PAUSE}</button>
+              {:else if phase === "paused"}
+                <button class="btn btn-outline-light" onclick={() => coach.resume()}>{msg.CARRY_ON}</button>
+              {/if}
+              <button class="btn btn-outline-light" onclick={() => coach.requestEnd()}>
+                {r?.isSingle ? msg.FINISH : msg.END_SESSION}
+              </button>
+            </div>
+          {/if}
+          {#if coach.voiceCommands}
+            <p class="listening" class:problem={coach.listenerProblem} aria-live="polite">
+              <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"
+                ><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg
+              >
+              <span>{voiceLine}</span>
+            </p>
           {/if}
         </div>
       {/if}
@@ -193,7 +249,7 @@
     aspect-ratio: 4 / 3;
   }
 
-  .rest {
+  .overlay {
     position: absolute;
     inset: 0;
     display: grid;
@@ -206,7 +262,15 @@
     text-align: center;
   }
 
-  .rest .title {
+  .overlay.ready {
+    background: rgb(22 58 44 / 0.45);
+  }
+
+  .overlay .lead {
+    max-width: 24rem;
+  }
+
+  .overlay .title {
     font-family: var(--font-display);
     font-size: var(--type-title);
     font-weight: var(--weight-semibold);
@@ -220,7 +284,7 @@
     line-height: 0.9;
   }
 
-  .rest .btn {
+  .overlay .btn {
     margin-top: var(--space-4);
     min-width: 16rem;
   }
@@ -355,6 +419,41 @@
   .confirm {
     font-size: var(--type-lead);
     font-weight: var(--weight-semibold);
+  }
+
+  .pair {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: var(--space-3);
+  }
+
+  .pair .btn {
+    padding: 0 var(--space-4);
+  }
+
+  .listening {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--type-small);
+    opacity: 0.85;
+  }
+
+  .listening.problem {
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    background: var(--color-warning-surface);
+    color: var(--color-warning);
+    opacity: 1;
+  }
+
+  .listening svg {
+    flex: none;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
   }
 
   .error {

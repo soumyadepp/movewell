@@ -1,6 +1,8 @@
 <script lang="ts">
   import { untrack } from "svelte";
+  import { commandHints } from "../commands";
   import ComfortSettings from "../components/ComfortSettings.svelte";
+  import Segmented from "../components/Segmented.svelte";
   import type { CoachController } from "../controller.svelte";
   import { href } from "../controller.svelte";
   import * as msg from "../messages";
@@ -9,6 +11,12 @@
   let { coach }: { coach: CoachController } = $props();
   let name = $state(untrack(() => coach.name));
   let confirming = $state(false);
+  let rangesForgotten = $state(false);
+  const hints = $derived(commandHints(coach.language));
+  const onOff = [
+    { id: "on", label: msg.VOICE_ON },
+    { id: "off", label: msg.VOICE_OFF },
+  ] as const;
 </script>
 
 <div class="container page">
@@ -26,6 +34,30 @@
     <a class="btn btn-secondary" href={href.plan}>{msg.PLAN_EDIT}</a>
   </div>
   <ComfortSettings {coach} />
+  <div class="row commands">
+    <div class="text">
+      <h2 class="label">{msg.VOICE_COMMANDS_LABEL}</h2>
+      <p class="secondary small">{msg.VOICE_COMMANDS_HINT(hints.next, hints.pause, hints.resume, hints.end)}</p>
+      <p class="secondary small">{msg.VOICE_COMMANDS_PRIVACY}</p>
+      {#if !coach.voiceCommandsSupported}
+        <p class="warning">{msg.VOICE_COMMANDS_UNSUPPORTED}</p>
+      {:else if coach.listenerProblem === "blocked"}
+        <p class="warning" role="alert">{msg.VOICE_COMMANDS_BLOCKED}</p>
+      {:else if coach.listenerProblem === "network"}
+        <p class="warning" role="alert">{msg.VOICE_PROBLEM_NETWORK}</p>
+      {:else if coach.listenerProblem === "no-microphone"}
+        <p class="warning" role="alert">{msg.VOICE_PROBLEM_MICROPHONE}</p>
+      {/if}
+    </div>
+    {#if coach.voiceCommandsSupported}
+      <Segmented
+        label={msg.VOICE_COMMANDS_LABEL}
+        options={onOff}
+        value={coach.voiceCommands ? "on" : "off"}
+        onChange={(v) => coach.setVoiceCommands(v === "on")}
+      />
+    {/if}
+  </div>
 
   <details class="advanced">
     <summary class="label">{msg.ADVANCED}</summary>
@@ -45,6 +77,14 @@
       <button class="link" onclick={() => coach.downloadHistory()} disabled={coach.history.length === 0}>
         {msg.DOWNLOAD_CSV}
       </button>
+      <button
+        class="link"
+        onclick={() => {
+          coach.clearRanges();
+          rangesForgotten = true;
+        }}>{msg.FORGET_RANGES}</button
+      >
+      {#if rangesForgotten}<span class="secondary small" role="status">{msg.RANGES_FORGOTTEN}</span>{/if}
       {#if confirming}
         <span class="confirm" role="alert">
           {msg.CLEAR_CONFIRM}
@@ -90,6 +130,29 @@
   .label {
     font-size: var(--type-lead);
     font-weight: var(--weight-semibold);
+  }
+
+  h2.label {
+    font-family: var(--font-text);
+    letter-spacing: 0;
+  }
+
+  .commands {
+    border-top: 0;
+  }
+
+  .commands .text {
+    display: grid;
+    gap: var(--space-2);
+    max-width: 34rem;
+  }
+
+  .warning {
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    background: var(--color-warning-surface);
+    color: var(--color-warning);
+    font-size: var(--type-small);
   }
 
   input:not([type]) {
