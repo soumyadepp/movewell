@@ -120,7 +120,7 @@ describe("marching", () => {
 
   it("asks to turn side-on when facing the camera", () => {
     const { counter, holdPose } = setup(ExerciseMode.Marching);
-    holdPose(body());
+    holdPose(body(), 1);
     expect(counter.update(body())).toBe(msg.GUIDANCE_TURN_SIDE);
     expect(counter.lastAngle).toBeNull();
   });
@@ -150,7 +150,8 @@ describe("side bend", () => {
   });
 
   it("asks to face the camera when side-on", () => {
-    const { counter } = setup(ExerciseMode.SideBend);
+    const { counter, holdPose } = setup(ExerciseMode.SideBend);
+    holdPose(sideBody(), 1);
     expect(counter.update(sideBody())).toBe(msg.GUIDANCE_TURN_FRONT);
   });
 });
@@ -211,6 +212,55 @@ describe("elbow curl sensitivity", () => {
       holdPose(curled(10), 0.6);
       for (const deg of [40, 70, 85, 90, 85, 70, 40]) {
         counter.update(curled(deg));
+        clock.advance(1 / 20);
+      }
+    }
+    expect(counter.reps).toBe(3);
+  });
+});
+
+describe("tracking dropouts", () => {
+  const dropWrists = (points: BodyPoints) => {
+    const kept = new Map<Joint, readonly [number, number]>();
+    for (const joint of Object.values(Joint)) {
+      const p = points.get(joint);
+      if (p && joint !== Joint.LeftWrist && joint !== Joint.RightWrist) kept.set(joint, p);
+    }
+    return new BodyPoints(kept);
+  };
+
+  it("keeps counting when joints drop out every few frames", () => {
+    const { counter, clock } = setup(ExerciseMode.ElbowCurl);
+    let frame = 0;
+    const flicker = (points: BodyPoints, seconds: number) => {
+      for (let t = 0; t < seconds; t += 1 / 30) {
+        counter.update(frame++ % 3 === 2 ? dropWrists(points) : points);
+        clock.advance(1 / 30);
+      }
+    };
+    for (let i = 0; i < 3; i++) {
+      flicker(curled(5), 0.8);
+      flicker(curled(110), 0.8);
+    }
+    expect(counter.reps).toBe(3);
+  });
+
+  it("still reports a sustained loss of the needed joints", () => {
+    const { counter, holdPose } = setup(ExerciseMode.ElbowCurl);
+    holdPose(curled(5));
+    holdPose(dropWrists(curled(5)), 1);
+    expect(counter.update(dropWrists(curled(5)))).toBe(msg.EXERCISE_COPY[ExerciseMode.ElbowCurl].notVisible);
+  });
+});
+
+describe("form checks never fake a zero reading", () => {
+  it("counts a curl whose elbow briefly drifts out at the top", () => {
+    const { counter, clock, holdPose } = setup(ExerciseMode.ElbowCurl);
+    const driftedTop = body({ [Joint.LeftElbow]: [340, 250], [Joint.LeftWrist]: [380, 190] });
+    for (let i = 0; i < 3; i++) {
+      holdPose(curled(5), 0.6);
+      for (const pose of [curled(60), curled(100), curled(110), driftedTop, driftedTop, curled(110), curled(60)]) {
+        counter.update(pose);
         clock.advance(1 / 20);
       }
     }

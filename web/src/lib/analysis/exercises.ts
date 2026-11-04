@@ -27,7 +27,12 @@ import type { EventBus } from "../events";
 import { EXERCISE_COPY, GUIDANCE_POSTURE_MODE, GUIDANCE_TURN_FRONT, GUIDANCE_TURN_SIDE } from "../messages";
 import type { Clock } from "../session";
 
-export type BlockReason = "not_visible" | "face_camera" | "turn_side";
+/**
+ * Why a frame has no usable reading. "form" means the joints are visible but
+ * the body is not in the exercise's shape (for example the elbow lifted away
+ * from the side during a curl); it is treated as "unsure", never as zero.
+ */
+export type BlockReason = "not_visible" | "face_camera" | "turn_side" | "form";
 
 export type Reading = { angle: number } | { blocked: BlockReason };
 
@@ -36,7 +41,7 @@ export type Measure = (points: BodyPoints) => Reading;
 /** Shoulder width relative to torso length that separates facing the camera from standing side-on. */
 export const FACING_RATIO = 0.45;
 /** Upper arm must stay within this many degrees of vertical for an elbow curl. */
-const CURL_UPPER_ARM_MAX_DEG = 50;
+const CURL_UPPER_ARM_MAX_DEG = 60;
 /** The supporting leg must stay within this many degrees of vertical. */
 const STANDING_LEG_MAX_DEG = 15;
 /** Seconds the angle must stay in a zone before it counts as reached. */
@@ -44,6 +49,12 @@ const DWELL_LOW_S = 0.1;
 const DWELL_HIGH_S = 0.1;
 /** Tolerance for floating-point frame timestamps when comparing dwell times. */
 const DWELL_EPSILON_S = 1e-3;
+/**
+ * Seconds a reading may be unavailable (a joint briefly below the confidence
+ * cut-off, or orientation momentarily ambiguous) before the counter resets.
+ * Shorter dropouts leave the counting state untouched.
+ */
+const BLOCK_GRACE_S = 0.6;
 /** Smoothing applied to the raw angle before thresholds. */
 const SMOOTHING = 0.5;
 
@@ -114,7 +125,7 @@ function elbowCurl(p: BodyPoints): Reading {
     best = Math.max(best ?? 0, 180 - angle);
   }
   if (!anyVisible) return blocked("not_visible");
-  return { angle: best ?? 0 };
+  return best === null ? blocked("form") : { angle: best };
 }
 
 /**
@@ -127,7 +138,7 @@ function marching(p: BodyPoints): Reading {
   if (left === null && right === null) return blocked("not_visible");
   const lifted = Math.max(left ?? 0, right ?? 0);
   const standing = Math.min(left ?? Infinity, right ?? Infinity);
-  if (left !== null && right !== null && standing > STANDING_LEG_MAX_DEG) return { angle: 0 };
+  if (left !== null && right !== null && standing > STANDING_LEG_MAX_DEG) return blocked("form");
   return { angle: lifted };
 }
 
@@ -137,7 +148,7 @@ function sideLegRaise(p: BodyPoints): Reading {
   const left = leg(Joint.LeftHip, Joint.LeftAnkle, Joint.LeftKnee);
   const right = leg(Joint.RightHip, Joint.RightAnkle, Joint.RightKnee);
   if (left === null || right === null) return blocked("not_visible");
-  if (Math.min(left, right) > STANDING_LEG_MAX_DEG) return { angle: 0 };
+  if (Math.min(left, right) > STANDING_LEG_MAX_DEG) return blocked("form");
   return { angle: Math.max(left, right) };
 }
 
@@ -203,6 +214,7 @@ export class RepCounter implements ExerciseCounter {
   private zone: Zone = "mid";
   private zoneSince = 0;
   private lastRepTime = -Infinity;
+  private blockedSince: number | null = null;
 
   constructor(
     readonly mode: CountedExercise,
@@ -215,16 +227,20 @@ export class RepCounter implements ExerciseCounter {
   update(points: BodyPoints): string {
     const copy = EXERCISE_COPY[this.mode];
     const result = this.measure(points);
+    const now = this.clock();
     if ("blocked" in result) {
+      this.blockedSince ??= now;
+      if (now - this.blockedSince < BLOCK_GRACE_S) return copy.guidance;
       this.smoothed = null;
       this.lastAngle = null;
       this.zone = "mid";
       if (result.blocked === "face_camera") return GUIDANCE_TURN_FRONT;
       if (result.blocked === "turn_side") return GUIDANCE_TURN_SIDE;
+      if (result.blocked === "form") return copy.guidance;
       return copy.notVisible;
     }
+    this.blockedSince = null;
 
-    const now = this.clock();
     this.smoothed = this.smoothed === null ? result.angle : this.smoothed + SMOOTHING * (result.angle - this.smoothed);
     this.lastAngle = this.smoothed;
 

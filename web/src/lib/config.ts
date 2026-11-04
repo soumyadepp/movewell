@@ -9,7 +9,7 @@ import { type CountedExercise, ExerciseMode } from "./domain/models";
 export const REFERENCE_HEIGHT = 720;
 
 export const POSE = {
-  visibilityThreshold: 0.65,
+  visibilityThreshold: 0.5,
   modelUrl:
     "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",
   wasmUrl: "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm",
