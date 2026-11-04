@@ -1,182 +1,156 @@
 # AI Physiotherapy Assistant
 
-A camera-based exercise helper designed for older adults. It watches your movement through the webcam, counts repetitions, and gives spoken guidance in English or Hindi. The video never leaves the computer.
+Camera-based exercise guidance designed for older adults. The app tracks body landmarks from a standard webcam, counts repetitions for common physiotherapy exercises, offers heuristic posture observations, and gives spoken feedback in English or Hindi. All processing happens on the device; video is never recorded or uploaded.
 
-> This is an educational prototype, not a medical device.
+**Live app:** <https://soumyadepp.github.io/physio-assistant/>
 
----
+> Educational prototype, not a medical device. 2-D webcam pose estimates are approximate and depend on camera placement, lighting and clothing. Exercise selection and range of motion should be agreed with a qualified clinician.
 
-## Part 1: Run the demo (the easy way)
+## Features
 
-You only need a laptop with a webcam and the Chrome or Edge browser.
+- **Six counted exercises:** shoulder raise, elbow curl, marching (knee lift), side leg raise, side bend and sit-to-stand, plus a posture observation mode with front and side views.
+- **Repetition counting with hysteresis:** a repetition counts only when the measured joint angle passes below a low threshold and then above a high one, so tracking jitter does not double count.
+- **Stable feedback:** posture observations are debounced, short tracking dropouts are tolerated, and the live angle readout is smoothed.
+- **Spoken feedback:** pre-recorded English and Hindi clips play reliably offline. Counts and target announcements queue, user actions interrupt, and hints never talk over other speech. Browser speech synthesis is a fallback.
+- **Accessibility:** adjustable text size, solid high-contrast surfaces (WCAG AA for all text, AAA for body text), large labeled controls, keyboard shortcuts, visible focus, screen-reader live regions, and support for `prefers-contrast` and `prefers-reduced-motion`.
+- **Session history:** sessions are saved locally and can be exported as CSV.
 
-### If someone already gave you a link
-
-1. Open the link in **Chrome**.
-2. Click **Start camera**.
-3. When the browser asks to use the camera, click **Allow**.
-4. Step back until you can see yourself from head to feet. That's it!
-
-### If you are running it from this folder
-
-Ask a grown-up to install **Node.js** once, from <https://nodejs.org> (pick the "LTS" button).
-
-Then open the **Terminal** app and type these lines, pressing Enter after each one:
+## Repository layout
 
 ```
-cd personal/physio-assistant/web
+physio-assistant/
+├── web/                         Web app (Svelte 5, TypeScript, Vite)
+│   ├── src/lib/
+│   │   ├── domain/              models and geometry (pure)
+│   │   ├── analysis/            posture rules, exercise registry, rep counter
+│   │   ├── infrastructure/      MediaPipe Tasks, audio playback, storage
+│   │   ├── i18n/speech.ts       spoken phrase catalogs (en, hi)
+│   │   ├── assistant.ts         application service (session state)
+│   │   ├── controller.svelte.ts reactive facade used by components
+│   │   └── components/          UI
+│   ├── public/voice/            pre-recorded voice clips and manifest
+│   └── scripts/                 voice clip generator
+├── src/physio_assistant/        Python desktop app (OpenCV window)
+│   ├── domain/ analysis/        same core logic as the web app
+│   ├── infrastructure/          webcam, MediaPipe, pyttsx3, CSV storage
+│   ├── ui/                      dashboard, key commands, frame loop
+│   └── cli.py                   entry point and composition root
+├── tests/                       Python test suite
+└── .github/workflows/           GitHub Pages deployment
+```
+
+## Web app
+
+### Requirements
+
+Node.js 20 or later, and a Chromium-based browser or Safari. The camera requires `https://` or `localhost`.
+
+### Run locally
+
+```bash
+cd web
 npm install
 npm run dev
 ```
 
-Now open Chrome and go to **http://localhost:5173**. Next time you only need the last line, `npm run dev`.
+Open <http://localhost:5173>, select **Start camera** and allow camera access. Stand 2 to 3 metres from the camera so the full body is in frame.
 
-To stop it, click the Terminal window and press **Control + C**.
+### Scripts
 
----
+| Command | Purpose |
+|---|---|
+| `npm run dev` | Development server with hot reload |
+| `npm run build` | Production build to `web/dist` |
+| `npm run preview` | Serve the production build locally |
+| `npm test` | Unit tests (Vitest) |
+| `npm run check` | Type check (svelte-check, tsc) |
+| `npm run voice:generate` | Re-record voice clips (macOS only) |
 
-## Part 2: Demo script (about 3 minutes)
+### Keyboard shortcuts
 
-Use this when you show the app to an audience. One person talks, one person does the exercises.
+| Key | Action |
+|---|---|
+| `1` to `7` | Select exercise |
+| `V` | Switch front/side view |
+| `Space` | Start or pause the session timer |
+| `S` | Save session |
 
-| Step | Do this | Say this |
-|---|---|---|
-| 1 | Show the start screen. | "This app helps older people do their physiotherapy exercises at home, using just a laptop camera." |
-| 2 | Click **Start camera** and step back. | "The video stays on this computer. Nothing is uploaded." |
-| 3 | Point at the lines on your body. | "The app finds 33 points on the body, like shoulders, elbows and knees." |
-| 4 | Click **Shoulder raise**. Raise both arms slowly 3 times. | "It measures the shoulder angle and counts each full raise." Point at the big number. |
-| 5 | Click **Text size A++**. | "Older eyes need bigger text, so you can make everything larger." |
-| 6 | Click **हिन्दी** under Voice language, then do one more raise. | "It can speak in Hindi too." |
-| 7 | Click **Elbow curl** and bend both elbows 3 times. | "There are six exercises chosen for older adults, each measuring a different joint." |
-| 8 | Click **Sit-to-stand**, then **Switch view** and stand side-on. Sit down and stand up from a chair twice. | "This one checks the knee angle from the side." |
-| 9 | Set the target to **5** and finish the reps. | Let the audience hear the voice say the target is reached. |
-| 10 | Click **Save session**. | "Each session is saved, so progress can be tracked over time." |
+## Desktop app (Python)
 
-**The six exercises:** Shoulder raise, Elbow curl, Marching (knee lift), Side leg raise (hold a chair), Side bend, Sit-to-stand. The counter card shows which camera view works best for each one.
+### Requirements
 
-**Tips for a smooth demo**
+Python 3.12 and [uv](https://docs.astral.sh/uv/).
 
-* Use a bright room, and avoid standing in front of a window.
-* Wear clothes that are a different colour from the wall behind you.
-* If the count stops, look at the **Shoulder angle** number under the counter. Raise your arms higher until it goes above 70°.
-* If the Hindi voice is silent, the computer does not have a Hindi voice installed. Switch back to English.
+### Run
 
----
-
-## Part 3: Put it on the internet (so anyone can open a link)
-
-The web app is just a folder of files, so it can be hosted for free.
-
-### Option A: Netlify Drop (fastest, no account setup needed to try)
-
-1. In the Terminal: `cd personal/physio-assistant/web` then `npm run build`.
-2. Open <https://app.netlify.com/drop>.
-3. Drag the **`web/dist`** folder onto the page.
-4. You get a link like `https://something.netlify.app`. Share it!
-
-Netlify asks you to sign up (free) to keep the site online for longer than an hour.
-
-### Option B: GitHub Pages (updates by itself)
-
-1. Push this folder to a GitHub repository.
-2. On GitHub, go to **Settings → Pages** and set **Source** to **GitHub Actions**.
-3. Every push to `main` now runs `.github/workflows/deploy-web.yml` and publishes the site at `https://<username>.github.io/<repo>/`.
-
-The camera only works on `https://` links or on `localhost`, and both of these options use `https://`.
-
----
-
-## Part 4: Desktop version (Python)
-
-The original app, now organized as a proper Python package. It opens its own window instead of a browser tab.
-
-1. Install **uv** once: `brew install uv` (Mac) or see <https://docs.astral.sh/uv/>.
-2. Run:
-
-```
-cd personal/physio-assistant
+```bash
 uv sync --extra voice
 uv run physio-assistant
 ```
 
-Keys: **1** posture, **2** shoulder raise, **3** sit-to-stand, **V** switch view, **Space** timer, **S** save, **Q** quit.
+Options: `--camera <index>`, `--no-voice`, `--no-mirror`, `--data-file <path.csv>`, `--width`, `--height`.
 
-Options: `--camera 1` to use another camera, `--no-voice` to mute, `--data-file path.csv` to choose where history is saved.
+Keys: `1` posture, `2` shoulder raise, `3` sit-to-stand, `V` view, `Space` timer, `S` save, `H` help, `Q` quit.
 
-### Build a double-click app
+The desktop app currently implements the original three modes. The additional exercises, feedback stabilization and recorded voice clips are web-only.
 
-```
+### Standalone build
+
+```bash
 uv run --extra voice --group build pyinstaller --noconfirm physio_assistant.spec
 ```
 
-This creates `dist/Physio Assistant.app` on a Mac (or `dist/physio-assistant/` on Windows and Linux). The app is unsigned, so on a Mac right-click it and choose **Open** the first time.
+Produces `dist/Physio Assistant.app` on macOS or `dist/physio-assistant/` elsewhere. The build is unsigned.
 
----
+## Deployment
 
-## For developers
+The web app is static and can be hosted anywhere.
 
-### Layout
+- **GitHub Pages:** `.github/workflows/deploy-web.yml` runs tests, type checks, builds and publishes on every push to `main`. Set **Settings → Pages → Source** to **GitHub Actions**.
+- **Other static hosts:** run `npm run build` and serve `web/dist`. Asset paths are relative, so the app works from any sub-path.
 
-```
-physio-assistant/
-├── src/physio_assistant/        Python desktop app
-│   ├── domain/                  models + geometry (pure, no I/O)
-│   ├── analysis/                posture rules, rep counters, progress
-│   ├── infrastructure/          camera, MediaPipe, speech, CSV storage
-│   ├── ui/                      OpenCV dashboard, key commands, frame loop
-│   ├── assistant.py             application service (session state)
-│   └── cli.py                   composition root
-├── tests/                       pytest suite (no camera needed)
-└── web/                         Svelte 5 + TypeScript web app
-    └── src/lib/
-        ├── domain/ analysis/    same logic as Python, ported to TS
-        ├── infrastructure/      MediaPipe Tasks, Web Speech, localStorage
-        ├── i18n/speech.ts       spoken phrases per language (en, hi)
-        ├── assistant.ts         application service
-        ├── controller.svelte.ts reactive facade for components
-        └── components/          UI
-```
+## Architecture
 
-### Design patterns
+The core logic is framework-free and identical in both apps: pose landmarks are converted to pixel coordinates on a fixed 960 × 720 reference frame, analysed by pure functions, and turned into state changes and semantic events. Rendering, audio and storage sit behind small interfaces.
 
-| Pattern | Where | Why |
+| Pattern | Where | Purpose |
 |---|---|---|
-| Strategy | posture analyzers per camera view | swap front/side rules without branching |
-| Template Method | `HysteresisRepCounter` | every exercise shares the count state machine |
-| Null Object | `PostureOnlyCounter`, `SilentSpeaker` | callers never branch on mode or on speech being available |
-| Observer | `EventBus` + voice notifier | analysis publishes events; speech and UI react |
-| Ports and Adapters | `PoseEstimator`, `SessionRepository`, `Speaker` | MediaPipe, CSV and TTS can be replaced in one place |
-| Command | `ui/commands.py` key bindings | one entry per shortcut |
-| Factory | `create_counter`, `create_posture_analyzer`, `create_speaker` | one place decides which implementation to use |
-| Facade | `controller.svelte.ts` | components never touch the camera or model |
+| Registry + Strategy | `MEASURES` in `analysis/exercises.ts`, posture rule sets | Each exercise or view contributes one measurement function |
+| Template Method | `RepCounter` / `HysteresisRepCounter` | One counting state machine for every exercise |
+| Null Object | `PostureOnlyCounter`, `SilentSpeaker` | Callers never branch on mode or speech availability |
+| Observer | `EventBus` with semantic events | Analysis publishes; voice and UI react in their own language |
+| Ports and Adapters | `PoseEstimator`, `SessionRepository`, `Speaker` | MediaPipe, storage and audio are replaceable |
+| Command | `ui/commands.py` | One binding per keyboard shortcut |
+| Facade | `controller.svelte.ts` | Components never touch the camera, model or audio |
 
-### Tests
+## Extending
 
+### Add an exercise (web)
+
+1. Add the mode to `ExerciseMode` and `COUNTED_EXERCISES` in `web/src/lib/domain/models.ts`.
+2. Add a measurement function to `MEASURES` in `web/src/lib/analysis/exercises.ts`.
+3. Add thresholds to `EXERCISES` in `config.ts`, display copy to `EXERCISE_COPY` in `messages.ts`, and spoken phrases to each catalog in `i18n/speech.ts`.
+4. Run `npm test` (it fails if any piece is missing), then `npm run voice:generate`.
+
+### Add a voice language
+
+Add a catalog to `web/src/lib/i18n/speech.ts` with its BCP-47 tag and a macOS `recordingVoice`, then run `npm run voice:generate`. The language option appears automatically, and the test suite checks that every phrase is translated.
+
+### Voice clips
+
+Clips are generated with macOS system voices (`say` and `afconvert`). Only phrases whose text, voice or rate changed are re-recorded. For more natural output, install a Premium or Enhanced voice under **System Settings → Accessibility → Spoken Content → System voice → Manage Voices** and set it as `recordingVoice`.
+
+## Testing
+
+```bash
+uv run pytest            # Python
+uv run ruff check .      # Python lint
+cd web && npm test       # Web unit tests
+cd web && npm run check  # Web type check
 ```
-uv run pytest                 # Python
-cd web && npm test            # Web
-cd web && npm run check       # Web type check
-```
 
-### Voice
+Tests use synthetic poses and a fake clock, so no camera is required.
 
-Spoken feedback uses **pre-recorded clips** in `web/public/voice/`, so it works offline and sounds the same on every laptop. Browser speech is only a fallback (for example counts above 30).
+## Privacy
 
-After changing any spoken phrase or voice in `web/src/lib/i18n/speech.ts`, re-record on a Mac:
-
-```
-cd web && npm run voice:generate
-```
-
-Only changed phrases are re-recorded. For the most natural sound, first download a **Premium** voice: System Settings → Accessibility → Spoken Content → System voice → Manage Voices, then set its name as `recordingVoice` in `speech.ts`.
-
-### Adding a voice language
-
-Add one catalog to `web/src/lib/i18n/speech.ts` with its BCP-47 tag (for example `ta-IN`) and a macOS `recordingVoice`, then run `npm run voice:generate`. The language button appears automatically, and a test checks that every phrase is translated.
-
-### Adding an exercise
-
-1. Add it to `ExerciseMode` and `COUNTED_EXERCISES` in `web/src/lib/domain/models.ts`.
-2. Add a measure function to `MEASURES` in `web/src/lib/analysis/exercises.ts`.
-3. Add thresholds in `config.ts`, on-screen copy in `messages.ts` (`EXERCISE_COPY`) and spoken phrases in `i18n/speech.ts`.
-4. Run `npm test` (it fails if any of these are missing), then `npm run voice:generate`.
+Pose estimation runs in the browser (MediaPipe Tasks, WebAssembly) or locally in Python. No video, images or landmarks leave the device. Session history and preferences are stored in the browser's local storage or a local CSV file. The web app downloads the MediaPipe runtime and model from public CDNs on first load.
