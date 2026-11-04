@@ -81,7 +81,7 @@ const hi: SpeechCatalog = {
   recordingRate: 160,
   selected: "हिन्दी आवाज़ चुनी गई।",
   countWord: (total) => HINDI_NUMBERS[total - 1] ?? String(total),
-  goalReached: "लक्ष्य पूरा हुआ। बहुत बढ़िया। अब थोड़ा आराम कीजिए।",
+  goalReached: "बहुत बढ़िया! पूरा हो गया। अब थोड़ा आराम कर लीजिए।",
   moveIntoView: "कृपया कैमरे के सामने आइए।",
   view: {
     [ViewMode.Front]: "सामने का व्यू। कैमरे की ओर मुँह कीजिए।",
@@ -100,7 +100,7 @@ const hi: SpeechCatalog = {
   timerPaused: "सत्र टाइमर रुका।",
   saved: "सत्र सहेजा गया।",
   routineStart: "चलिए, आज का व्यायाम शुरू करते हैं।",
-  routineComplete: "आज का व्यायाम पूरा हुआ। बहुत बढ़िया!",
+  routineComplete: "आज की कसरत पूरी हो गई। बहुत बढ़िया!",
   corrections: {
     shoulder_height: "आराम से खड़े रहिए; एक कंधे को जानबूझकर नीचे मत दबाइए।",
     hip_height: "दोनों पैरों पर बराबर वज़न रखकर सहज रूप से खड़े रहिए।",

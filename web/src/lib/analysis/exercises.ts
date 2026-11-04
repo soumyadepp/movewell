@@ -12,7 +12,7 @@
  * so a single jittery frame can never complete a repetition.
  */
 import type { ExerciseThresholds, RepThresholds } from "../config";
-import { calculateAngle, jointAngle, midpoint, safeAverage } from "../domain/geometry";
+import { calculateAngle, jointAngle3, midpoint, safeAverage } from "../domain/geometry";
 import {
   BEST_VIEW,
   type BodyPoints,
@@ -36,12 +36,14 @@ export type Measure = (points: BodyPoints) => Reading;
 /** Shoulder width relative to torso length that separates facing the camera from standing side-on. */
 export const FACING_RATIO = 0.45;
 /** Upper arm must stay within this many degrees of vertical for an elbow curl. */
-const CURL_UPPER_ARM_MAX_DEG = 40;
+const CURL_UPPER_ARM_MAX_DEG = 50;
 /** The supporting leg must stay within this many degrees of vertical. */
 const STANDING_LEG_MAX_DEG = 15;
 /** Seconds the angle must stay in a zone before it counts as reached. */
-const DWELL_LOW_S = 0.15;
-const DWELL_HIGH_S = 0.2;
+const DWELL_LOW_S = 0.1;
+const DWELL_HIGH_S = 0.1;
+/** Tolerance for floating-point frame timestamps when comparing dwell times. */
+const DWELL_EPSILON_S = 1e-3;
 /** Smoothing applied to the raw angle before thresholds. */
 const SMOOTHING = 0.5;
 
@@ -80,10 +82,11 @@ export function orientationBlock(p: BodyPoints, view: ViewMode): BlockReason | n
  * works when the hips are cropped out of frame.
  */
 export function shoulderAngle(p: BodyPoints, elbow: Joint, shoulder: Joint, hip: Joint): number | null {
+  if (p.get(hip)) return jointAngle3(p, elbow, shoulder, hip);
   const e = p.get(elbow);
   const s = p.get(shoulder);
   if (!e || !s) return null;
-  return calculateAngle(e, s, p.get(hip) ?? below(s));
+  return calculateAngle(e, s, below(s));
 }
 
 /** Both arms must rise together; one arm waving keeps the reading low. */
@@ -103,7 +106,7 @@ function elbowCurl(p: BodyPoints): Reading {
   let best: number | null = null;
   let anyVisible = false;
   for (const [shoulder, elbow, wrist] of arms) {
-    const angle = jointAngle(p, shoulder, elbow, wrist);
+    const angle = jointAngle3(p, shoulder, elbow, wrist);
     if (angle === null) continue;
     anyVisible = true;
     const upperArm = fromVertical(p.get(shoulder), p.get(elbow));
@@ -149,8 +152,8 @@ function sideBend(p: BodyPoints): Reading {
 function sitToStand(p: BodyPoints): Reading {
   return reading(
     safeAverage([
-      jointAngle(p, Joint.LeftHip, Joint.LeftKnee, Joint.LeftAnkle),
-      jointAngle(p, Joint.RightHip, Joint.RightKnee, Joint.RightAnkle),
+      jointAngle3(p, Joint.LeftHip, Joint.LeftKnee, Joint.LeftAnkle),
+      jointAngle3(p, Joint.RightHip, Joint.RightKnee, Joint.RightAnkle),
     ]),
   );
 }
@@ -230,7 +233,7 @@ export class RepCounter implements ExerciseCounter {
       this.zone = zone;
       this.zoneSince = now;
     }
-    const held = now - this.zoneSince;
+    const held = now - this.zoneSince + DWELL_EPSILON_S;
     if (zone === "low" && held >= DWELL_LOW_S) {
       this.phase = MovementPhase.Low;
     } else if (zone === "high" && held >= DWELL_HIGH_S) {

@@ -1,6 +1,8 @@
 /** Value objects shared by every layer. No browser APIs allowed here. */
 
 export type Point = readonly [number, number];
+/** Metric 3-D position from the pose model's world landmarks (hip-centred, y down). */
+export type Point3 = readonly [number, number, number];
 
 export enum Joint {
   Nose = "nose",
@@ -110,9 +112,23 @@ export const SESSION_FIELDS: readonly (keyof SessionRecord)[] = [
   "posture_observations",
 ];
 
-/** Visible joints for one frame. Hidden joints are simply absent. */
+/**
+ * Visible joints for one frame. Hidden joints are simply absent.
+ *
+ * `points` are image coordinates scaled to a 720 px tall frame with the
+ * camera's true aspect ratio, used for anything relative to gravity or the
+ * camera. `world` are optional 3-D coordinates, used for joint angles because
+ * they are not foreshortened when a limb moves toward the camera.
+ */
 export class BodyPoints {
-  constructor(private readonly points: ReadonlyMap<Joint, Point> = new Map()) {}
+  constructor(
+    private readonly points: ReadonlyMap<Joint, Point> = new Map(),
+    private readonly world: ReadonlyMap<Joint, Point3> = new Map(),
+  ) {}
+
+  get3(joint: Joint): Point3 | null {
+    return this.world.get(joint) ?? null;
+  }
 
   get(joint: Joint): Point | null {
     return this.points.get(joint) ?? null;

@@ -270,3 +270,14 @@ export const FOOTER =
   "MoveWell is an educational prototype, not a medical device. Camera-based estimates are approximate. Ask your physiotherapist which exercises suit you. Video is processed on this device and never uploaded.";
 export const GUIDANCE_TURN_FRONT = "Face the camera so both shoulders are visible.";
 export const GUIDANCE_TURN_SIDE = "Turn side-on to the camera for this exercise.";
+
+export const DIAGNOSTICS_TITLE = "Diagnostics";
+export const DIAGNOSTICS_SKELETON = "Show tracking lines on the camera";
+export const DIAGNOSTICS_FPS = (fps: number) => `Tracking at ${fps} frames per second`;
+export const DIAGNOSTICS_ANGLE = (label: string, angle: string) => `${label}: ${angle}`;
+export const DIAGNOSTICS_GUIDANCE = "Current check";
+export const DIAGNOSTICS_RECORD = "Record movement data";
+export const DIAGNOSTICS_STOP = (frames: number) => `Stop and download (${frames} frames)`;
+export const DIAGNOSTICS_RECORD_NOTE =
+  "Records body landmark positions only, never video, so counting can be tuned. The file downloads to this device.";
+export const RECORDING_FILENAME = "movewell-landmarks.json";

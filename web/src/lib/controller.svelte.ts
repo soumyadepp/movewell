@@ -122,7 +122,24 @@ export interface SessionSummary {
   streak: number;
 }
 
+export interface Diagnostics {
+  fps: number;
+  rawBlocked: string | null;
+  framesRecorded: number;
+}
+
+interface RecordedFrame {
+  t: number;
+  mode: ExerciseMode;
+  aspect: number;
+  landmarks: number[][];
+  world: number[][];
+}
+
 const CELEBRATION_MS = 3500;
+/** Recording stops by itself after this many frames (about one minute at 30 fps). */
+const MAX_RECORDED_FRAMES = 1800;
+const round = (n: number) => Math.round(n * 10000) / 10000;
 const FINISH_DELAY_MS = 2500;
 
 export class CoachController {
@@ -138,6 +155,9 @@ export class CoachController {
   routine = $state<RoutineSnapshot | null>(null);
   summary = $state<SessionSummary | null>(null);
   history = $state<SessionRecord[]>([]);
+  showSkeleton = $state(false);
+  recording = $state(false);
+  diagnostics = $state<Diagnostics>({ fps: 0, rawBlocked: null, framesRecorded: 0 });
 
   private readonly events = new EventBus();
   private readonly speaker = new ClipSpeaker(import.meta.env.BASE_URL, new WebSpeechSpeaker(), secondsClock);
@@ -151,6 +171,8 @@ export class CoachController {
   private celebrationTimer: ReturnType<typeof setTimeout> | undefined;
   private finishTimer: ReturnType<typeof setTimeout> | undefined;
   private run: RoutineRun | null = null;
+  private recorded: RecordedFrame[] = [];
+  private canvas: HTMLCanvasElement | null = null;
   private cameraGranted = false;
 
   constructor() {
@@ -280,6 +302,25 @@ export class CoachController {
     this.savePreferences();
   }
 
+  setShowSkeleton(show: boolean): void {
+    this.showSkeleton = show;
+    if (!show && this.canvas) this.canvas.getContext("2d")?.clearRect(0, 0, this.canvas.width, this.canvas.height);
+  }
+
+  /** Starts or stops recording landmark data (never video) for tuning; stopping downloads a JSON file. */
+  toggleRecording(): void {
+    if (!this.recording) {
+      this.recorded = [];
+      this.recording = true;
+      return;
+    }
+    this.recording = false;
+    const payload = { app: msg.APP_NAME, recordedAt: new Date().toISOString(), frames: this.recorded };
+    downloadText(msg.RECORDING_FILENAME, JSON.stringify(payload), "application/json");
+    this.recorded = [];
+    this.diagnostics = { ...this.diagnostics, framesRecorded: 0 };
+  }
+
   downloadHistory(): void {
     downloadText(msg.CSV_FILENAME, toCsv(this.assistant.history));
   }
@@ -387,6 +428,9 @@ export class CoachController {
       joint: styles.getPropertyValue("--skeleton-joint").trim(),
       bone: styles.getPropertyValue("--skeleton-bone").trim(),
     };
+    this.canvas = canvas;
+    let frames = 0;
+    let fpsWindowStart = performance.now();
     const tick = () => {
       this.frameHandle = requestAnimationFrame(tick);
       if (this.run?.tick()) this.beginStep();
@@ -399,12 +443,37 @@ export class CoachController {
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
       }
-      const detection = this.estimator.detect(video, performance.now());
-      this.estimator.draw(canvas, detection, skeleton);
+      const now = performance.now();
+      const detection = this.estimator.detect(video, now);
+      if (this.showSkeleton) this.estimator.draw(canvas, detection, skeleton);
+      frames++;
+      if (now - fpsWindowStart >= 1000) {
+        this.diagnostics = { ...this.diagnostics, fps: Math.round((frames * 1000) / (now - fpsWindowStart)) };
+        frames = 0;
+        fpsWindowStart = now;
+      }
+      if (this.recording && detection) this.recordFrame(now, video, detection.landmarks, detection.world);
       if (!this.run || this.run.phase === "exercise") this.assistant.process(detection?.points ?? null);
       this.refresh();
     };
     tick();
+  }
+
+  private recordFrame(
+    t: number,
+    video: HTMLVideoElement,
+    landmarks: { x: number; y: number; z: number; visibility?: number }[],
+    world: { x: number; y: number; z: number }[],
+  ): void {
+    this.recorded.push({
+      t: round(t / 1000),
+      mode: this.assistant.mode,
+      aspect: round(video.videoWidth / Math.max(1, video.videoHeight)),
+      landmarks: landmarks.map((l) => [round(l.x), round(l.y), round(l.z), round(l.visibility ?? 0)]),
+      world: world.map((w) => [round(w.x), round(w.y), round(w.z)]),
+    });
+    this.diagnostics = { ...this.diagnostics, framesRecorded: this.recorded.length };
+    if (this.recorded.length >= MAX_RECORDED_FRAMES) this.toggleRecording();
   }
 
   private celebrate(): void {

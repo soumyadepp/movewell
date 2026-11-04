@@ -1,14 +1,21 @@
 /** 2-D geometry helpers on pixel coordinates. */
 import type { BodyPoints, Joint, Point } from "./models";
 
-export function calculateAngle(a: Point, b: Point, c: Point): number | null {
-  const bax = a[0] - b[0];
-  const bay = a[1] - b[1];
-  const bcx = c[0] - b[0];
-  const bcy = c[1] - b[1];
-  const denom = Math.hypot(bax, bay) * Math.hypot(bcx, bcy);
+/** Angle ABC in degrees for 2-D or 3-D points, or null when an arm has zero length. */
+export function calculateAngle(a: readonly number[], b: readonly number[], c: readonly number[]): number | null {
+  let dot = 0;
+  let ba2 = 0;
+  let bc2 = 0;
+  for (let i = 0; i < Math.min(a.length, b.length, c.length); i++) {
+    const u = a[i] - b[i];
+    const v = c[i] - b[i];
+    dot += u * v;
+    ba2 += u * u;
+    bc2 += v * v;
+  }
+  const denom = Math.sqrt(ba2 * bc2);
   if (denom === 0) return null;
-  const cosine = Math.max(-1, Math.min(1, (bax * bcx + bay * bcy) / denom));
+  const cosine = Math.max(-1, Math.min(1, dot / denom));
   return (Math.acos(cosine) * 180) / Math.PI;
 }
 
@@ -20,6 +27,18 @@ export function midpoint(p1: Point | null, p2: Point | null): Point | null {
 export function safeAverage(values: (number | null)[]): number | null {
   const finite = values.filter((v): v is number => v !== null && Number.isFinite(v));
   return finite.length ? finite.reduce((s, v) => s + v, 0) / finite.length : null;
+}
+
+/**
+ * Joint angle preferring 3-D world landmarks, falling back to image points.
+ * World angles are not shortened when the limb moves toward the camera.
+ */
+export function jointAngle3(points: BodyPoints, a: Joint, vertex: Joint, c: Joint): number | null {
+  const wa = points.get3(a);
+  const wb = points.get3(vertex);
+  const wc = points.get3(c);
+  if (wa && wb && wc) return calculateAngle(wa, wb, wc);
+  return jointAngle(points, a, vertex, c);
 }
 
 export function jointAngle(points: BodyPoints, a: Joint, vertex: Joint, c: Joint): number | null {

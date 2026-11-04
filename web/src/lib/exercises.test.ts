@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createCounter, type ExerciseCounter } from "./analysis/exercises";
 import { EXERCISES } from "./config";
-import { BodyPoints, COUNTED_EXERCISES, ExerciseMode, Joint, MovementPhase } from "./domain/models";
+import { BodyPoints, COUNTED_EXERCISES, ExerciseMode, Joint, MovementPhase, type Point3 } from "./domain/models";
 import { EventBus } from "./events";
 import * as msg from "./messages";
 import {
@@ -176,5 +176,44 @@ describe("registry", () => {
     const counter: ExerciseCounter = createCounter(ExerciseMode.Posture, EXERCISES, new EventBus(), () => 0);
     expect(counter.update(armsAt(100))).toBe(msg.GUIDANCE_POSTURE_MODE);
     expect(counter.reps).toBe(0);
+  });
+});
+
+describe("measurement fidelity", () => {
+  it("keeps true proportions on 16:9 cameras", async () => {
+    const { toBodyPoints } = await import("./infrastructure/pose");
+    const landmarks = Array.from({ length: 33 }, () => ({ x: 0.5, y: 0.5, z: 0, visibility: 0.9 }));
+    landmarks[11] = { x: 0.25, y: 0.5, z: 0, visibility: 0.9 };
+    const wide = toBodyPoints(landmarks, 0.6, 16 / 9);
+    expect(wide.get(Joint.LeftShoulder)).toEqual([0.25 * 720 * (16 / 9), 360]);
+  });
+
+  it("measures an elbow curl toward the camera using 3-D landmarks", () => {
+    const { reps } = setup(ExerciseMode.ElbowCurl);
+    const flat = body();
+    const world = (bentTowardCamera: boolean) =>
+      new BodyPoints(
+        new Map([...[Joint.LeftShoulder, Joint.RightShoulder, Joint.LeftElbow, Joint.LeftWrist, Joint.LeftHip, Joint.RightHip].map((j) => [j, flat.get(j)!] as const)]),
+        new Map<Joint, Point3>([
+          [Joint.LeftShoulder, [-0.18, -0.45, 0]],
+          [Joint.LeftElbow, [-0.2, -0.17, 0]],
+          [Joint.LeftWrist, bentTowardCamera ? [-0.2, -0.2, -0.26] : [-0.2, 0.08, 0]],
+        ]),
+      );
+    expect(reps(world(false), world(true), 2)).toBe(2);
+  });
+});
+
+describe("elbow curl sensitivity", () => {
+  it("counts a quick partial curl that only briefly passes the top", () => {
+    const { counter, clock, holdPose } = setup(ExerciseMode.ElbowCurl);
+    for (let i = 0; i < 3; i++) {
+      holdPose(curled(10), 0.6);
+      for (const deg of [40, 70, 85, 90, 85, 70, 40]) {
+        counter.update(curled(deg));
+        clock.advance(1 / 20);
+      }
+    }
+    expect(counter.reps).toBe(3);
   });
 });

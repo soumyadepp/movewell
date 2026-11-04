@@ -1,7 +1,7 @@
 /** MediaPipe Pose Landmarker adapter. Runs fully in the browser. */
-import { DrawingUtils, FilesetResolver, type NormalizedLandmark, PoseLandmarker } from "@mediapipe/tasks-vision";
-import { POSE, REFERENCE_FRAME } from "../config";
-import { BodyPoints, Joint, type Point } from "../domain/models";
+import { DrawingUtils, FilesetResolver, type Landmark, type NormalizedLandmark, PoseLandmarker } from "@mediapipe/tasks-vision";
+import { POSE, REFERENCE_HEIGHT } from "../config";
+import { BodyPoints, Joint, type Point, type Point3 } from "../domain/models";
 
 const LANDMARK_INDEX: Record<Joint, number> = {
   [Joint.Nose]: 0,
@@ -24,6 +24,7 @@ const LANDMARK_INDEX: Record<Joint, number> = {
 export interface PoseDetection {
   points: BodyPoints;
   landmarks: NormalizedLandmark[];
+  world: Landmark[];
 }
 
 export interface SkeletonStyle {
@@ -34,21 +35,33 @@ export interface SkeletonStyle {
 const inFrame = (lm: NormalizedLandmark) => lm.x >= 0 && lm.x <= 1 && lm.y >= 0 && lm.y <= 1;
 
 /**
- * Converts normalized landmarks to reference-frame pixels, dropping low-visibility joints.
- * If the model reports no visibility for any joint, in-frame joints are kept instead.
+ * Converts landmarks to body points, dropping low-visibility joints.
+ *
+ * Image points are scaled to a REFERENCE_HEIGHT-tall frame using the camera's
+ * real aspect ratio, so horizontal and vertical distances stay comparable on
+ * 16:9 and 4:3 cameras alike. World landmarks (metres, 3-D) are kept for the
+ * same visible joints. If the model reports no visibility at all, in-frame
+ * joints are kept instead.
  */
-export function toBodyPoints(landmarks: NormalizedLandmark[], visibilityThreshold: number): BodyPoints {
+export function toBodyPoints(
+  landmarks: NormalizedLandmark[],
+  visibilityThreshold: number,
+  aspect = 4 / 3,
+  world: Landmark[] = [],
+): BodyPoints {
   const points = new Map<Joint, Point>();
+  const world3 = new Map<Joint, Point3>();
   const hasVisibility = landmarks.some((lm) => (lm.visibility ?? 0) > 0);
   const visible = (lm: NormalizedLandmark) =>
     hasVisibility ? (lm.visibility ?? 0) >= visibilityThreshold : inFrame(lm);
   for (const [joint, index] of Object.entries(LANDMARK_INDEX) as [Joint, number][]) {
     const lm = landmarks[index];
-    if (lm && visible(lm)) {
-      points.set(joint, [lm.x * REFERENCE_FRAME.width, lm.y * REFERENCE_FRAME.height]);
-    }
+    if (!lm || !visible(lm)) continue;
+    points.set(joint, [lm.x * REFERENCE_HEIGHT * aspect, lm.y * REFERENCE_HEIGHT]);
+    const w = world[index];
+    if (w) world3.set(joint, [w.x, w.y, w.z]);
   }
-  return new BodyPoints(points);
+  return new BodyPoints(points, world3);
 }
 
 export class BrowserPoseEstimator {
@@ -74,7 +87,12 @@ export class BrowserPoseEstimator {
     const result = this.landmarker.detectForVideo(video, timestampMs);
     const landmarks = result.landmarks[0];
     if (!landmarks) return null;
-    return { points: toBodyPoints(landmarks, POSE.visibilityThreshold), landmarks };
+    const aspect = video.videoWidth && video.videoHeight ? video.videoWidth / video.videoHeight : 4 / 3;
+    return {
+      points: toBodyPoints(landmarks, POSE.visibilityThreshold, aspect, result.worldLandmarks[0] ?? []),
+      landmarks,
+      world: result.worldLandmarks[0] ?? [],
+    };
   }
 
   draw(canvas: HTMLCanvasElement, detection: PoseDetection | null, style: SkeletonStyle): void {

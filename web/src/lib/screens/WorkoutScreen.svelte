@@ -2,6 +2,7 @@
   import { onDestroy, onMount } from "svelte";
   import BodyCheck from "../components/BodyCheck.svelte";
   import CameraStage from "../components/CameraStage.svelte";
+  import DiagnosticsPanel from "../components/DiagnosticsPanel.svelte";
   import Guidance from "../components/Guidance.svelte";
   import Onboarding from "../components/Onboarding.svelte";
   import RepCounter from "../components/RepCounter.svelte";
@@ -108,6 +109,7 @@
       {#if r?.next && !resting}
         <p class="up-next">{msg.WORKOUT_NEXT(msg.EXERCISE_COPY[r.next.mode].label)}</p>
       {/if}
+      <DiagnosticsPanel {coach} />
     </aside>
   </div>
 

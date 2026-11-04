@@ -5,12 +5,13 @@ import { type CountedExercise, ExerciseMode } from "./domain/models";
  * 960 x 720 reference frame so both versions behave the same at any camera
  * resolution.
  */
-export const REFERENCE_FRAME = { width: 960, height: 720 } as const;
+/** Image points are scaled so the frame is this tall, keeping the camera's aspect ratio. */
+export const REFERENCE_HEIGHT = 720;
 
 export const POSE = {
-  visibilityThreshold: 0.6,
+  visibilityThreshold: 0.65,
   modelUrl:
-    "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
+    "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",
   wasmUrl: "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm",
   minDetectionConfidence: 0.65,
   minTrackingConfidence: 0.65,
@@ -50,7 +51,7 @@ export const POSTURE: PostureThresholds = {
  */
 export const EXERCISES: ExerciseThresholds = {
   [ExerciseMode.ArmRaise]: { lowDeg: 35, highDeg: 75, minIntervalS: 1.0 },
-  [ExerciseMode.ElbowCurl]: { lowDeg: 35, highDeg: 95, minIntervalS: 1.0 },
+  [ExerciseMode.ElbowCurl]: { lowDeg: 30, highDeg: 75, minIntervalS: 0.8 },
   [ExerciseMode.Marching]: { lowDeg: 15, highDeg: 45, minIntervalS: 0.6 },
   [ExerciseMode.SideLegRaise]: { lowDeg: 8, highDeg: 22, minIntervalS: 1.0 },
   [ExerciseMode.SideBend]: { lowDeg: 6, highDeg: 18, minIntervalS: 1.2 },
