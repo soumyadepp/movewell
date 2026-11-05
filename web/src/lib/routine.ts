@@ -5,11 +5,7 @@
  * until its target is reached or the user skips it, followed by a timed rest,
  * then the next step. A single-exercise workout is simply a one-step routine.
  */
-import {
-  COUNTED_EXERCISES,
-  type CountedExercise,
-  ExerciseMode,
-} from "./domain/models";
+import { COUNTED_EXERCISES, type CountedExercise, ExerciseMode } from "./domain/models";
 import type { Clock } from "./session";
 
 export interface RoutineStep {
@@ -33,8 +29,7 @@ export interface StepResult {
   completed: boolean;
 }
 
-export type RoutinePhase =
-  "intro" | "countdown" | "exercise" | "paused" | "rest" | "done";
+export type RoutinePhase = "intro" | "countdown" | "exercise" | "paused" | "rest" | "done";
 
 /** Seconds per repetition used to estimate how long a routine takes. */
 const SECONDS_PER_REP = 4;
@@ -62,20 +57,14 @@ export function isPhysioPlan(plan: RoutinePlan): boolean {
   return (
     plan.restS === DAILY_ROUTINE.restS &&
     plan.steps.length === DAILY_ROUTINE.steps.length &&
-    plan.steps.every(
-      (s, i) =>
-        s.mode === DAILY_ROUTINE.steps[i].mode &&
-        s.target === DAILY_ROUTINE.steps[i].target,
-    )
+    plan.steps.every((s, i) => s.mode === DAILY_ROUTINE.steps[i].mode && s.target === DAILY_ROUTINE.steps[i].target)
   );
 }
 
 /** Repetition choices for one exercise, including the physiotherapist's own target for it. */
 export function targetChoices(mode: CountedExercise): number[] {
   const physio = DAILY_ROUTINE.steps.find((s) => s.mode === mode)?.target;
-  return [...new Set([...TARGET_CHOICES, ...(physio ? [physio] : [])])].sort(
-    (a, b) => a - b,
-  );
+  return [...new Set([...TARGET_CHOICES, ...(physio ? [physio] : [])])].sort((a, b) => a - b);
 }
 
 /**
@@ -98,14 +87,12 @@ export function planFrom(raw: unknown): RoutinePlan {
     };
     const counted = COUNTED_EXERCISES.find((m) => m === mode);
     if (!counted || seen.has(counted)) continue;
-    if (typeof target !== "number" || !targetChoices(counted).includes(target))
-      continue;
+    if (typeof target !== "number" || !targetChoices(counted).includes(target)) continue;
     seen.add(counted);
     steps.push({ mode: counted, target });
   }
   if (steps.length === 0) return DAILY_ROUTINE;
-  const restS =
-    REST_CHOICES.find((r) => r === data.restS) ?? DAILY_ROUTINE.restS;
+  const restS = REST_CHOICES.find((r) => r === data.restS) ?? DAILY_ROUTINE.restS;
   return { ...DAILY_ROUTINE, steps, restS };
 }
 
@@ -115,11 +102,7 @@ const withSteps = (plan: RoutinePlan, steps: RoutineStep[]): RoutinePlan => ({
 });
 
 /** Moves a step one place earlier (-1) or later (+1), ignoring moves past either end. */
-export function moveStep(
-  plan: RoutinePlan,
-  index: number,
-  by: -1 | 1,
-): RoutinePlan {
+export function moveStep(plan: RoutinePlan, index: number, by: -1 | 1): RoutinePlan {
   const to = index + by;
   if (to < 0 || to >= plan.steps.length) return plan;
   const steps = [...plan.steps];
@@ -143,17 +126,34 @@ export function addStep(plan: RoutinePlan, mode: CountedExercise): RoutinePlan {
   return withSteps(plan, [...plan.steps, { mode, target }]);
 }
 
-export function setTarget(
-  plan: RoutinePlan,
-  index: number,
-  target: number,
-): RoutinePlan {
+/**
+ * Changes how many times one step is done.
+ *
+ * Args:
+ *   plan: The plan to change.
+ *   index: The step's position.
+ *   target: The new number of repetitions.
+ *
+ * Returns:
+ *   The changed plan.
+ */
+export function setTarget(plan: RoutinePlan, index: number, target: number): RoutinePlan {
   return withSteps(
     plan,
     plan.steps.map((s, i) => (i === index ? { ...s, target } : s)),
   );
 }
 
+/**
+ * Changes the rest between exercises.
+ *
+ * Args:
+ *   plan: The plan to change.
+ *   restS: The new rest, in seconds.
+ *
+ * Returns:
+ *   The changed plan.
+ */
 export function setRest(plan: RoutinePlan, restS: number): RoutinePlan {
   return { ...plan, restS };
 }
@@ -163,16 +163,23 @@ export function addableExercises(plan: RoutinePlan): CountedExercise[] {
   return COUNTED_EXERCISES.filter((m) => !plan.steps.some((s) => s.mode === m));
 }
 
-export const singleExercise = (
-  mode: CountedExercise,
-  target: number,
-): RoutinePlan => ({
+/** Builds a one-step plan for doing a single exercise without rests or introductions. */
+export const singleExercise = (mode: CountedExercise, target: number): RoutinePlan => ({
   id: `single-${mode}`,
   restS: 0,
   showIntro: false,
   steps: [{ mode, target }],
 });
 
+/**
+ * Estimates how long a plan takes, including rests.
+ *
+ * Args:
+ *   plan: The plan.
+ *
+ * Returns:
+ *   Whole minutes, at least one.
+ */
 export function estimatedMinutes(plan: RoutinePlan): number {
   const reps = plan.steps.reduce((sum, step) => sum + step.target, 0);
   const rest = plan.restS * Math.max(0, plan.steps.length - 1);
@@ -187,6 +194,7 @@ export const COUNTDOWN_S = 3;
 /** Phases in which the current exercise is underway and can be skipped or ended. */
 const ACTIVE: readonly RoutinePhase[] = ["countdown", "exercise", "paused"];
 
+/** Steps through a plan: introduction, countdown, exercise, pause, rest and done. */
 export class RoutineRun {
   index = 0;
   phase: RoutinePhase;
@@ -229,15 +237,11 @@ export class RoutineRun {
   }
 
   restRemainingS(): number {
-    return this.phase === "rest"
-      ? Math.max(0, Math.ceil(this.restEndsAt - this.clock()))
-      : 0;
+    return this.phase === "rest" ? Math.max(0, Math.ceil(this.restEndsAt - this.clock())) : 0;
   }
 
   countdownRemainingS(): number {
-    return this.phase === "countdown"
-      ? Math.max(0, Math.ceil(this.countdownEndsAt - this.clock()))
-      : 0;
+    return this.phase === "countdown" ? Math.max(0, Math.ceil(this.countdownEndsAt - this.clock())) : 0;
   }
 
   /** Pauses the current exercise; time spent paused is not counted. */
@@ -259,21 +263,22 @@ export class RoutineRun {
   /**
    * Records the current step and moves to rest, the next step, or done.
    *
-   * @returns The new phase.
+   * Args:
+   *   reps: Repetitions counted for the step.
+   *   completed: True if the target was reached, false if skipped or ended early.
+   *
+   * Returns:
+   *   The new phase.
    */
   completeStep(reps: number, completed: boolean): RoutinePhase {
     const step = this.current;
     if (!step || !this.isActive) return this.phase;
-    const pausedFor =
-      this.phase === "paused" ? this.clock() - this.pausedAt : 0;
+    const pausedFor = this.phase === "paused" ? this.clock() - this.pausedAt : 0;
     this.results.push({
       mode: step.mode,
       target: step.target,
       reps,
-      durationS: Math.max(
-        0,
-        Math.round(this.clock() - this.stepStartedAt - pausedFor),
-      ),
+      durationS: Math.max(0, Math.round(this.clock() - this.stepStartedAt - pausedFor)),
       completed,
     });
     this.pauseReason = null;
@@ -291,7 +296,8 @@ export class RoutineRun {
   /**
    * Moves out of timed phases: rest into the next step, countdown into the exercise.
    *
-   * @returns True if a new step started.
+   * Returns:
+   *   True if a new step started.
    */
   tick(): boolean {
     if (this.phase === "countdown" && this.clock() >= this.countdownEndsAt) {

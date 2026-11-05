@@ -66,6 +66,12 @@ export class WebAudioCuePlayer implements CuePlayer {
     if (context?.state === "suspended") void context.resume();
   }
 
+  /**
+   * Plays a cue now, if cues are turned on.
+   *
+   * Args:
+   *   cue: Which cue to play.
+   */
   play(cue: Cue): void {
     if (!this.enabled) return;
     const context = this.ensureContext();
@@ -77,11 +83,7 @@ export class WebAudioCuePlayer implements CuePlayer {
 
   private ensureContext(): AudioContext | null {
     if (this.context) return this.context;
-    if (
-      typeof window === "undefined" ||
-      typeof window.AudioContext === "undefined"
-    )
-      return null;
+    if (typeof window === "undefined" || typeof window.AudioContext === "undefined") return null;
     this.context = new window.AudioContext();
     return this.context;
   }
@@ -95,10 +97,7 @@ export class WebAudioCuePlayer implements CuePlayer {
     oscillator.frequency.setValueAtTime(note.hz, at);
     gain.gain.setValueAtTime(0, at);
     gain.gain.linearRampToValueAtTime(PEAK_GAIN, at + ATTACK_S);
-    gain.gain.setValueAtTime(
-      PEAK_GAIN,
-      Math.max(at + ATTACK_S, end - RELEASE_S),
-    );
+    gain.gain.setValueAtTime(PEAK_GAIN, Math.max(at + ATTACK_S, end - RELEASE_S));
     gain.gain.linearRampToValueAtTime(0, end);
     oscillator.connect(gain).connect(context.destination);
     oscillator.start(at);
@@ -119,11 +118,7 @@ export class WebAudioCuePlayer implements CuePlayer {
  *   player: Where cues are played.
  *   clock: Seconds clock used for the cooldowns.
  */
-export function attachCues(
-  events: EventBus,
-  player: CuePlayer,
-  clock: Clock,
-): void {
+export function attachCues(events: EventBus, player: CuePlayer, clock: Clock): void {
   const gates: Record<Cue, CooldownGate> = {
     ready: new CooldownGate(CUE_COOLDOWN_S, clock),
     attention: new CooldownGate(CUE_COOLDOWN_S, clock),

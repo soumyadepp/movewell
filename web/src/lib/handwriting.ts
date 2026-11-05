@@ -9,9 +9,7 @@ export interface HandFont {
   readonly unitsPerEm: number;
   readonly ascent: number;
   readonly descent: number;
-  readonly glyphs: Readonly<
-    Record<string, { adv: number; len: number; lines: number[][][] }>
-  >;
+  readonly glyphs: Readonly<Record<string, { adv: number; len: number; lines: number[][][] }>>;
 }
 
 export interface Stroke {
@@ -42,12 +40,7 @@ export const ALLURE: HandFont = allure;
 const PAD = 120;
 
 const polylineLength = (line: number[][]): number =>
-  line
-    .slice(1)
-    .reduce(
-      (sum, [px, py], k) => sum + Math.hypot(px - line[k][0], py - line[k][1]),
-      0,
-    );
+  line.slice(1).reduce((sum, [px, py], k) => sum + Math.hypot(px - line[k][0], py - line[k][1]), 0);
 
 /**
  * Writes text as pencil strokes.
@@ -68,9 +61,7 @@ export function write(text: string, font: HandFont = ALLURE): Writing | null {
     const glyph = font.glyphs[char];
     if (!glyph) return null;
     for (const line of glyph.lines) {
-      const d = line
-        .map(([px, py], k) => `${k ? "L" : "M"}${px + x} ${py + font.ascent}`)
-        .join("");
+      const d = line.map(([px, py], k) => `${k ? "L" : "M"}${px + x} ${py + font.ascent}`).join("");
       const strokeLength = polylineLength(line);
       strokes.push({ d, length: strokeLength, start: length });
       length += strokeLength;

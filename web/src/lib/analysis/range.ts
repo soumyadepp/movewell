@@ -46,9 +46,7 @@ const median = (values: number[]): number => {
  * Returns:
  *   The median low and high points, or null when there are no cycles.
  */
-export function rangeFromCycles(
-  cycles: readonly Cycle[],
-): PersonalRange | null {
+export function rangeFromCycles(cycles: readonly Cycle[]): PersonalRange | null {
   if (cycles.length === 0) return null;
   return {
     low: median(cycles.map((c) => c.trough)),
@@ -69,18 +67,12 @@ export function rangeFromCycles(
  *   a clear gap below a lowered high threshold. Falls back to the standard
  *   thresholds when the range is unknown or too small to trust.
  */
-export function thresholdsFor(
-  standard: RepThresholds,
-  range: PersonalRange | null,
-): RepThresholds {
+export function thresholdsFor(standard: RepThresholds, range: PersonalRange | null): RepThresholds {
   if (!range) return standard;
   const span = range.high - range.low;
   if (span < minimumSpan(standard)) return standard;
   const highDeg = Math.min(standard.highDeg, range.low + span * HIGH_AT);
-  const lowDeg = Math.min(
-    Math.max(standard.lowDeg, range.low + span * LOW_AT),
-    highDeg - span * MIN_GAP,
-  );
+  const lowDeg = Math.min(Math.max(standard.lowDeg, range.low + span * LOW_AT), highDeg - span * MIN_GAP);
   return { ...standard, lowDeg, highDeg };
 }
 
@@ -102,13 +94,18 @@ export class RangeTracker {
     this.hysteresis = minSpan / 2;
   }
 
+  /**
+   * Adds one smoothed angle, recording a cycle when a full up-and-down movement completes.
+   *
+   * Args:
+   *   angle: The smoothed angle in degrees, or null when tracking dropped out.
+   */
   observe(angle: number | null): void {
     if (angle === null || !Number.isFinite(angle)) return;
     if (this.rising) {
       this.peak = Math.max(this.peak, angle);
       if (angle < this.peak - this.hysteresis) {
-        if (this.peak - this.trough >= this.minSpan)
-          this.cycles.push({ trough: this.trough, peak: this.peak });
+        if (this.peak - this.trough >= this.minSpan) this.cycles.push({ trough: this.trough, peak: this.peak });
         this.rising = false;
         this.trough = angle;
       }

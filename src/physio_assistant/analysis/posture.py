@@ -20,7 +20,14 @@ class PostureAnalyzer(Protocol):
     """Strategy interface for producing posture findings from one frame."""
 
     def analyze(self, points: BodyPoints) -> list[Finding]:
-        """Returns every finding triggered by the frame."""
+        """Returns every finding triggered by the frame.
+
+        Args:
+            points: Visible joints for the frame.
+
+        Returns:
+            Findings in rule order.
+        """
         ...
 
 
@@ -28,6 +35,11 @@ class RuleBasedAnalyzer:
     """Runs a fixed sequence of rules and collects the findings they raise."""
 
     def __init__(self, rules: Sequence[Rule]) -> None:
+        """Creates an analyzer from an ordered list of rules.
+
+        Args:
+            rules: Rules to run on every frame, in order.
+        """
         self._rules = tuple(rules)
 
     def analyze(self, points: BodyPoints) -> list[Finding]:
@@ -53,18 +65,42 @@ def front_view_rules(t: PostureThresholds) -> list[Rule]:
     """
 
     def shoulder_level(p: BodyPoints) -> Finding | None:
+        """Flags shoulders at visibly different heights.
+
+        Args:
+            p: Visible joints for the frame.
+
+        Returns:
+            The shoulder-height finding, or None.
+        """
         ls, rs = p.get(Joint.LEFT_SHOULDER), p.get(Joint.RIGHT_SHOULDER)
         if ls and rs and abs(ls[1] - rs[1]) > t.shoulder_height_diff_px:
             return catalog.SHOULDER_HEIGHT
         return None
 
     def hip_level(p: BodyPoints) -> Finding | None:
+        """Flags hips at visibly different heights.
+
+        Args:
+            p: Visible joints for the frame.
+
+        Returns:
+            The hip-height finding, or None.
+        """
         lh, rh = p.get(Joint.LEFT_HIP), p.get(Joint.RIGHT_HIP)
         if lh and rh and abs(lh[1] - rh[1]) > t.hip_height_diff_px:
             return catalog.HIP_HEIGHT
         return None
 
     def trunk_shift(p: BodyPoints) -> Finding | None:
+        """Flags a shoulder midpoint shifted sideways from the hip midpoint.
+
+        Args:
+            p: Visible joints for the frame.
+
+        Returns:
+            The trunk-shift finding, or None.
+        """
         shoulders = midpoint(p.get(Joint.LEFT_SHOULDER), p.get(Joint.RIGHT_SHOULDER))
         hips = midpoint(p.get(Joint.LEFT_HIP), p.get(Joint.RIGHT_HIP))
         if shoulders and hips and abs(shoulders[0] - hips[0]) > t.trunk_shift_px:
@@ -72,6 +108,14 @@ def front_view_rules(t: PostureThresholds) -> list[Rule]:
         return None
 
     def knee_tracking(p: BodyPoints) -> Finding | None:
+        """Flags a knee drifting horizontally away from its ankle.
+
+        Args:
+            p: Visible joints for the frame.
+
+        Returns:
+            The knee-alignment finding, or None.
+        """
         lk, rk = p.get(Joint.LEFT_KNEE), p.get(Joint.RIGHT_KNEE)
         la, ra = p.get(Joint.LEFT_ANKLE), p.get(Joint.RIGHT_ANKLE)
         if not (lk and rk and la and ra):
@@ -97,6 +141,14 @@ def side_view_rules(t: PostureThresholds) -> list[Rule]:
     """
 
     def head_forward(p: BodyPoints) -> Finding | None:
+        """Flags an ear far in front of or behind the shoulder.
+
+        Args:
+            p: Visible joints for the frame.
+
+        Returns:
+            The head-forward finding, or None.
+        """
         ear = p.first_visible(Joint.LEFT_EAR, Joint.RIGHT_EAR)
         shoulder = p.first_visible(Joint.LEFT_SHOULDER, Joint.RIGHT_SHOULDER)
         if ear and shoulder and abs(ear[0] - shoulder[0]) > t.head_forward_px:
@@ -104,6 +156,14 @@ def side_view_rules(t: PostureThresholds) -> list[Rule]:
         return None
 
     def trunk_incline(p: BodyPoints) -> Finding | None:
+        """Flags a shoulder far in front of or behind the hip.
+
+        Args:
+            p: Visible joints for the frame.
+
+        Returns:
+            The trunk-incline finding, or None.
+        """
         shoulder = p.first_visible(Joint.LEFT_SHOULDER, Joint.RIGHT_SHOULDER)
         hip = p.first_visible(Joint.LEFT_HIP, Joint.RIGHT_HIP)
         if shoulder and hip and abs(shoulder[0] - hip[0]) > t.trunk_incline_px:
@@ -111,6 +171,14 @@ def side_view_rules(t: PostureThresholds) -> list[Rule]:
         return None
 
     def knee_bent(p: BodyPoints) -> Finding | None:
+        """Flags a hip-knee-ankle angle below the bent-knee threshold.
+
+        Args:
+            p: Visible joints for the frame.
+
+        Returns:
+            The bent-knee finding, or None.
+        """
         hip = p.first_visible(Joint.LEFT_HIP, Joint.RIGHT_HIP)
         knee = p.first_visible(Joint.LEFT_KNEE, Joint.RIGHT_KNEE)
         ankle = p.first_visible(Joint.LEFT_ANKLE, Joint.RIGHT_ANKLE)

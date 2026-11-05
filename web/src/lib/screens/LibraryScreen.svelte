@@ -1,6 +1,6 @@
 <script lang="ts">
   import ExerciseMedia from "../components/ExerciseMedia.svelte";
-  import { href } from "../controller.svelte";
+  import { href } from "../routing";
   import { EXERCISES } from "../exercises";
   import * as msg from "../messages";
 </script>

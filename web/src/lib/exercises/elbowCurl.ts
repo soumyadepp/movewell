@@ -28,8 +28,7 @@ export const elbowCurl: Exercise = {
     ],
     benefit: "Arm strength for lifting and carrying.",
     safety: "Hold light objects only if your physiotherapist agrees.",
-    guidance:
-      "Keep elbows by your sides and bring your hands up towards your shoulders.",
+    guidance: "Keep elbows by your sides and bring your hands up towards your shoulders.",
     notVisible: "Show your shoulders, elbows and wrists to the camera.",
     low: "Arm straight",
     high: "Elbow bent",

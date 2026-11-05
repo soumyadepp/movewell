@@ -1,5 +1,6 @@
 <script lang="ts">
-  import type { CoachController, TextSize } from "../controller.svelte";
+  import type { CoachController } from "../controller.svelte";
+  import type { TextSize } from "../infrastructure/preferences";
   import { SPEECH_CATALOGS, VOICE_LANGUAGES, type VoiceLanguage } from "../i18n/speech";
   import * as msg from "../messages";
   import Segmented from "./Segmented.svelte";

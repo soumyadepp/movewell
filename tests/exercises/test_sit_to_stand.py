@@ -1,3 +1,5 @@
+"""Tests for counting sit-to-stand repetitions."""
+
 from physio_assistant.domain.models import BodyPoints, ExerciseMode, Joint
 from tests.poses import facing_3d, reps, seated_side, standing_side
 

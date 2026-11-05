@@ -1,5 +1,11 @@
 /** MediaPipe Pose Landmarker adapter. Runs fully in the browser. */
-import { DrawingUtils, FilesetResolver, type Landmark, type NormalizedLandmark, PoseLandmarker } from "@mediapipe/tasks-vision";
+import {
+  DrawingUtils,
+  FilesetResolver,
+  type Landmark,
+  type NormalizedLandmark,
+  PoseLandmarker,
+} from "@mediapipe/tasks-vision";
 import { POSE, REFERENCE_HEIGHT } from "../config";
 import { BodyPoints, Joint, type Point, type Point3 } from "../domain/models";
 
@@ -64,9 +70,19 @@ export function toBodyPoints(
   return new BodyPoints(points, world3);
 }
 
+/** MediaPipe pose detection running in the browser, on the GPU when available. */
 export class BrowserPoseEstimator {
   private constructor(private readonly landmarker: PoseLandmarker) {}
 
+  /**
+   * Loads the pose model, preferring the GPU and falling back to the CPU.
+   *
+   * Returns:
+   *   A ready estimator.
+   *
+   * Raises:
+   *   Error: If the model cannot be loaded at all.
+   */
   static async create(): Promise<BrowserPoseEstimator> {
     const fileset = await FilesetResolver.forVisionTasks(POSE.wasmUrl);
     const options = (delegate: "GPU" | "CPU") => ({
@@ -84,6 +100,16 @@ export class BrowserPoseEstimator {
     }
   }
 
+  /**
+   * Detects the pose in the current video frame.
+   *
+   * Args:
+   *   video: The playing camera video.
+   *   timestampMs: The frame time, which must increase between calls.
+   *
+   * Returns:
+   *   The detection, or null if no person was found.
+   */
   detect(video: HTMLVideoElement, timestampMs: number): PoseDetection | null {
     const result = this.landmarker.detectForVideo(video, timestampMs);
     const landmarks = result.landmarks[0];
@@ -96,6 +122,14 @@ export class BrowserPoseEstimator {
     };
   }
 
+  /**
+   * Draws the tracking lines for a detection, clearing the canvas first.
+   *
+   * Args:
+   *   canvas: The canvas laid over the video.
+   *   detection: The detection to draw, or null to just clear.
+   *   style: Colours for joints and bones.
+   */
   draw(canvas: HTMLCanvasElement, detection: PoseDetection | null, style: SkeletonStyle): void {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;

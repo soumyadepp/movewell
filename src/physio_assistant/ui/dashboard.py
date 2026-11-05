@@ -8,6 +8,7 @@ from physio_assistant.assistant import Assistant
 from physio_assistant.domain.models import ExerciseMode, MovementPhase
 from physio_assistant.exercises import get_exercise
 from physio_assistant.ui.commands import mode_label
+from physio_assistant.ui.text import guidance_lines, render_status
 
 Color = tuple[int, int, int]
 
@@ -34,10 +35,28 @@ def _text(
     color: Color = TEXT,
     thickness: int = 1,
 ) -> None:
+    """Draws anti-aliased text onto an image in place.
+
+    Args:
+        image: Image to draw on.
+        text: Text to draw.
+        xy: Bottom-left corner of the text in pixels.
+        scale: Font scale.
+        color: BGR color.
+        thickness: Stroke thickness in pixels.
+    """
     cv2.putText(image, text, xy, cv2.FONT_HERSHEY_SIMPLEX, scale, color, thickness, cv2.LINE_AA)
 
 
 def _phase_label(a: Assistant) -> str:
+    """Names the current movement phase in the selected exercise's own words.
+
+    Args:
+        a: Assistant whose counter phase is shown.
+
+    Returns:
+        The exercise's low or high label, or the generic phase name.
+    """
     phase = a.counter.phase
     if a.mode is ExerciseMode.POSTURE or phase is MovementPhase.READY:
         return phase.value.title()
@@ -72,9 +91,24 @@ class DashboardRenderer:
         return np.hstack((frame, panel))
 
     def _rule(self, panel: np.ndarray, y: int) -> None:
+        """Draws a horizontal separator across the panel.
+
+        Args:
+            panel: Panel image to draw on.
+            y: Vertical position in pixels.
+        """
         cv2.line(panel, (15, y), (PANEL_WIDTH - 15, y), RULE, 1)
 
     def _header(self, panel: np.ndarray, a: Assistant) -> int:
+        """Draws the title, view, mode and session time.
+
+        Args:
+            panel: Panel image to draw on.
+            a: Assistant providing the values.
+
+        Returns:
+            The y position where the next section starts.
+        """
         cv2.rectangle(panel, (0, 0), (PANEL_WIDTH, 65), HEADER, -1)
         _text(panel, messages.APP_TITLE, (15, 29), 0.58, ACCENT, 2)
         _text(panel, messages.APP_SUBTITLE, (15, 51), 0.36, MUTED)
@@ -92,6 +126,16 @@ class DashboardRenderer:
         return 216
 
     def _findings(self, panel: np.ndarray, a: Assistant, y: int) -> int:
+        """Draws up to three posture findings, or the no-flag notice.
+
+        Args:
+            panel: Panel image to draw on.
+            a: Assistant providing the findings.
+            y: Vertical position where the section starts.
+
+        Returns:
+            The y position after the section.
+        """
         _text(panel, messages.LABEL_OBSERVATIONS, (15, y), 0.52, ACCENT, 2)
         y += 28
         if not a.frame.findings:
@@ -117,16 +161,36 @@ class DashboardRenderer:
         return y
 
     def _guidance(self, panel: np.ndarray, a: Assistant, y: int) -> int:
+        """Draws up to three rendered guidance lines.
+
+        Args:
+            panel: Panel image to draw on.
+            a: Assistant providing the guidance codes.
+            y: Vertical position where the section starts.
+
+        Returns:
+            The y position after the section.
+        """
         self._rule(panel, y)
         y += 27
         _text(panel, messages.LABEL_LIVE_GUIDANCE, (15, y), 0.52, ACCENT, 2)
         y += 27
-        for line in a.frame.guidance[:3]:
+        for line in guidance_lines(a.frame.guidance)[:3]:
             _text(panel, line[:57], (18, y), 0.36)
             y += 22
         return y
 
     def _counter(self, panel: np.ndarray, a: Assistant, y: int) -> int:
+        """Draws the repetition count, phase and measured angle.
+
+        Args:
+            panel: Panel image to draw on.
+            a: Assistant providing the counter.
+            y: Vertical position where the section starts.
+
+        Returns:
+            The y position after the section.
+        """
         self._rule(panel, y)
         y += 28
         _text(panel, messages.LABEL_COUNTER, (15, y), 0.52, ACCENT, 2)
@@ -147,6 +211,13 @@ class DashboardRenderer:
         return y + 27
 
     def _footer(self, panel: np.ndarray, a: Assistant, y: int) -> None:
+        """Draws progress, the status notice and the key controls.
+
+        Args:
+            panel: Panel image to draw on.
+            a: Assistant providing progress and status.
+            y: Vertical position after the previous section.
+        """
         h = panel.shape[0]
         progress = a.progress
         py = min(max(y + 5, 615), h - 85)
@@ -166,7 +237,8 @@ class DashboardRenderer:
             0.34,
             PROGRESS,
         )
-        if a.status_message:
-            _text(panel, a.status_message, (18, min(py + 43, h - 48)), 0.34, GOOD)
+        status = render_status(a.status)
+        if status:
+            _text(panel, status, (18, min(py + 43, h - 48)), 0.34, GOOD)
         _text(panel, messages.LABEL_CONTROLS_1, (12, h - 34), 0.30, MUTED)
         _text(panel, messages.LABEL_CONTROLS_2, (12, h - 14), 0.30, MUTED)

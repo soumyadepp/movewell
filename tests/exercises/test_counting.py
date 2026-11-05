@@ -1,5 +1,7 @@
-from physio_assistant import messages
+"""Tests for the shared repetition counter state machine."""
+
 from physio_assistant.analysis.counting import PostureOnlyCounter, RepCounter
+from physio_assistant.domain.feedback import Guidance
 from physio_assistant.domain.models import BodyPoints, ExerciseMode, Joint, MovementPhase
 from physio_assistant.events import RepCounted
 from tests.poses import arms_at, curled, hold, reps
@@ -44,6 +46,14 @@ def test_movement_inside_band_does_not_count(counter_for):
 
 
 def _drop_wrists(points: BodyPoints) -> BodyPoints:
+    """Hides both wrists, as a tracking dropout would.
+
+    Args:
+        points: Pose to copy.
+
+    Returns:
+        The pose without wrists.
+    """
     kept = {
         j: p for j, p in points.points.items() if j not in (Joint.LEFT_WRIST, Joint.RIGHT_WRIST)
     }
@@ -55,6 +65,12 @@ def test_brief_dropouts_do_not_reset_progress(counter_for):
     frame = 0
 
     def flicker(points: BodyPoints, seconds: float) -> None:
+        """Holds a pose at 30 fps, dropping the wrists on every third frame.
+
+        Args:
+            points: Pose to hold.
+            seconds: How long to hold it.
+        """
         nonlocal frame
         for _ in range(round(seconds * 30)):
             counter.update(_drop_wrists(points) if frame % 3 == 2 else points)
@@ -74,7 +90,7 @@ def test_sustained_loss_reports_not_visible(counter_for):
     hold(counter.update, _drop_wrists(curled(5)), clock, 1)
 
     assert isinstance(counter, RepCounter)
-    assert counter.update(_drop_wrists(curled(5))) == counter.exercise.copy.not_visible
+    assert counter.update(_drop_wrists(curled(5))) == Guidance.not_visible(ExerciseMode.ELBOW_CURL)
     assert counter.last_angle is None
 
 
@@ -82,7 +98,7 @@ def test_posture_counter_never_counts(counter_for):
     counter, _, _ = counter_for(ExerciseMode.POSTURE)
 
     assert isinstance(counter, PostureOnlyCounter)
-    assert counter.update(arms_at(100)) == messages.GUIDANCE_POSTURE_MODE
+    assert counter.update(arms_at(100)) == Guidance.POSTURE_MODE
     assert counter.reps == 0
 
 

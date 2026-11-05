@@ -9,9 +9,21 @@ from tests.conftest import FakeClock, RecordingBus
 
 @pytest.fixture
 def counter_for():
-    """Returns a factory building a counter for a mode with its own clock and bus."""
+    """Provides a factory that builds a counter with its own clock and bus.
+
+    Returns:
+        A callable taking a mode and returning ``(counter, clock, bus)``.
+    """
 
     def build(mode: ExerciseMode):
+        """Builds a counter for one mode.
+
+        Args:
+            mode: Mode to count.
+
+        Returns:
+            The counter, its fake clock and its recording bus.
+        """
         clock, bus = FakeClock(), RecordingBus()
         return create_counter(mode, bus, clock), clock, bus
 

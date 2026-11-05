@@ -4,10 +4,11 @@
   import DevPanel from "../components/DevPanel.svelte";
   import ExerciseMedia from "../components/ExerciseMedia.svelte";
   import type { CoachController } from "../controller.svelte";
-  import { href } from "../controller.svelte";
+  import { href } from "../routing";
   import { isCounted } from "../domain/models";
   import { getExercise } from "../exercises";
   import * as msg from "../messages";
+  import { guidanceText } from "../guidanceText";
   import Handwritten from "../components/Handwritten.svelte";
   import VoiceStatus from "../components/VoiceStatus.svelte";
 
@@ -27,17 +28,13 @@
   const live = $derived(phase === "countdown" || phase === "exercise" || phase === "paused" || phase === "rest");
   const active = $derived(phase === "countdown" || phase === "exercise" || phase === "paused");
   const panelKey = $derived(`${live ? "live" : phase}-${r?.index ?? 0}`);
-  const coachLine = $derived(
-    coach.celebrating
-      ? msg.TARGET_REACHED
-      : phase === "rest"
-        ? msg.REST
-        : phase === "paused"
-          ? msg.PAUSED_TITLE
-          : phase === "countdown"
-            ? msg.GET_READY
-            : (s.guidance[0] ?? ""),
-  );
+  const PHASE_LINES: Partial<Record<string, string>> = {
+    rest: msg.REST,
+    paused: msg.PAUSED_TITLE,
+    countdown: msg.GET_READY,
+  };
+  const guidanceLine = $derived(s.guidance[0] ? guidanceText(s.guidance[0]) : "");
+  const coachLine = $derived(coach.celebrating ? msg.TARGET_REACHED : (PHASE_LINES[phase] ?? guidanceLine));
   const percent = $derived(Math.min(100, Math.round((s.reps / Math.max(1, s.goal)) * 100)));
 
   function start() {
@@ -74,7 +71,9 @@
           <div class="overlay ready fade-in" role="status" aria-live="assertive">
             <p class="title">{msg.GET_READY}</p>
             {#key r.countdownS}
-              <p class="countdown"><Handwritten text={String(r.countdownS)} durationMs={500} scale={1.1} weight={36} /></p>
+              <p class="countdown">
+                <Handwritten text={String(r.countdownS)} durationMs={500} scale={1.1} weight={36} />
+              </p>
             {/key}
           </div>
         {:else if phase === "paused" && r}
@@ -88,7 +87,9 @@
           <div class="overlay rest fade-in" role="status" aria-live="polite">
             <p class="title">{msg.REST}</p>
             {#key r.restRemainingS}
-              <p class="countdown"><Handwritten text={String(r.restRemainingS)} durationMs={600} scale={1.1} weight={36} /></p>
+              <p class="countdown">
+                <Handwritten text={String(r.restRemainingS)} durationMs={600} scale={1.1} weight={36} />
+              </p>
             {/key}
             {#if next}
               <p class="title">{msg.UP_NEXT(next.copy.label)}</p>
@@ -106,62 +107,78 @@
     </div>
 
     {#key panelKey}
-    <aside class="right enter">
-      <p class="position">{position}</p>
+      <aside class="right enter">
+        <p class="position">{position}</p>
 
-      {#if phase === "camera"}
-        <h1>{msg.CAMERA_OFF_TITLE}</h1>
-        <p>{msg.CAMERA_OFF_BODY}</p>
-        {#if coach.errorMessage}<p class="error" role="alert">{coach.errorMessage}</p>{/if}
-        <button class="btn btn-light btn-block" onclick={start} disabled={coach.stage === "loading"} aria-busy={coach.stage === "loading"}>
-          {coach.stage === "loading" ? msg.LOADING_MODEL : coach.stage === "error" ? msg.TRY_AGAIN : msg.SPACE_START}
-        </button>
-        <a class="btn btn-outline-light btn-block" href={href.home}>{msg.BACK}</a>
-      {:else if phase === "intro" && exercise && step}
-        <h1>{exercise.copy.label}</h1>
-        <ol class="steps">
-          {#each exercise.copy.steps as text, i (i)}
-            <li class="enter" style:--i={i + 2}><span class="num" aria-hidden="true">{i + 1}</span><span>{text}</span></li>
-          {/each}
-        </ol>
-        <p class="care">{msg.TAKE_CARE}: {exercise.copy.safety}</p>
-        <p class="target">{msg.TIMES(step.target)}</p>
-        <button class="btn btn-light btn-block" onclick={() => coach.beginExercise()}>{msg.READY}</button>
-        <button class="btn btn-outline-light btn-block" onclick={() => coach.skipExercise()}>{msg.SKIP_THIS}</button>
-      {:else if exercise}
-        <h2 class="name">{exercise.copy.label}</h2>
-        <p class="count" class:celebrating={coach.celebrating} aria-live="polite" aria-atomic="true">
-          {#key s.reps}<span class="number"><Handwritten text={String(s.reps)} durationMs={450} scale={1.1} weight={36} /></span>{/key}<span class="of">{msg.OF(s.goal)}</span>
-        </p>
-        <div class="bar" class:celebrating={coach.celebrating} role="progressbar" aria-valuemin="0" aria-valuemax={s.goal} aria-valuenow={Math.min(s.reps, s.goal)}>
-          <span style:width="{percent}%"></span>
-        </div>
-        {#key coachLine}<p class="coach fade-in">{coachLine}</p>{/key}
-        <div class="end">
-          {#if coach.confirmingEnd && r}
-            <p class="confirm" role="alert">{msg.END_CONFIRM(r.index, r.steps.length)}</p>
-            <button class="btn btn-light btn-block" onclick={() => coach.cancelEnd()}>{msg.KEEP_GOING}</button>
-            <button class="btn btn-outline-light btn-block" onclick={() => coach.endSession()}>{msg.END_NOW}</button>
-          {:else}
-            {#if active && r && !r.isSingle}
-              <button class="btn btn-light btn-block" onclick={() => coach.skipExercise()}>
-                {r.next ? msg.NEXT_EXERCISE : msg.FINISH}
-              </button>
-            {/if}
-            <div class="pair">
-              {#if phase === "exercise" || phase === "countdown"}
-                <button class="btn btn-outline-light" onclick={() => coach.pause()}>{msg.PAUSE}</button>
-              {:else if phase === "paused"}
-                <button class="btn btn-outline-light" onclick={() => coach.resume()}>{msg.CARRY_ON}</button>
+        {#if phase === "camera"}
+          <h1>{msg.CAMERA_OFF_TITLE}</h1>
+          <p>{msg.CAMERA_OFF_BODY}</p>
+          {#if coach.errorMessage}<p class="error" role="alert">{coach.errorMessage}</p>{/if}
+          <button
+            class="btn btn-light btn-block"
+            onclick={start}
+            disabled={coach.stage === "loading"}
+            aria-busy={coach.stage === "loading"}
+          >
+            {coach.stage === "loading" ? msg.LOADING_MODEL : coach.stage === "error" ? msg.TRY_AGAIN : msg.SPACE_START}
+          </button>
+          <a class="btn btn-outline-light btn-block" href={href.home}>{msg.BACK}</a>
+        {:else if phase === "intro" && exercise && step}
+          <h1>{exercise.copy.label}</h1>
+          <ol class="steps">
+            {#each exercise.copy.steps as text, i (i)}
+              <li class="enter" style:--i={i + 2}>
+                <span class="num" aria-hidden="true">{i + 1}</span><span>{text}</span>
+              </li>
+            {/each}
+          </ol>
+          <p class="care">{msg.TAKE_CARE}: {exercise.copy.safety}</p>
+          <p class="target">{msg.TIMES(step.target)}</p>
+          <button class="btn btn-light btn-block" onclick={() => coach.beginExercise()}>{msg.READY}</button>
+          <button class="btn btn-outline-light btn-block" onclick={() => coach.skipExercise()}>{msg.SKIP_THIS}</button>
+        {:else if exercise}
+          <h2 class="name">{exercise.copy.label}</h2>
+          <p class="count" class:celebrating={coach.celebrating} aria-live="polite" aria-atomic="true">
+            {#key s.reps}<span class="number"
+                ><Handwritten text={String(s.reps)} durationMs={450} scale={1.1} weight={36} /></span
+              >{/key}<span class="of">{msg.OF(s.goal)}</span>
+          </p>
+          <div
+            class="bar"
+            class:celebrating={coach.celebrating}
+            role="progressbar"
+            aria-valuemin="0"
+            aria-valuemax={s.goal}
+            aria-valuenow={Math.min(s.reps, s.goal)}
+          >
+            <span style:width="{percent}%"></span>
+          </div>
+          {#key coachLine}<p class="coach fade-in">{coachLine}</p>{/key}
+          <div class="end">
+            {#if coach.confirmingEnd && r}
+              <p class="confirm" role="alert">{msg.END_CONFIRM(r.index, r.steps.length)}</p>
+              <button class="btn btn-light btn-block" onclick={() => coach.cancelEnd()}>{msg.KEEP_GOING}</button>
+              <button class="btn btn-outline-light btn-block" onclick={() => coach.endSession()}>{msg.END_NOW}</button>
+            {:else}
+              {#if active && r && !r.isSingle}
+                <button class="btn btn-light btn-block" onclick={() => coach.skipExercise()}>
+                  {r.next ? msg.NEXT_EXERCISE : msg.FINISH}
+                </button>
               {/if}
-              <button class="btn btn-outline-light" onclick={() => coach.requestEnd()}>
-                {r?.isSingle ? msg.FINISH : msg.END_SESSION}
-              </button>
-            </div>
-          {/if}
-        </div>
-      {/if}
-    </aside>
+              <div class="pair">
+                {#if phase === "exercise" || phase === "countdown"}
+                  <button class="btn btn-outline-light" onclick={() => coach.pause()}>{msg.PAUSE}</button>
+                {:else if phase === "paused"}
+                  <button class="btn btn-outline-light" onclick={() => coach.resume()}>{msg.CARRY_ON}</button>
+                {/if}
+                <button class="btn btn-outline-light" onclick={() => coach.requestEnd()}>
+                  {r?.isSingle ? msg.FINISH : msg.END_SESSION}
+                </button>
+              </div>
+            {/if}
+          </div>
+        {/if}
+      </aside>
     {/key}
   </div>
 </div>
@@ -420,8 +437,6 @@
   .pair .btn {
     padding: 0 var(--space-4);
   }
-
-
 
   .error {
     padding: var(--space-4) var(--space-5);

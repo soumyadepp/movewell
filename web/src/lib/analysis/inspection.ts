@@ -3,12 +3,7 @@
  * measured, and where the counter's state machine stands. Pure, so it can be
  * tested and computed in any routine phase.
  */
-import {
-  type BodyPoints,
-  ExerciseMode,
-  Joint,
-  type MovementPhase,
-} from "../domain/models";
+import { type BodyPoints, ExerciseMode, Joint, type MovementPhase } from "../domain/models";
 import { getExercise } from "../exercises";
 import type { Reading } from "../exercises/types";
 import type { ExerciseCounter, Zone } from "./counting";
@@ -76,9 +71,7 @@ export function formatValue(value: number | string | null): string {
 /** Describes a raw reading as an angle in degrees or the reason it was blocked. */
 export function describeReading(reading: Reading | null): string {
   if (!reading) return "none";
-  return "angle" in reading
-    ? `${reading.angle.toFixed(1)}°`
-    : `blocked: ${reading.blocked}`;
+  return "angle" in reading ? `${reading.angle.toFixed(1)}°` : `blocked: ${reading.blocked}`;
 }
 
 /**
@@ -98,16 +91,13 @@ export function inspectFrame(input: InspectionInput): FrameInspection {
     visibility: input.visibility(joint),
     kept: points?.get(joint) != null,
   }));
-  const details =
-    exercise?.inspect && points ? Object.entries(exercise.inspect(points)) : [];
+  const details = exercise?.inspect && points ? Object.entries(exercise.inspect(points)) : [];
   return {
     fps: input.fps,
     detected: points !== null,
     mode,
     joints,
-    reading: points
-      ? describeReading(exercise ? exercise.measure(points) : null)
-      : "no body",
+    reading: points ? describeReading(exercise ? exercise.measure(points) : null) : "no body",
     smoothed: counter.lastAngle,
     lowDeg: counter.thresholds?.lowDeg ?? null,
     highDeg: counter.thresholds?.highDeg ?? null,
@@ -116,8 +106,7 @@ export function inspectFrame(input: InspectionInput): FrameInspection {
     phase: counter.phase,
     reps: counter.reps,
     goal: input.goal,
-    blockedForS:
-      counter.blockedSince === null ? null : input.now - counter.blockedSince,
+    blockedForS: counter.blockedSince === null ? null : input.now - counter.blockedSince,
     details: details.map(([key, value]) => [key, formatValue(value)] as const),
   };
 }

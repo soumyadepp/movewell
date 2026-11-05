@@ -10,11 +10,8 @@ import { type BodyPoints, ExerciseMode, MovementPhase } from "../domain/models";
 import type { EventBus } from "../events";
 import { type Exercise, getExercise } from "../exercises";
 import type { RepThresholds } from "../exercises/types";
-import {
-  GUIDANCE_POSTURE_MODE,
-  GUIDANCE_TURN_FRONT,
-  GUIDANCE_TURN_SIDE,
-} from "../messages";
+import type { Guidance } from "../domain/guidance";
+import type { BlockReason } from "../exercises/types";
 import type { Clock } from "../session";
 
 /** Seconds the angle must stay in a zone before it counts as reached. */
@@ -51,7 +48,7 @@ export interface ExerciseCounter {
   readonly blockedSince: number | null;
   /** Thresholds in use, which may be personalised; null in posture mode. */
   readonly thresholds: RepThresholds | null;
-  update(points: BodyPoints): string;
+  update(points: BodyPoints): Guidance;
 }
 
 /** Null Object used in posture mode so callers never branch on mode. */
@@ -64,8 +61,8 @@ class PostureOnlyCounter implements ExerciseCounter {
   readonly blockedSince = null;
   readonly thresholds = null;
 
-  update(): string {
-    return GUIDANCE_POSTURE_MODE;
+  update(): Guidance {
+    return { kind: "postureMode" };
   }
 }
 
@@ -113,65 +110,80 @@ export class RepCounter implements ExerciseCounter {
     this.phase = MovementPhase.High;
   }
 
-  update(points: BodyPoints): string {
-    const { copy } = this.exercise;
-    const t = this.thresholds;
+  /**
+   * Feeds one frame to the state machine.
+   *
+   * Args:
+   *   points: The body points detected in the frame.
+   *
+   * Returns:
+   *   What the person should be told about this frame.
+   */
+  update(points: BodyPoints): Guidance {
     const result = this.exercise.measure(points);
     const now = this.clock();
-    if ("blocked" in result) {
-      this.blockedSince ??= now;
-      if (now - this.blockedSince < BLOCK_GRACE_S) return copy.guidance;
-      this.smoothed = null;
-      this.lastAngle = null;
-      this.lastSampleAt = null;
-      this.zone = "mid";
-      this.zoneFrames = 0;
-      if (result.blocked !== "form" && !this.blockAnnounced) {
-        this.blockAnnounced = true;
-        this.events.publish("positionBlocked", { reason: result.blocked });
-      }
-      if (result.blocked === "face_camera") return GUIDANCE_TURN_FRONT;
-      if (result.blocked === "turn_side") return GUIDANCE_TURN_SIDE;
-      if (result.blocked === "form") return copy.guidance;
-      return copy.notVisible;
-    }
-    this.blockedSince = null;
-    if (this.blockAnnounced) {
-      this.blockAnnounced = false;
-      this.events.publish("positionReady", {});
-    }
+    if ("blocked" in result) return this.onBlocked(result.blocked, now);
+    this.onUnblocked();
+    this.lastAngle = this.smooth(result.angle, now);
+    this.trackZone(this.lastAngle, now);
+    return this.instruction;
+  }
 
+  private get instruction(): Guidance {
+    return { kind: "exercise", mode: this.exercise.mode };
+  }
+
+  /**
+   * Handles a frame with no usable reading. Short gaps are ignored; longer
+   * ones reset the reading and announce the problem once.
+   */
+  private onBlocked(reason: BlockReason, now: number): Guidance {
+    this.blockedSince ??= now;
+    if (now - this.blockedSince < BLOCK_GRACE_S) return this.instruction;
+    this.smoothed = null;
+    this.lastAngle = null;
+    this.lastSampleAt = null;
+    this.zone = "mid";
+    this.zoneFrames = 0;
+    if (reason !== "form" && !this.blockAnnounced) {
+      this.blockAnnounced = true;
+      this.events.publish("positionBlocked", { reason });
+    }
+    if (reason === "face_camera") return { kind: "turnFront" };
+    if (reason === "turn_side") return { kind: "turnSide" };
+    if (reason === "form") return this.instruction;
+    return { kind: "notVisible", mode: this.exercise.mode };
+  }
+
+  private onUnblocked(): void {
+    this.blockedSince = null;
+    if (!this.blockAnnounced) return;
+    this.blockAnnounced = false;
+    this.events.publish("positionReady", {});
+  }
+
+  /** Exponential smoothing scaled by the time since the last sample. */
+  private smooth(angle: number, now: number): number {
     const dt = this.lastSampleAt === null ? Infinity : now - this.lastSampleAt;
     this.lastSampleAt = now;
-    if (this.smoothed === null || dt > MAX_GAP_S) {
-      this.smoothed = result.angle;
-    } else {
-      this.smoothed +=
-        (1 - Math.exp(-dt / SMOOTHING_TAU_S)) * (result.angle - this.smoothed);
-    }
-    this.lastAngle = this.smoothed;
+    if (this.smoothed === null || dt > MAX_GAP_S) this.smoothed = angle;
+    else this.smoothed += (1 - Math.exp(-dt / SMOOTHING_TAU_S)) * (angle - this.smoothed);
+    return this.smoothed;
+  }
 
-    const zone: Zone =
-      this.smoothed < t.lowDeg
-        ? "low"
-        : this.smoothed > t.highDeg
-          ? "high"
-          : "mid";
+  /** Moves between zones and counts a rep when high follows low. */
+  private trackZone(angle: number, now: number): void {
+    const t = this.thresholds;
+    const zone: Zone = angle < t.lowDeg ? "low" : angle > t.highDeg ? "high" : "mid";
     if (zone !== this.zone) {
       this.zone = zone;
       this.zoneSince = now;
       this.zoneFrames = 0;
     }
     this.zoneFrames += 1;
-    const reached =
-      this.zoneFrames >= DWELL_FRAMES ||
-      now - this.zoneSince + DWELL_EPSILON_S >= DWELL_S;
-    if (zone === "low" && reached) {
-      this.phase = MovementPhase.Low;
-    } else if (zone === "high" && reached) {
-      this.onHigh(now);
-    }
-    return copy.guidance;
+    const reached = this.zoneFrames >= DWELL_FRAMES || now - this.zoneSince + DWELL_EPSILON_S >= DWELL_S;
+    if (zone === "low" && reached) this.phase = MovementPhase.Low;
+    else if (zone === "high" && reached) this.onHigh(now);
   }
 
   private onHigh(now: number): void {
@@ -189,11 +201,7 @@ export class RepCounter implements ExerciseCounter {
 }
 
 /** Factory returning a fresh counter for a mode. */
-export function createCounter(
-  mode: ExerciseMode,
-  events: EventBus,
-  clock: Clock,
-): ExerciseCounter {
+export function createCounter(mode: ExerciseMode, events: EventBus, clock: Clock): ExerciseCounter {
   if (mode === ExerciseMode.Posture) return new PostureOnlyCounter();
   return new RepCounter(getExercise(mode), events, clock);
 }

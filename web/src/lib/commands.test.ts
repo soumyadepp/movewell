@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  commandAction,
-  commandHints,
-  EchoFilter,
-  parseCommand,
-} from "./commands";
+import { commandAction, commandHints, EchoFilter, parseCommand } from "./commands";
 
 describe("voice commands", () => {
   it("understands short spoken commands", () => {
@@ -38,13 +33,9 @@ describe("voice commands", () => {
   });
 
   it("ignores sentences, including the app's own coaching", () => {
-    expect(
-      parseCommand("Elbow curl selected. Bend your elbows slowly", "en"),
-    ).toBeNull();
+    expect(parseCommand("Elbow curl selected. Bend your elbows slowly", "en")).toBeNull();
     expect(parseCommand("Please move into the camera view", "en")).toBeNull();
-    expect(
-      parseCommand("Paused. Step back into view and we'll carry on.", "en"),
-    ).toBeNull();
+    expect(parseCommand("Paused. Step back into view and we'll carry on.", "en")).toBeNull();
     expect(parseCommand("I think we should go next door", "en")).toBeNull();
     expect(parseCommand("hello there", "en")).toBeNull();
     expect(parseCommand("", "en")).toBeNull();

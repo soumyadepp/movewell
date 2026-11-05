@@ -6,7 +6,11 @@ from physio_assistant.domain.models import BodyPoints, Joint, Point
 
 
 def upright_front() -> dict[Joint, Point]:
-    """A level, centered person facing the camera."""
+    """Builds a level, centered person facing the camera.
+
+    Returns:
+        Mapping from joint to pixel position.
+    """
     return {
         Joint.NOSE: (480, 120),
         Joint.LEFT_EAR: (460, 120),
@@ -42,7 +46,14 @@ def body(**overrides: Point) -> BodyPoints:
 
 
 def without(*joints: Joint) -> BodyPoints:
-    """Returns an upright front pose with some joints hidden."""
+    """Returns an upright front pose with some joints hidden.
+
+    Args:
+        *joints: Joints to remove.
+
+    Returns:
+        Body points.
+    """
     points = upright_front()
     for joint in joints:
         points.pop(joint, None)
@@ -50,7 +61,14 @@ def without(*joints: Joint) -> BodyPoints:
 
 
 def arms_at(angle_deg: float) -> BodyPoints:
-    """Returns a pose whose elbow-shoulder-hip angle is ``angle_deg`` on both sides."""
+    """Returns a pose whose elbow-shoulder-hip angle is ``angle_deg`` on both sides.
+
+    Args:
+        angle_deg: Arm angle at the shoulder.
+
+    Returns:
+        Body points.
+    """
     points = upright_front()
     length = 90
     rad = math.radians(angle_deg)
@@ -66,7 +84,14 @@ def arms_at(angle_deg: float) -> BodyPoints:
 
 
 def knees_at(angle_deg: float) -> BodyPoints:
-    """Returns a pose whose hip-knee-ankle angle is ``angle_deg`` on both sides."""
+    """Returns a pose whose hip-knee-ankle angle is ``angle_deg`` on both sides.
+
+    Args:
+        angle_deg: Knee angle.
+
+    Returns:
+        Body points.
+    """
     points = upright_front()
     length = 130
     rad = math.radians(180 - angle_deg)
@@ -96,7 +121,18 @@ def hold(update, points: BodyPoints, clock, seconds: float = 0.5, fps: int = 30)
 
 
 def reps(counter, clock, low: BodyPoints, high: BodyPoints, cycles: int = 1) -> int:
-    """Holds ``low`` then ``high`` for ``cycles`` repetitions and returns the count."""
+    """Holds ``low`` then ``high`` for ``cycles`` repetitions.
+
+    Args:
+        counter: Counter under test.
+        clock: Fake clock to advance.
+        low: Pose for the low phase.
+        high: Pose for the high phase.
+        cycles: Number of low-high cycles.
+
+    Returns:
+        The counter's repetition total afterwards.
+    """
     for _ in range(cycles):
         hold(counter.update, low, clock, 0.8)
         hold(counter.update, high, clock, 0.8)
@@ -104,13 +140,27 @@ def reps(counter, clock, low: BodyPoints, high: BodyPoints, cycles: int = 1) -> 
 
 
 def curled(degrees: float) -> BodyPoints:
-    """Returns a front pose with the left elbow flexed and the upper arm by the side."""
+    """Returns a front pose with the left elbow flexed and the upper arm by the side.
+
+    Args:
+        degrees: Elbow flexion.
+
+    Returns:
+        Body points.
+    """
     rad = math.radians(degrees)
     return body(left_wrist=(410 + 80 * math.sin(rad), 290 + 80 * math.cos(rad)))
 
 
 def one_arm_up(degrees: float) -> BodyPoints:
-    """Returns a front pose with only the left arm raised to ``degrees``."""
+    """Returns a front pose with only the left arm raised to ``degrees``.
+
+    Args:
+        degrees: Left arm angle at the shoulder.
+
+    Returns:
+        Body points.
+    """
     raised, down = arms_at(degrees), arms_at(5)
     points = dict(upright_front())
     points[Joint.LEFT_ELBOW] = raised.get(Joint.LEFT_ELBOW)
@@ -121,9 +171,27 @@ def one_arm_up(degrees: float) -> BodyPoints:
 
 
 def legs_out(degrees: float, standing_degrees: float = 0) -> BodyPoints:
-    """Returns a front pose with the right leg abducted and the left at ``standing_degrees``."""
+    """Returns a front pose with the right leg abducted and the left at ``standing_degrees``.
+
+    Args:
+        degrees: Right leg angle from vertical.
+        standing_degrees: Left leg angle from vertical.
+
+    Returns:
+        Body points.
+    """
 
     def leg(hip_x: float, sign: int, deg: float) -> tuple[Point, Point]:
+        """Places one knee and ankle at an angle from the hip.
+
+        Args:
+            hip_x: Hip x position in pixels.
+            sign: Direction of abduction, 1 for right and -1 for left.
+            deg: Leg angle from vertical.
+
+        Returns:
+            The knee and ankle positions.
+        """
         rad = math.radians(deg)
         knee = (hip_x + sign * 130 * math.sin(rad), 400 + 130 * math.cos(rad))
         ankle = (hip_x + sign * 260 * math.sin(rad), 400 + 260 * math.cos(rad))
@@ -137,14 +205,25 @@ def legs_out(degrees: float, standing_degrees: float = 0) -> BodyPoints:
 
 
 def leaning(degrees: float) -> BodyPoints:
-    """Returns a front pose with the trunk leaning ``degrees`` sideways about the hips."""
+    """Returns a front pose with the trunk leaning ``degrees`` sideways about the hips.
+
+    Args:
+        degrees: Trunk lean from vertical.
+
+    Returns:
+        Body points.
+    """
     rad = math.radians(degrees)
     mid_x, mid_y = 480 + 200 * math.sin(rad), 400 - 200 * math.cos(rad)
     return body(left_shoulder=(mid_x - 60, mid_y), right_shoulder=(mid_x + 60, mid_y))
 
 
 def side_standing() -> BodyPoints:
-    """Returns a person standing side-on to the camera."""
+    """Returns a person standing side-on to the camera.
+
+    Returns:
+        Body points.
+    """
     return BodyPoints(
         {
             Joint.LEFT_SHOULDER: (480, 200),
@@ -162,7 +241,14 @@ def side_standing() -> BodyPoints:
 
 
 def seated_side(with_ankles: bool = True) -> BodyPoints:
-    """Returns a person seated side-on, thighs horizontal."""
+    """Returns a person seated side-on, thighs horizontal.
+
+    Args:
+        with_ankles: Whether the ankles are visible.
+
+    Returns:
+        Body points.
+    """
     points = {
         Joint.LEFT_SHOULDER: (470, 230),
         Joint.RIGHT_SHOULDER: (478, 230),
@@ -178,7 +264,14 @@ def seated_side(with_ankles: bool = True) -> BodyPoints:
 
 
 def standing_side(with_ankles: bool = True) -> BodyPoints:
-    """Returns ``side_standing`` optionally without ankles."""
+    """Returns ``side_standing`` optionally without ankles.
+
+    Args:
+        with_ankles: Whether the ankles are visible.
+
+    Returns:
+        Body points.
+    """
     points = dict(side_standing().points)
     if not with_ankles:
         points.pop(Joint.LEFT_ANKLE)
@@ -189,7 +282,15 @@ def standing_side(with_ankles: bool = True) -> BodyPoints:
 def facing_3d(
     left_knee: tuple[float, float, float], right_knee: tuple[float, float, float]
 ) -> BodyPoints:
-    """Returns a front-facing pose whose 3-D hips and knees are given in metres."""
+    """Returns a front-facing pose whose 3-D hips and knees are given in metres.
+
+    Args:
+        left_knee: Left knee world position.
+        right_knee: Right knee world position.
+
+    Returns:
+        Body points with world coordinates.
+    """
     image = {
         j: body().get(j)
         for j in (

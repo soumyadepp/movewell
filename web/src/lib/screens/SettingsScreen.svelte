@@ -4,7 +4,7 @@
   import ComfortSettings from "../components/ComfortSettings.svelte";
   import Segmented from "../components/Segmented.svelte";
   import type { CoachController } from "../controller.svelte";
-  import { href } from "../controller.svelte";
+  import { href } from "../routing";
   import * as msg from "../messages";
   import { estimatedMinutes } from "../routine";
 
@@ -39,17 +39,17 @@
       <h2 class="label">{msg.VOICE_COMMANDS_LABEL}</h2>
       <p class="secondary small">{msg.VOICE_COMMANDS_HINT(hints.next, hints.pause, hints.resume, hints.end)}</p>
       <p class="secondary small">{msg.VOICE_COMMANDS_PRIVACY}</p>
-      {#if !coach.voiceCommandsSupported}
+      {#if !coach.commands.supported}
         <p class="warning">{msg.VOICE_COMMANDS_UNSUPPORTED}</p>
-      {:else if coach.listenerProblem === "blocked"}
+      {:else if coach.commands.problem === "blocked"}
         <p class="warning" role="alert">{msg.VOICE_COMMANDS_BLOCKED}</p>
-      {:else if coach.listenerProblem === "network"}
+      {:else if coach.commands.problem === "network"}
         <p class="warning" role="alert">{msg.VOICE_PROBLEM_NETWORK}</p>
-      {:else if coach.listenerProblem === "no-microphone"}
+      {:else if coach.commands.problem === "no-microphone"}
         <p class="warning" role="alert">{msg.VOICE_PROBLEM_MICROPHONE}</p>
       {/if}
     </div>
-    {#if coach.voiceCommandsSupported}
+    {#if coach.commands.supported}
       <Segmented
         label={msg.VOICE_COMMANDS_LABEL}
         options={onOff}
@@ -62,7 +62,11 @@
   <details class="advanced">
     <summary class="label">{msg.ADVANCED}</summary>
     <label class="toggle">
-      <input type="checkbox" checked={coach.showSkeleton} onchange={(e) => coach.setShowSkeleton(e.currentTarget.checked)} />
+      <input
+        type="checkbox"
+        checked={coach.showSkeleton}
+        onchange={(e) => coach.setShowSkeleton(e.currentTarget.checked)}
+      />
       <span>{msg.SHOW_LINES}</span>
     </label>
     <label class="toggle">
@@ -88,7 +92,13 @@
       {#if confirming}
         <span class="confirm" role="alert">
           {msg.CLEAR_CONFIRM}
-          <button class="link danger" onclick={() => { coach.clearHistory(); confirming = false; }}>{msg.CLEAR_YES}</button>
+          <button
+            class="link danger"
+            onclick={() => {
+              coach.clearHistory();
+              confirming = false;
+            }}>{msg.CLEAR_YES}</button
+          >
           <button class="link" onclick={() => (confirming = false)}>{msg.CANCEL}</button>
         </span>
       {:else}

@@ -31,29 +31,8 @@ const PHRASES: Record<VoiceLanguage, Record<Command, readonly string[]>> = {
       "go",
       "necks",
     ],
-    pause: [
-      "pause",
-      "wait",
-      "hold on",
-      "stop",
-      "paws",
-      "pose",
-      "pours",
-      "pores",
-      "pass",
-      "pauses",
-      "wait please",
-    ],
-    resume: [
-      "carry on",
-      "continue",
-      "resume",
-      "keep going",
-      "start again",
-      "go on",
-      "kerry on",
-      "carrie on",
-    ],
+    pause: ["pause", "wait", "hold on", "stop", "paws", "pose", "pours", "pores", "pass", "pauses", "wait please"],
+    resume: ["carry on", "continue", "resume", "keep going", "start again", "go on", "kerry on", "carrie on"],
     end: [
       "end session",
       "end",
@@ -75,28 +54,9 @@ const PHRASES: Record<VoiceLanguage, Record<Command, readonly string[]>> = {
     no: ["no", "cancel", "nope"],
   },
   hi: {
-    next: [
-      "आगे",
-      "अगला",
-      "अगला व्यायाम",
-      "छोड़ो",
-      "शुरू",
-      "शुरू करो",
-      "तैयार",
-      "नेक्स्ट",
-      "स्किप",
-      "स्टार्ट",
-      "रेडी",
-    ],
+    next: ["आगे", "अगला", "अगला व्यायाम", "छोड़ो", "शुरू", "शुरू करो", "तैयार", "नेक्स्ट", "स्किप", "स्टार्ट", "रेडी"],
     pause: ["रुको", "रुकिए", "ठहरो", "रोको", "पॉज", "पोज", "स्टॉप", "वेट"],
-    resume: [
-      "चलो",
-      "जारी रखो",
-      "फिर से शुरू",
-      "आगे बढ़ो",
-      "कैरी ऑन",
-      "कंटिन्यू",
-    ],
+    resume: ["चलो", "जारी रखो", "फिर से शुरू", "आगे बढ़ो", "कैरी ऑन", "कंटिन्यू"],
     end: ["बस", "खत्म", "खत्म करो", "समाप्त", "एंड", "फिनिश", "एंड सेशन"],
     yes: ["हाँ", "हां", "जी हाँ", "ठीक है", "यस", "ओके"],
     no: ["नहीं", "रहने दो", "नो"],
@@ -108,25 +68,9 @@ const PHRASES: Record<VoiceLanguage, Record<Command, readonly string[]>> = {
  * pauses. Between phrases of the same length, commands that move the session
  * win over a bare yes or no.
  */
-const PRIORITY: readonly Command[] = [
-  "pause",
-  "end",
-  "resume",
-  "next",
-  "yes",
-  "no",
-];
+const PRIORITY: readonly Command[] = ["pause", "end", "resume", "next", "yes", "no"];
 
-const FILLERS = new Set([
-  "please",
-  "um",
-  "uh",
-  "hey",
-  "the",
-  "now",
-  "just",
-  "oh",
-]);
+const FILLERS = new Set(["please", "um", "uh", "hey", "the", "now", "just", "oh"]);
 
 const normalize = (text: string): string =>
   text
@@ -137,10 +81,8 @@ const normalize = (text: string): string =>
     .replace(/\s+/g, " ")
     .trim();
 
-const containsPhrase = (
-  words: readonly string[],
-  phrase: readonly string[],
-): boolean => words.some((_, i) => phrase.every((p, j) => words[i + j] === p));
+const containsPhrase = (words: readonly string[], phrase: readonly string[]): boolean =>
+  words.some((_, i) => phrase.every((p, j) => words[i + j] === p));
 
 /**
  * Finds a command in a short spoken utterance.
@@ -154,26 +96,19 @@ const containsPhrase = (
  *   The command, or null if the utterance is too long or has no command in
  *   it. English phrases are always accepted, since many Hindi speakers use them.
  */
-export function parseCommand(
-  transcript: string,
-  language: VoiceLanguage,
-  maxWords = MAX_WORDS,
-): Command | null {
+export function parseCommand(transcript: string, language: VoiceLanguage, maxWords = MAX_WORDS): Command | null {
   const heard = normalize(transcript);
   if (!heard) return null;
   const words = heard.split(" ");
   if (words.length > maxWords) return null;
   const meaningful = words.filter((w) => !FILLERS.has(w));
-  const tables =
-    language === "en" ? [PHRASES.en] : [PHRASES[language], PHRASES.en];
+  const tables = language === "en" ? [PHRASES.en] : [PHRASES[language], PHRASES.en];
   let best: { command: Command; length: number } | null = null;
   for (const command of PRIORITY) {
     for (const table of tables) {
       for (const phrase of table[command]) {
         const phraseWords = normalize(phrase).split(" ");
-        const found =
-          containsPhrase(words, phraseWords) ||
-          containsPhrase(meaningful, phraseWords);
+        const found = containsPhrase(words, phraseWords) || containsPhrase(meaningful, phraseWords);
         if (found && (!best || phraseWords.length > best.length)) {
           best = { command, length: phraseWords.length };
         }
@@ -218,11 +153,7 @@ export type CommandAction =
  * Returns:
  *   The action to take, or "none" when the command does not apply.
  */
-export function commandAction(
-  command: Command,
-  phase: RoutinePhase,
-  confirmingEnd: boolean,
-): CommandAction {
+export function commandAction(command: Command, phase: RoutinePhase, confirmingEnd: boolean): CommandAction {
   if (confirmingEnd) {
     if (command === "yes" || command === "end") return "confirmEnd";
     if (command === "no" || command === "resume") return "cancelEnd";
@@ -230,10 +161,8 @@ export function commandAction(
   }
   if (phase === "done") return "none";
   if (command === "end") return "requestEnd";
-  if (command === "pause")
-    return phase === "exercise" || phase === "countdown" ? "pause" : "none";
-  if (command === "resume")
-    return phase === "paused" ? "resume" : phase === "intro" ? "begin" : "none";
+  if (command === "pause") return phase === "exercise" || phase === "countdown" ? "pause" : "none";
+  if (command === "resume") return phase === "paused" ? "resume" : phase === "intro" ? "begin" : "none";
   if (command === "next") {
     if (phase === "intro") return "begin";
     if (phase === "rest") return "skipRest";

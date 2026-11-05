@@ -2,7 +2,7 @@
   import { currentWeek } from "../analysis/progress";
   import WeekRow from "../components/WeekRow.svelte";
   import type { CoachController } from "../controller.svelte";
-  import { href } from "../controller.svelte";
+  import { href } from "../routing";
   import { getExercise } from "../exercises";
   import * as msg from "../messages";
   import Handwritten from "../components/Handwritten.svelte";
@@ -20,7 +20,10 @@
 <section class="band">
   <div class="container hero">
     <div class="hero-text">
-      <h1>{msg.GREETING_HELLO(new Date().getHours())} <span class="accent"><Handwritten text={msg.GREETING_NAME(coach.displayName)} delayMs={300} /></span></h1>
+      <h1>
+        {msg.GREETING_HELLO(new Date().getHours())}
+        <span class="accent"><Handwritten text={msg.GREETING_NAME(coach.displayName)} delayMs={300} /></span>
+      </h1>
       <p class="lead">{doneToday ? msg.SESSION_DONE_TODAY : msg.SESSION_LENGTH(estimatedMinutes(coach.plan))}</p>
       <p class="list">{exerciseList}</p>
       <a class="btn btn-light start" href={href.routine}>{doneToday ? msg.START_AGAIN : msg.START_SESSION}</a>

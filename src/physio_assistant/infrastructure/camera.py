@@ -16,10 +16,23 @@ class Webcam:
     """Context-managed webcam that yields BGR frames."""
 
     def __init__(self, config: CameraConfig) -> None:
+        """Creates an unopened webcam.
+
+        Args:
+            config: Camera index, resolution and mirroring.
+        """
         self._config = config
         self._capture: cv2.VideoCapture | None = None
 
     def __enter__(self) -> "Webcam":
+        """Opens the camera at the configured resolution.
+
+        Returns:
+            This webcam, ready to read.
+
+        Raises:
+            CameraUnavailableError: If the camera cannot be opened.
+        """
         capture = cv2.VideoCapture(self._config.index)
         capture.set(cv2.CAP_PROP_FRAME_WIDTH, self._config.width)
         capture.set(cv2.CAP_PROP_FRAME_HEIGHT, self._config.height)
@@ -35,12 +48,23 @@ class Webcam:
         exc: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
+        """Releases the camera.
+
+        Args:
+            exc_type: Exception type raised in the block, if any.
+            exc: Exception raised in the block, if any.
+            tb: Traceback of that exception, if any.
+        """
         if self._capture is not None:
             self._capture.release()
             self._capture = None
 
     def read(self) -> np.ndarray | None:
-        """Returns the next frame, mirrored if configured, or None on failure."""
+        """Reads the next frame, mirrored if configured.
+
+        Returns:
+            The BGR frame, or None if the camera is closed or the read failed.
+        """
         if self._capture is None:
             return None
         ok, frame = self._capture.read()

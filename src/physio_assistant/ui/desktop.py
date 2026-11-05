@@ -25,6 +25,15 @@ class DesktopRunner:
         assistant: Assistant,
         renderer: DashboardRenderer,
     ) -> None:
+        """Creates a runner from already opened adapters.
+
+        Args:
+            window_name: Title of the OpenCV window.
+            camera: Open webcam.
+            estimator: Pose estimator inside its context.
+            assistant: Application service fed with each frame.
+            renderer: Draws the dashboard next to the frame.
+        """
         self._window_name = window_name
         self._camera = camera
         self._estimator = estimator

@@ -18,7 +18,12 @@ class Speaker(Protocol):
     """Port for anything that can speak a short message."""
 
     def say(self, message: str, force: bool = False) -> None:
-        """Queues a message, subject to cooldown unless forced."""
+        """Queues a message, subject to cooldown unless forced.
+
+        Args:
+            message: Text to speak.
+            force: Whether to bypass the cooldown.
+        """
         ...
 
     def close(self) -> None:
@@ -30,7 +35,12 @@ class SilentSpeaker:
     """Null Object used when speech is disabled or unavailable."""
 
     def say(self, message: str, force: bool = False) -> None:
-        """Discards the message."""
+        """Discards the message.
+
+        Args:
+            message: Text that would have been spoken.
+            force: Ignored.
+        """
 
     def close(self) -> None:
         """Does nothing."""
@@ -40,6 +50,12 @@ class CooldownGate:
     """Decides whether an unforced message may be spoken yet."""
 
     def __init__(self, cooldown_s: float, clock: Callable[[], float] = time.monotonic) -> None:
+        """Creates a gate that allows the first message immediately.
+
+        Args:
+            cooldown_s: Minimum seconds between unforced messages.
+            clock: Monotonic time source, injectable for tests.
+        """
         self._cooldown_s = cooldown_s
         self._clock = clock
         self._last_time = float("-inf")
@@ -68,6 +84,11 @@ class Pyttsx3Speaker:
     """
 
     def __init__(self, config: VoiceConfig) -> None:
+        """Starts the speech engine and its worker thread.
+
+        Args:
+            config: Speech rate, volume and cooldown.
+        """
         import pyttsx3
 
         self._engine = pyttsx3.init()
@@ -79,7 +100,12 @@ class Pyttsx3Speaker:
         self._worker.start()
 
     def say(self, message: str, force: bool = False) -> None:
-        """Queues a message, dropping it if the queue is full or cooldown applies."""
+        """Queues a message, dropping it if the queue is full or cooldown applies.
+
+        Args:
+            message: Text to speak; empty messages are ignored.
+            force: Whether to bypass the cooldown.
+        """
         if not message or not self._gate.allow(force):
             return
         try:
@@ -93,6 +119,7 @@ class Pyttsx3Speaker:
             self._queue.put_nowait(None)
 
     def _run(self) -> None:
+        """Speaks queued messages until the ``None`` sentinel arrives."""
         while (message := self._queue.get()) is not None:
             try:
                 self._engine.say(message)

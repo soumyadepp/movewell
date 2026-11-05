@@ -1,14 +1,28 @@
-from physio_assistant import messages
+"""Tests for the assistant application service and keyboard dispatch."""
+
 from physio_assistant.analysis import findings as catalog
 from physio_assistant.assistant import Assistant
+from physio_assistant.domain.feedback import Guidance, StatusNotice
 from physio_assistant.domain.models import ExerciseMode, SessionRecord, ViewMode
-from physio_assistant.events import Announcement, BodyLost, FindingChanged
+from physio_assistant.events import Announcement, AnnouncementKind, BodyLost, FindingChanged
 from physio_assistant.ui.commands import SPACE, dispatch
 from tests.conftest import InMemoryRepository
 from tests.poses import arms_at, body, hold
 
 
 def make(config, bus, clock, fixed_now, repo=None):
+    """Builds an assistant wired to test doubles.
+
+    Args:
+        config: App config fixture.
+        bus: Recording event bus.
+        clock: Fake monotonic clock.
+        fixed_now: Wall-clock time used for saved sessions.
+        repo: Repository to use, defaulting to a fresh in-memory one.
+
+    Returns:
+        A new assistant.
+    """
     return Assistant(config, bus, repo or InMemoryRepository(), clock, lambda: fixed_now)
 
 
@@ -17,7 +31,7 @@ def test_no_body_sets_guidance_and_publishes(config, bus, clock, fixed_now):
     state = assistant.process(None)
 
     assert not state.body_detected
-    assert state.guidance == list(messages.GUIDANCE_NO_BODY)
+    assert state.guidance == [Guidance.NO_BODY]
     assert bus.of_type(BodyLost)
 
 
@@ -28,7 +42,7 @@ def test_new_leading_finding_is_published_once(config, bus, clock, fixed_now):
     assistant.process(tilted)
 
     assert bus.of_type(FindingChanged) == [FindingChanged(catalog.SHOULDER_HEIGHT)]
-    assert catalog.SHOULDER_HEIGHT.correction in assistant.frame.guidance
+    assert Guidance.for_finding(catalog.SHOULDER_HEIGHT) in assistant.frame.guidance
 
 
 def test_finding_is_republished_after_it_clears(config, bus, clock, fixed_now):
@@ -46,7 +60,9 @@ def test_toggle_view_switches_analyzer(config, bus, clock, fixed_now):
     assistant.toggle_view()
 
     assert assistant.view is ViewMode.SIDE
-    assert bus.of_type(Announcement)[-1].message == messages.SPEAK_SIDE_VIEW
+    assert bus.of_type(Announcement)[-1] == Announcement(
+        AnnouncementKind.VIEW_SELECTED, view=ViewMode.SIDE
+    )
 
 
 def test_select_mode_resets_counter(config, bus, clock, fixed_now):
@@ -82,7 +98,7 @@ def test_save_session_persists_record(config, bus, clock, fixed_now):
             posture_observations="",
         )
     ]
-    assert assistant.status_message == messages.SAVED
+    assert assistant.status is StatusNotice.SAVED
     assert assistant.progress.total_sessions == 1
 
 
@@ -90,7 +106,7 @@ def test_failed_save_reports_and_keeps_history(config, bus, clock, fixed_now):
     assistant = make(config, bus, clock, fixed_now, InMemoryRepository(fail=True))
 
     assert not assistant.save_session()
-    assert assistant.status_message == messages.SAVE_FAILED
+    assert assistant.status is StatusNotice.SAVE_FAILED
     assert assistant.history == []
 
 

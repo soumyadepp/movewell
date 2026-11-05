@@ -3,9 +3,10 @@
 from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Any
 
-from physio_assistant.domain.models import ExerciseMode, Finding
+from physio_assistant.domain.models import ExerciseMode, Finding, ViewMode
 
 
 @dataclass(frozen=True)
@@ -37,16 +38,30 @@ class BodyLost:
     """No person was detected in the frame."""
 
 
+class AnnouncementKind(StrEnum):
+    """What a user action changed, as a code the voice layer turns into speech."""
+
+    VIEW_SELECTED = "view_selected"
+    MODE_SELECTED = "mode_selected"
+    TIMER_STARTED = "timer_started"
+    TIMER_PAUSED = "timer_paused"
+    SESSION_SAVED = "session_saved"
+
+
 @dataclass(frozen=True)
 class Announcement:
-    """A user action produced a message that should be spoken.
+    """A user action produced something that should be spoken.
 
     Attributes:
-        message: Text to speak.
+        kind: What happened.
+        view: The newly selected view, for ``VIEW_SELECTED``.
+        mode: The newly selected mode, for ``MODE_SELECTED``.
         force: Whether to bypass the speech cooldown.
     """
 
-    message: str
+    kind: AnnouncementKind
+    view: ViewMode | None = None
+    mode: ExerciseMode | None = None
     force: bool = True
 
 
@@ -57,6 +72,7 @@ class EventBus:
     """Synchronous observer registry keyed by event type."""
 
     def __init__(self) -> None:
+        """Creates a bus with no subscribers."""
         self._handlers: dict[type, list[Handler]] = defaultdict(list)
 
     def subscribe(self, event_type: type, handler: Handler) -> None:

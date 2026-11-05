@@ -1,3 +1,5 @@
+"""Tests for the 2-D and 3-D geometry helpers."""
+
 import math
 
 import pytest

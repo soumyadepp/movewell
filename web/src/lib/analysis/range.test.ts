@@ -1,16 +1,10 @@
 import { describe, expect, it } from "vitest";
-import {
-  minimumSpan,
-  RangeTracker,
-  rangeFromCycles,
-  thresholdsFor,
-} from "./range";
+import { minimumSpan, RangeTracker, rangeFromCycles, thresholdsFor } from "./range";
 
 const curl = { lowDeg: 30, highDeg: 75, minIntervalS: 0.8 };
 
 function sweep(tracker: RangeTracker, from: number, to: number, steps = 20) {
-  for (let i = 0; i <= steps; i++)
-    tracker.observe(from + ((to - from) * i) / steps);
+  for (let i = 0; i <= steps; i++) tracker.observe(from + ((to - from) * i) / steps);
 }
 
 describe("personal range", () => {
@@ -40,9 +34,7 @@ describe("personal range", () => {
   });
 
   it("ignores a range too small to tell apart from tracking noise", () => {
-    expect(
-      thresholdsFor(curl, { low: 20, high: 20 + minimumSpan(curl) - 1 }),
-    ).toBe(curl);
+    expect(thresholdsFor(curl, { low: 20, high: 20 + minimumSpan(curl) - 1 })).toBe(curl);
   });
 
   it("finds each up-and-down movement and summarises it", () => {

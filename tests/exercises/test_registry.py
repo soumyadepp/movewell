@@ -1,3 +1,5 @@
+"""Tests for the exercise registry and the Exercise protocol."""
+
 import pytest
 
 from physio_assistant.domain.models import ExerciseMode

@@ -27,7 +27,15 @@ def calculate_angle(a: Sequence[float], b: Sequence[float], c: Sequence[float]) 
 
 
 def midpoint(p1: Point | None, p2: Point | None) -> Point | None:
-    """Returns the midpoint of two points, or None if either is missing."""
+    """Returns the midpoint of two points.
+
+    Args:
+        p1: First point, or None.
+        p2: Second point, or None.
+
+    Returns:
+        The midpoint, or None if either point is missing.
+    """
     if p1 is None or p2 is None:
         return None
     return ((p1[0] + p2[0]) / 2.0, (p1[1] + p2[1]) / 2.0)

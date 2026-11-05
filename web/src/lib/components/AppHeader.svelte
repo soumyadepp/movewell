@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { Route } from "../controller.svelte";
-  import { href } from "../controller.svelte";
+  import type { Route } from "../routing";
+  import { href } from "../routing";
   import * as msg from "../messages";
   import Handwritten from "./Handwritten.svelte";
 
@@ -27,12 +27,16 @@
   <div class="container bar">
     {#if step}
       <span class="wordmark" aria-label={msg.APP_NAME}
-        >{msg.WORDMARK[0]}<span class="accent"><Handwritten text={msg.WORDMARK[1]} delayMs={150} unitsPerMs={9} weight={70} /></span><span class="dot" aria-hidden="true"></span></span
+        >{msg.WORDMARK[0]}<span class="accent"
+          ><Handwritten text={msg.WORDMARK[1]} delayMs={150} unitsPerMs={9} weight={70} /></span
+        ><span class="dot" aria-hidden="true"></span></span
       >
       <span class="step">{step}</span>
     {:else}
       <a class="wordmark" href={href.home} aria-label="{msg.APP_NAME}, {msg.NAV_TODAY}"
-        >{msg.WORDMARK[0]}<span class="accent"><Handwritten text={msg.WORDMARK[1]} delayMs={150} unitsPerMs={9} weight={70} /></span><span class="dot" aria-hidden="true"></span></a
+        >{msg.WORDMARK[0]}<span class="accent"
+          ><Handwritten text={msg.WORDMARK[1]} delayMs={150} unitsPerMs={9} weight={70} /></span
+        ><span class="dot" aria-hidden="true"></span></a
       >
       <nav class="tabs" aria-label={msg.NAV_LABEL}>
         {#each links as link (link.id)}

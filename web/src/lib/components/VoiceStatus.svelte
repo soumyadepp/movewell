@@ -15,38 +15,36 @@
     "other-tab": msg.VOICE_PROBLEM_OTHER_TAB,
   } as const;
 
-  const status = $derived(
-    !coach.voiceCommands
-      ? "off"
-      : coach.listenerProblem
-        ? "problem"
-        : !coach.listening
-          ? "starting"
-          : coach.heard
-            ? "heard"
-            : coach.hearing
-              ? "hearing"
-              : "listening",
-  );
+  type Status = "off" | "problem" | "starting" | "heard" | "hearing" | "listening";
 
-  const title = $derived(
-    status === "starting"
-      ? msg.VOICE_STARTING
-      : status === "heard" && coach.heard
-        ? msg.HEARD(hints[coach.heard])
-        : status === "hearing"
-          ? msg.VOICE_HEARING
-          : msg.VOICE_LISTENING,
-  );
+  function currentStatus(): Status {
+    const commands = coach.commands;
+    if (!coach.voiceCommands) return "off";
+    if (commands.problem) return "problem";
+    if (!commands.listening) return "starting";
+    if (commands.heard) return "heard";
+    if (commands.hearing) return "hearing";
+    return "listening";
+  }
+
+  function currentTitle(): string {
+    if (status === "starting") return msg.VOICE_STARTING;
+    if (status === "heard" && coach.commands.heard) return msg.HEARD(hints[coach.commands.heard]);
+    if (status === "hearing") return msg.VOICE_HEARING;
+    return msg.VOICE_LISTENING;
+  }
+
+  const status = $derived.by(currentStatus);
+  const title = $derived.by(currentTitle);
 
   const detail = $derived(
-    status === "listening" && coach.heardText
-      ? msg.HEARD_OTHER(coach.heardText, hints.next, hints.pause)
+    status === "listening" && coach.commands.heardText
+      ? msg.HEARD_OTHER(coach.commands.heardText, hints.next, hints.pause)
       : msg.VOICE_SAY(hints.next, hints.pause, hints.end),
   );
 </script>
 
-{#if coach.voiceCommandsSupported}
+{#if coach.commands.supported}
   {#if status === "off"}
     <button class="turn-on" onclick={() => coach.setVoiceCommands(true)}>
       <svg class="mic-icon" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"
@@ -54,14 +52,14 @@
       >
       {msg.VOICE_OFF_ACTION}
     </button>
-  {:else if status === "problem" && coach.listenerProblem}
+  {:else if status === "problem" && coach.commands.problem}
     <div class="status problem" role="alert">
       <span class="mic" aria-hidden="true">
         <svg viewBox="0 0 24 24" width="22" height="22"
           ><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3M4 4l16 16" /></svg
         >
       </span>
-      <p class="text">{problemText[coach.listenerProblem]}</p>
+      <p class="text">{problemText[coach.commands.problem]}</p>
       <button class="retry" onclick={() => coach.setVoiceCommands(true)}>{msg.VOICE_TRY_AGAIN}</button>
     </div>
   {:else}

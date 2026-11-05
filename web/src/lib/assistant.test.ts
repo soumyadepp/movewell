@@ -1,21 +1,12 @@
 import { describe, expect, it } from "vitest";
 import * as catalog from "./analysis/findings";
-import {
-  Assistant,
-  type RangeRepository,
-  type SessionRepository,
-} from "./assistant";
+import { Assistant, type RangeRepository, type SessionRepository } from "./assistant";
 import type { PersonalRange } from "./analysis/range";
 import { POSTURE } from "./config";
-import {
-  ExerciseMode,
-  Joint,
-  type SessionRecord,
-  ViewMode,
-} from "./domain/models";
+import { ExerciseMode, Joint, type SessionRecord, ViewMode } from "./domain/models";
+import { getExercise } from "./exercises";
 import { EventBus, type EventMap } from "./events";
 import { LocalStorageRepository, toCsv } from "./infrastructure/storage";
-import * as msg from "./messages";
 import { armsAt, body, curled, FakeClock, hold } from "./testing/poses";
 
 class MemoryRepo implements SessionRepository {
@@ -38,15 +29,7 @@ function setup(repo: SessionRepository = new MemoryRepo()) {
   const events = new EventBus();
   const clock = new FakeClock();
   const seen: { type: keyof EventMap; payload: unknown }[] = [];
-  for (const type of [
-    "repCounted",
-    "goalReached",
-    "findingChanged",
-    "bodyFound",
-    "bodyLost",
-    "viewChanged",
-    "modeChanged",
-  ] as const) {
+  for (const type of ["repCounted", "goalReached", "findingChanged", "bodyFound", "bodyLost", "modeChanged"] as const) {
     events.subscribe(type, (payload) => seen.push({ type, payload }));
   }
   const assistant = new Assistant({
@@ -56,8 +39,7 @@ function setup(repo: SessionRepository = new MemoryRepo()) {
     clock: clock.read,
     now: () => new Date(2026, 10, 4, 9, 30, 0),
   });
-  const of = (type: keyof EventMap) =>
-    seen.filter((e) => e.type === type).map((e) => e.payload);
+  const of = (type: keyof EventMap) => seen.filter((e) => e.type === type).map((e) => e.payload);
   return { assistant, clock, of, repo, seen };
 }
 
@@ -104,7 +86,7 @@ describe("Assistant", () => {
 
   it("reports when nobody is in frame", () => {
     const { assistant, of } = setup();
-    expect(assistant.process(null).guidance).toEqual(msg.GUIDANCE_NO_BODY);
+    expect(assistant.process(null).guidance).toEqual([{ kind: "noBody" }]);
     expect(of("bodyLost")).toHaveLength(1);
   });
 
@@ -120,10 +102,7 @@ describe("Assistant", () => {
     hold(tilted);
     hold(body());
     hold(tilted);
-    expect(of("findingChanged")).toEqual([
-      { finding: catalog.SHOULDER_HEIGHT },
-      { finding: catalog.SHOULDER_HEIGHT },
-    ]);
+    expect(of("findingChanged")).toEqual([{ finding: catalog.SHOULDER_HEIGHT }, { finding: catalog.SHOULDER_HEIGHT }]);
   });
 
   it("announces the target once, after the final count", () => {
@@ -134,49 +113,45 @@ describe("Assistant", () => {
       hold((p) => assistant.process(p), armsAt(100), clock, 0.8);
     }
     expect(assistant.counter.reps).toBe(3);
-    const order = seen
-      .filter((e) => e.type === "repCounted" || e.type === "goalReached")
-      .map((e) => e.type);
-    expect(order).toEqual([
-      "repCounted",
-      "repCounted",
-      "goalReached",
-      "repCounted",
-    ]);
+    const order = seen.filter((e) => e.type === "repCounted" || e.type === "goalReached").map((e) => e.type);
+    expect(order).toEqual(["repCounted", "repCounted", "goalReached", "repCounted"]);
   });
 
-  it("publishes semantic events for view and mode changes", () => {
+  it("matches the camera view each exercise needs and announces the change", () => {
     const { assistant, of } = setup();
-    assistant.toggleView();
-    expect(assistant.view).toBe(ViewMode.Side);
-    expect(of("viewChanged")).toEqual([{ view: ViewMode.Side }]);
+    assistant.selectMode(ExerciseMode.SitToStand);
+    expect(assistant.view).toBe(getExercise(ExerciseMode.SitToStand).bestView);
     assistant.selectMode(ExerciseMode.Marching);
-    expect(of("modeChanged")).toEqual([{ mode: ExerciseMode.Marching }]);
     expect(assistant.view).toBe(ViewMode.Front);
+    expect(of("modeChanged")).toEqual([{ mode: ExerciseMode.SitToStand }, { mode: ExerciseMode.Marching }]);
   });
 
-  it("saves a session with paused time excluded", () => {
-    const { assistant, clock, repo } = setup();
-    assistant.toggleTimer();
-    clock.advance(30);
-    assistant.toggleTimer();
-    clock.advance(100);
-    assistant.toggleTimer();
-    clock.advance(15);
-    expect(assistant.saveSession()).toBe(true);
+  it("gives the exercise's own instruction as a code, with posture corrections after it", () => {
+    const { assistant, clock } = setup();
+    const tilted = body({ [Joint.LeftShoulder]: [420, 240] });
+    assistant.process(tilted);
+    clock.advance(1);
+    const { guidance } = assistant.process(tilted);
+    expect(guidance[0]).toEqual({ kind: "exercise", mode: ExerciseMode.ArmRaise });
+    expect(guidance[1]).toEqual({ kind: "finding", finding: catalog.SHOULDER_HEIGHT });
+  });
+
+  it("saves a finished exercise to the history", () => {
+    const { assistant, repo } = setup();
+    expect(assistant.logExercise(ExerciseMode.ArmRaise, 10, 45)).toBe(true);
     expect((repo as MemoryRepo).records[0]).toMatchObject({
       date_time: "2026-11-04T09:30:00",
       duration_seconds: 45,
       exercise: "ARM RAISE",
+      repetitions: 10,
     });
-    expect(assistant.progress.totalSessions).toBe(1);
-    expect(assistant.statusMessage).toBe(msg.SAVED);
+    expect(assistant.history).toHaveLength(1);
   });
 
-  it("reports a failed save", () => {
+  it("reports a failed save without adding to the history", () => {
     const { assistant } = setup(new MemoryRepo(true));
-    expect(assistant.saveSession()).toBe(false);
-    expect(assistant.statusMessage).toBe(msg.SAVE_FAILED);
+    expect(assistant.logExercise(ExerciseMode.ArmRaise, 10, 45)).toBe(false);
+    expect(assistant.history).toHaveLength(0);
   });
 });
 

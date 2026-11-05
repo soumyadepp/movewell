@@ -1,7 +1,7 @@
 <script lang="ts">
   import { currentWeek } from "../analysis/progress";
   import type { CoachController } from "../controller.svelte";
-  import { href } from "../controller.svelte";
+  import { href } from "../routing";
   import { getExercise } from "../exercises";
   import * as msg from "../messages";
   import Handwritten from "../components/Handwritten.svelte";
@@ -14,7 +14,9 @@
 
 <div class="split">
   <section class="panel">
-    <h1 class="enter" style:--i={1}><span class="accent"><Handwritten text={msg.DONE_ACCENT} delayMs={250} /></span>{msg.DONE_REST(coach.displayName)}</h1>
+    <h1 class="enter" style:--i={1}>
+      <span class="accent"><Handwritten text={msg.DONE_ACCENT} delayMs={250} /></span>{msg.DONE_REST(coach.displayName)}
+    </h1>
     {#if summary && summary.totalReps > 0}
       <p class="stats enter" style:--i={3}>{msg.DONE_STATS(summary.totalReps, minutes)}</p>
       <p class="lead enter" style:--i={4}>{msg.DONE_WEEK(days)}</p>
@@ -31,7 +33,9 @@
           <li class="enter" style:--i={i + 3}>
             <span class="check" class:partial={!result.completed} aria-hidden="true">
               {#if result.completed}
-                <svg class="draw" style:--i={i + 3} viewBox="0 0 24 24" width="24" height="24"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+                <svg class="draw" style:--i={i + 3} viewBox="0 0 24 24" width="24" height="24"
+                  ><path d="M5 12.5l4.5 4.5L19 7.5" /></svg
+                >
               {/if}
             </span>
             <span class="name">{getExercise(result.mode).copy.label}</span>

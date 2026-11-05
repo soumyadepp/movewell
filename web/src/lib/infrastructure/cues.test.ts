@@ -2,13 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ExerciseMode } from "../domain/models";
 import { EventBus } from "../events";
 import { FakeClock } from "../testing/poses";
-import {
-  attachCues,
-  CUE_COOLDOWN_S,
-  CUES,
-  type Cue,
-  type CuePlayer,
-} from "./cues";
+import { attachCues, CUE_COOLDOWN_S, CUES, type Cue, type CuePlayer } from "./cues";
 
 class RecordingPlayer implements CuePlayer {
   enabled = true;
@@ -61,9 +55,7 @@ describe("sound cues", () => {
   });
 
   it("keeps every tone in the range older listeners hear best", () => {
-    const pitches = Object.values(CUES).flatMap((notes) =>
-      notes.map((n) => n.hz),
-    );
+    const pitches = Object.values(CUES).flatMap((notes) => notes.map((n) => n.hz));
     expect(Math.min(...pitches)).toBeGreaterThanOrEqual(400);
     expect(Math.max(...pitches)).toBeLessThanOrEqual(1100);
   });

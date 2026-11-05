@@ -1,12 +1,30 @@
+"""Tests for storage, progress, speech gating and the voice notifier."""
+
+from physio_assistant import messages
 from physio_assistant.analysis.progress import summarize
 from physio_assistant.domain.models import ExerciseMode, SessionRecord
-from physio_assistant.events import Announcement, BodyLost, EventBus, RepCounted
+from physio_assistant.events import (
+    Announcement,
+    AnnouncementKind,
+    BodyLost,
+    EventBus,
+    RepCounted,
+)
 from physio_assistant.infrastructure.storage import CsvSessionRepository
 from physio_assistant.infrastructure.voice import CooldownGate
 from physio_assistant.notifier import VoiceNotifier
 
 
 def record(exercise: str = "ARM RAISE", reps: int = 3) -> SessionRecord:
+    """Builds a session record with fixed metadata.
+
+    Args:
+        exercise: Exercise label.
+        reps: Repetitions counted.
+
+    Returns:
+        The record.
+    """
     return SessionRecord("2026-11-04T09:30:00", 60, "FRONT", exercise, reps, "")
 
 
@@ -49,14 +67,23 @@ def test_cooldown_gate(clock):
 
 
 class SpySpeaker:
+    """Speaker that records every message instead of speaking it."""
+
     def __init__(self) -> None:
+        """Creates a spy with no recorded calls."""
         self.calls: list[tuple[str, bool]] = []
 
     def say(self, message: str, force: bool = False) -> None:
+        """Records one message.
+
+        Args:
+            message: Text that would be spoken.
+            force: Whether the cooldown would be bypassed.
+        """
         self.calls.append((message, force))
 
     def close(self) -> None:
-        pass
+        """Does nothing."""
 
 
 def test_notifier_maps_events_to_speech():
@@ -64,7 +91,10 @@ def test_notifier_maps_events_to_speech():
     VoiceNotifier(speaker).attach(bus)
     bus.publish(RepCounted(ExerciseMode.ARM_RAISE, 1))
     bus.publish(BodyLost())
-    bus.publish(Announcement("hello"))
+    bus.publish(Announcement(AnnouncementKind.TIMER_STARTED))
 
-    assert [force for _, force in speaker.calls] == [False, False, True]
-    assert speaker.calls[-1][0] == "hello"
+    assert speaker.calls == [
+        (messages.SPEAK_REP_COUNTED, False),
+        (messages.SPEAK_MOVE_INTO_VIEW, False),
+        (messages.SPEAK_TIMER_STARTED, True),
+    ]

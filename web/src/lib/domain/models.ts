@@ -27,9 +27,6 @@ export enum ViewMode {
   Side = "SIDE",
 }
 
-export const toggledView = (view: ViewMode): ViewMode =>
-  view === ViewMode.Front ? ViewMode.Side : ViewMode.Front;
-
 export enum ExerciseMode {
   Posture = "POSTURE",
   ArmRaise = "ARM RAISE",
@@ -124,6 +121,15 @@ export class BodyPoints {
     return this.points.get(joint) ?? null;
   }
 
+  /**
+   * Returns the first of several joints that is visible.
+   *
+   * Args:
+   *   joints: Joints to try, in order of preference.
+   *
+   * Returns:
+   *   The first visible joint's point, or null if none is visible.
+   */
   firstVisible(...joints: Joint[]): Point | null {
     for (const joint of joints) {
       const point = this.get(joint);

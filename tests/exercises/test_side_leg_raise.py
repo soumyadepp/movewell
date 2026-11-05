@@ -1,3 +1,5 @@
+"""Tests for counting side leg raises."""
+
 from physio_assistant.domain.models import ExerciseMode
 from tests.poses import legs_out, reps
 

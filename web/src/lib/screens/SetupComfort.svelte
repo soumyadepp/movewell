@@ -1,7 +1,7 @@
 <script lang="ts">
   import ComfortSettings from "../components/ComfortSettings.svelte";
   import type { CoachController } from "../controller.svelte";
-  import { href } from "../controller.svelte";
+  import { href } from "../routing";
   import * as msg from "../messages";
 
   let { coach }: { coach: CoachController } = $props();

@@ -73,11 +73,23 @@ class PoseEstimator(Protocol):
     """Port for any pose model. The app depends on this, not on MediaPipe."""
 
     def detect(self, frame_bgr: np.ndarray) -> PoseDetection | None:
-        """Returns the detected pose, or None when nobody is in frame."""
+        """Detects a pose in one frame.
+
+        Args:
+            frame_bgr: Frame in OpenCV BGR order.
+
+        Returns:
+            The detected pose, or None when nobody is in frame.
+        """
         ...
 
     def draw(self, frame_bgr: np.ndarray, detection: PoseDetection) -> None:
-        """Draws the skeleton onto the frame in place."""
+        """Draws the skeleton onto the frame in place.
+
+        Args:
+            frame_bgr: Frame to draw on.
+            detection: Pose returned by ``detect`` for this frame.
+        """
         ...
 
 
@@ -85,6 +97,11 @@ class MediaPipePoseEstimator:
     """MediaPipe BlazePose adapter. Use as a context manager to free native resources."""
 
     def __init__(self, config: PoseConfig) -> None:
+        """Creates an estimator; the model loads when the context is entered.
+
+        Args:
+            config: Model complexity and confidence thresholds.
+        """
         self._config = config
         self._pose: Any = None
         self._landmark_style = _mp_drawing.DrawingSpec(
@@ -93,6 +110,11 @@ class MediaPipePoseEstimator:
         self._connection_style = _mp_drawing.DrawingSpec(color=(245, 245, 245), thickness=2)
 
     def __enter__(self) -> "MediaPipePoseEstimator":
+        """Loads the MediaPipe pose model.
+
+        Returns:
+            This estimator, ready to detect.
+        """
         self._pose = _mp_pose.Pose(
             static_image_mode=False,
             model_complexity=self._config.model_complexity,
@@ -109,6 +131,13 @@ class MediaPipePoseEstimator:
         exc: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
+        """Closes the MediaPipe pose model.
+
+        Args:
+            exc_type: Exception type raised in the block, if any.
+            exc: Exception raised in the block, if any.
+            tb: Traceback of that exception, if any.
+        """
         if self._pose is not None:
             self._pose.close()
             self._pose = None
@@ -138,7 +167,12 @@ class MediaPipePoseEstimator:
         return PoseDetection(points=points, raw=results.pose_landmarks)
 
     def draw(self, frame_bgr: np.ndarray, detection: PoseDetection) -> None:
-        """Draws the MediaPipe skeleton onto the frame in place."""
+        """Draws the MediaPipe skeleton onto the frame in place.
+
+        Args:
+            frame_bgr: Frame to draw on.
+            detection: Pose returned by ``detect`` for this frame.
+        """
         _mp_drawing.draw_landmarks(
             frame_bgr,
             detection.raw,

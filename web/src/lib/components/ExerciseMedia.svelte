@@ -3,8 +3,11 @@
   import * as msg from "../messages";
   import Pictogram from "./Pictogram.svelte";
 
-  let { exercise, ratio = "4 / 3", animate = true }: { exercise: Exercise; ratio?: string; animate?: boolean } =
-    $props();
+  let {
+    exercise,
+    ratio = "4 / 3",
+    animate = true,
+  }: { exercise: Exercise; ratio?: string; animate?: boolean } = $props();
   const src = $derived(exercise.photo ? `${import.meta.env.BASE_URL}img/${exercise.photo}` : null);
 </script>
 
@@ -13,7 +16,12 @@
     <img class="photo" {src} alt={msg.DEMO_LABEL(exercise.copy.label)} loading="lazy" />
   {:else}
     <div class="figure">
-      <Pictogram illustration={exercise.illustration} label={msg.DEMO_LABEL(exercise.copy.label)} {animate} size={220} />
+      <Pictogram
+        illustration={exercise.illustration}
+        label={msg.DEMO_LABEL(exercise.copy.label)}
+        {animate}
+        size={220}
+      />
     </div>
   {/if}
 </div>

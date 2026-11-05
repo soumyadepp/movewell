@@ -1,3 +1,5 @@
+"""Tests for the front and side posture rules."""
+
 from physio_assistant.analysis import findings as catalog
 from physio_assistant.analysis.posture import create_posture_analyzer
 from physio_assistant.config import PostureThresholds
@@ -8,10 +10,26 @@ T = PostureThresholds()
 
 
 def front(points: BodyPoints):
+    """Runs the front-view analyzer with default thresholds.
+
+    Args:
+        points: Pose to analyze.
+
+    Returns:
+        The findings.
+    """
     return create_posture_analyzer(ViewMode.FRONT, T).analyze(points)
 
 
 def side(points: BodyPoints):
+    """Runs the side-view analyzer with default thresholds.
+
+    Args:
+        points: Pose to analyze.
+
+    Returns:
+        The findings.
+    """
     return create_posture_analyzer(ViewMode.SIDE, T).analyze(points)
 
 
@@ -46,6 +64,14 @@ def test_findings_keep_rule_order():
 
 
 def side_pose(**overrides) -> BodyPoints:
+    """Builds an aligned side-on pose with selected joints moved.
+
+    Args:
+        **overrides: Joint name to new pixel position.
+
+    Returns:
+        The body points.
+    """
     base = {
         Joint.LEFT_EAR: (500, 120),
         Joint.LEFT_SHOULDER: (500, 200),

@@ -1,8 +1,18 @@
+"""Tests for counting arm raises."""
+
 from physio_assistant.domain.models import BodyPoints, ExerciseMode, Joint
 from tests.poses import arms_at, one_arm_up, reps
 
 
 def _cropped(degrees: float) -> BodyPoints:
+    """Builds an arm-raise pose with only shoulders and elbows in frame.
+
+    Args:
+        degrees: Arm angle at the shoulder.
+
+    Returns:
+        The cropped body points.
+    """
     full = arms_at(degrees)
     joints = (Joint.LEFT_SHOULDER, Joint.RIGHT_SHOULDER, Joint.LEFT_ELBOW, Joint.RIGHT_ELBOW)
     return BodyPoints({j: full.get(j) for j in joints})

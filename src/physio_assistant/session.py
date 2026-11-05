@@ -8,6 +8,11 @@ class SessionTimer:
     """Stopwatch that accumulates active time across pauses."""
 
     def __init__(self, clock: Callable[[], float] = time.monotonic) -> None:
+        """Creates a paused timer at zero.
+
+        Args:
+            clock: Monotonic time source, injectable for tests.
+        """
         self._clock = clock
         self._accumulated = 0.0
         self._started_at: float | None = None
@@ -32,6 +37,10 @@ class SessionTimer:
         return False
 
     def elapsed_seconds(self) -> int:
-        """Returns the total active seconds so far."""
+        """Returns the total active time so far.
+
+        Returns:
+            Whole seconds counted while running, across pauses.
+        """
         live = self._clock() - self._started_at if self._started_at is not None else 0.0
         return int(self._accumulated + live)

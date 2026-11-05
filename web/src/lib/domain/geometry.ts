@@ -19,11 +19,30 @@ export function calculateAngle(a: readonly number[], b: readonly number[], c: re
   return (Math.acos(cosine) * 180) / Math.PI;
 }
 
+/**
+ * Finds the point halfway between two points.
+ *
+ * Args:
+ *   p1: The first point, or null if not visible.
+ *   p2: The second point, or null if not visible.
+ *
+ * Returns:
+ *   The midpoint, or null if either point is missing.
+ */
 export function midpoint(p1: Point | null, p2: Point | null): Point | null {
   if (!p1 || !p2) return null;
   return [(p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2];
 }
 
+/**
+ * Averages the values that are present and finite.
+ *
+ * Args:
+ *   values: Numbers, some of which may be null or not finite.
+ *
+ * Returns:
+ *   Their average, or null if none are usable.
+ */
 export function safeAverage(values: (number | null)[]): number | null {
   const finite = values.filter((v): v is number => v !== null && Number.isFinite(v));
   return finite.length ? finite.reduce((s, v) => s + v, 0) / finite.length : null;
@@ -41,6 +60,18 @@ export function jointAngle3(points: BodyPoints, a: Joint, vertex: Joint, c: Join
   return jointAngle(points, a, vertex, c);
 }
 
+/**
+ * Measures the angle at a joint in the image plane.
+ *
+ * Args:
+ *   points: The detected body points.
+ *   a: The joint on one side of the angle.
+ *   vertex: The joint where the angle is measured.
+ *   c: The joint on the other side of the angle.
+ *
+ * Returns:
+ *   The angle in degrees, or null if any joint is missing.
+ */
 export function jointAngle(points: BodyPoints, a: Joint, vertex: Joint, c: Joint): number | null {
   const pa = points.get(a);
   const pb = points.get(vertex);

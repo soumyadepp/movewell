@@ -15,11 +15,22 @@ class SessionRepository(Protocol):
     """Port for persisting session summaries."""
 
     def load_all(self) -> list[SessionRecord]:
-        """Returns every saved session, oldest first."""
+        """Loads every saved session.
+
+        Returns:
+            Saved sessions, oldest first.
+        """
         ...
 
     def append(self, record: SessionRecord) -> bool:
-        """Persists one session. Returns False on failure."""
+        """Persists one session.
+
+        Args:
+            record: Session to save.
+
+        Returns:
+            True on success, False on failure.
+        """
         ...
 
 
@@ -27,10 +38,20 @@ class CsvSessionRepository:
     """Appends session summaries to a local CSV file."""
 
     def __init__(self, path: Path) -> None:
+        """Creates a repository backed by one CSV file.
+
+        Args:
+            path: CSV file, created with its parent folders on first save.
+        """
         self.path = path
 
     def load_all(self) -> list[SessionRecord]:
-        """Reads the CSV, returning an empty list if it is missing or unreadable."""
+        """Reads every saved session from the CSV.
+
+        Returns:
+            Saved sessions, oldest first, or an empty list if the file is
+            missing or unreadable.
+        """
         if not self.path.exists():
             return []
         try:

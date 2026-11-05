@@ -1,16 +1,4 @@
-/*
- * MoveWell design tokens. Source of truth: docs/DESIGN.md.
- *
- * Three tiers:
- *   1. Primitives  raw palette, type and spacing scales. Not used by components.
- *   2. Semantic    roles (text, surface, primary...).
- *   3. Component   per-component decisions built from semantic tokens.
- *
- * All text pairs meet WCAG AAA (7:1); display numbers meet at least 4.5:1.
- */
-
 :root {
-  /* 1. Primitives: colour */
   --oat-50: #fbf8f2;
   --oat-100: #f3eee4;
   --oat-200: #e7e2d8;
@@ -26,12 +14,10 @@
   --amber-50: #fff1e2;
   --white: #ffffff;
 
-  /* 1. Primitives: type */
   --font-display: "Bricolage Grotesque", "Figtree", system-ui, sans-serif;
   --font-text: "Figtree", system-ui, sans-serif;
   --font-accent: "Instrument Serif", Georgia, serif;
 
-  /* 1. Primitives: space (multiples of 4px), radius, motion */
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
@@ -57,7 +43,6 @@
   --ease-write: cubic-bezier(0.45, 0.05, 0.35, 1);
   --rise-distance: 12px;
 
-  /* 2. Semantic */
   --color-bg: var(--oat-100);
   --color-surface: var(--oat-50);
   --color-muted-fill: var(--oat-200);
@@ -75,7 +60,6 @@
   --color-warning-surface: var(--amber-50);
   --color-focus: var(--terracotta-600);
 
-  /* Type scale, multiplied by the reader's text-size choice */
   --text-scale: 1;
   --type-display: calc(64px * var(--text-scale));
   --type-display-line: 1.12;
@@ -92,12 +76,10 @@
   --weight-bold: 700;
   --weight-black: 800;
 
-  /* Layout */
   --container: 1280px;
   --gutter: var(--space-16);
   --header-height: 80px;
 
-  /* 3. Component */
   --control-height: 64px;
   --button-radius: var(--radius-md);
   --photo-radius: var(--radius-lg);

@@ -26,19 +26,43 @@
       {/if}
     </div>
     <dl class="state">
-      <div><dt>{msg.DEV.smoothed}</dt><dd>{formatValue(inspection.smoothed)}°</dd></div>
-      <div><dt>{msg.DEV.band}</dt><dd>{formatValue(inspection.lowDeg)} / {formatValue(inspection.highDeg)}</dd></div>
-      <div><dt>{msg.DEV.range}</dt><dd>{inspection.rangeStatus}</dd></div>
-      <div><dt>{msg.DEV.zone}</dt><dd>{inspection.zone}</dd></div>
-      <div><dt>{msg.DEV.phase}</dt><dd>{inspection.phase}</dd></div>
-      <div><dt>{msg.DEV.reps}</dt><dd>{inspection.reps} / {inspection.goal}</dd></div>
-      <div><dt>{msg.DEV.blockedFor}</dt><dd>{formatValue(inspection.blockedForS)}s</dd></div>
+      <div>
+        <dt>{msg.DEV.smoothed}</dt>
+        <dd>{formatValue(inspection.smoothed)}°</dd>
+      </div>
+      <div>
+        <dt>{msg.DEV.band}</dt>
+        <dd>{formatValue(inspection.lowDeg)} / {formatValue(inspection.highDeg)}</dd>
+      </div>
+      <div>
+        <dt>{msg.DEV.range}</dt>
+        <dd>{inspection.rangeStatus}</dd>
+      </div>
+      <div>
+        <dt>{msg.DEV.zone}</dt>
+        <dd>{inspection.zone}</dd>
+      </div>
+      <div>
+        <dt>{msg.DEV.phase}</dt>
+        <dd>{inspection.phase}</dd>
+      </div>
+      <div>
+        <dt>{msg.DEV.reps}</dt>
+        <dd>{inspection.reps} / {inspection.goal}</dd>
+      </div>
+      <div>
+        <dt>{msg.DEV.blockedFor}</dt>
+        <dd>{formatValue(inspection.blockedForS)}s</dd>
+      </div>
     </dl>
     {#if inspection.details.length}
       <p class="heading">{msg.DEV.details}</p>
       <dl class="details">
         {#each inspection.details as [key, value] (key)}
-          <div><dt>{key}</dt><dd>{value}</dd></div>
+          <div>
+            <dt>{key}</dt>
+            <dd>{value}</dd>
+          </div>
         {/each}
       </dl>
     {/if}

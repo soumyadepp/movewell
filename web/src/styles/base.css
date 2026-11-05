@@ -92,7 +92,6 @@ img {
   margin: 0;
 }
 
-/* Buttons: rectangles, 64px tall, 14px radius. Never pills. */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -141,7 +140,6 @@ img {
   background: var(--color-muted-fill);
 }
 
-/* On forest backgrounds */
 .btn-light {
   background: var(--color-on-deep);
   color: var(--color-primary);

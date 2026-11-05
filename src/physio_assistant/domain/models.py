@@ -90,7 +90,11 @@ class ViewMode(Enum):
     SIDE = "SIDE"
 
     def toggled(self) -> "ViewMode":
-        """Returns the other view mode."""
+        """Returns the other view mode.
+
+        Returns:
+            SIDE for FRONT, FRONT for SIDE.
+        """
         return ViewMode.SIDE if self is ViewMode.FRONT else ViewMode.FRONT
 
 
@@ -161,7 +165,11 @@ class SessionRecord:
     )
 
     def to_row(self) -> dict[str, str | int]:
-        """Serializes the record into a CSV row."""
+        """Serializes the record into a CSV row.
+
+        Returns:
+            Mapping from column name to value, in ``FIELDS`` order.
+        """
         return {name: getattr(self, name) for name in self.FIELDS}
 
     @classmethod
@@ -185,6 +193,14 @@ class SessionRecord:
 
 
 def _to_int(value: str | None) -> int:
+    """Parses an integer CSV cell, falling back to zero.
+
+    Args:
+        value: Raw cell text, possibly empty or missing.
+
+    Returns:
+        The parsed integer, or 0 when the cell is empty or malformed.
+    """
     try:
         return int(value) if value not in (None, "") else 0
     except (TypeError, ValueError):

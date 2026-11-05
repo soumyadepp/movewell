@@ -2,7 +2,7 @@
   import ExerciseMedia from "../components/ExerciseMedia.svelte";
   import Segmented from "../components/Segmented.svelte";
   import { DEFAULT_GOAL, GOAL_OPTIONS } from "../config";
-  import { href } from "../controller.svelte";
+  import { href } from "../routing";
   import type { CountedExercise } from "../domain/models";
   import { getExercise } from "../exercises";
   import * as msg from "../messages";

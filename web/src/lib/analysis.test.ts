@@ -55,12 +55,16 @@ describe("posture rules", () => {
 
   it("flags a forward head from either side in side view", () => {
     const sidePose = (ear: [number, number]) =>
-      new BodyPoints(new Map([[Joint.RightEar, ear], [Joint.RightShoulder, [500, 200]]]));
+      new BodyPoints(
+        new Map([
+          [Joint.RightEar, ear],
+          [Joint.RightShoulder, [500, 200]],
+        ]),
+      );
     expect(side(sidePose([560, 120]))).toEqual([catalog.HEAD_FORWARD]);
     expect(side(sidePose([440, 120]))).toEqual([catalog.HEAD_FORWARD]);
   });
 });
-
 
 describe("landmark conversion", () => {
   it("scales to the reference frame and drops low-visibility joints", () => {
@@ -102,4 +106,3 @@ describe("speech catalogs", () => {
     expect(pickVoice([voice("Rishi", "en-IN")], "hi-IN")).toBeNull();
   });
 });
-

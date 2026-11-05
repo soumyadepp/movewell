@@ -13,6 +13,15 @@ export interface PostureAnalyzer {
   analyze(points: BodyPoints): Finding[];
 }
 
+/**
+ * Posture rules checked when the person faces the camera.
+ *
+ * Args:
+ *   t: The posture thresholds to apply.
+ *
+ * Returns:
+ *   The rules, in the order their findings are reported.
+ */
 export function frontViewRules(t: PostureThresholds): Rule[] {
   const shoulderLevel: Rule = (p) => {
     const ls = p.get(Joint.LeftShoulder);
@@ -45,6 +54,15 @@ export function frontViewRules(t: PostureThresholds): Rule[] {
   return [shoulderLevel, hipLevel, trunkShift, kneeTracking];
 }
 
+/**
+ * Posture rules checked when the person stands side-on to the camera.
+ *
+ * Args:
+ *   t: The posture thresholds to apply.
+ *
+ * Returns:
+ *   The rules, in the order their findings are reported.
+ */
 export function sideViewRules(t: PostureThresholds): Rule[] {
   const headForward: Rule = (p) => {
     const ear = p.firstVisible(Joint.LeftEar, Joint.RightEar);
@@ -75,6 +93,16 @@ const RULE_FACTORIES: Record<ViewMode, (t: PostureThresholds) => Rule[]> = {
   [ViewMode.Side]: sideViewRules,
 };
 
+/**
+ * Builds the posture analyser for a camera view.
+ *
+ * Args:
+ *   view: Whether the person faces the camera or stands side-on.
+ *   thresholds: The posture thresholds to apply.
+ *
+ * Returns:
+ *   An analyser that checks that view's rules.
+ */
 export function createPostureAnalyzer(view: ViewMode, thresholds: PostureThresholds): PostureAnalyzer {
   const rules = RULE_FACTORIES[view](thresholds);
   return {

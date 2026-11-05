@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { CoachController } from "../controller.svelte";
-  import { href } from "../controller.svelte";
+  import { href } from "../routing";
   import * as msg from "../messages";
 
   let { coach }: { coach: CoachController } = $props();

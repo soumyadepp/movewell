@@ -7,11 +7,7 @@ import { describeReading, formatValue, inspectFrame } from "./inspection";
 
 function inspect(points: ReturnType<typeof body> | null, visibility = 0.9) {
   const clock = new FakeClock();
-  const counter = createCounter(
-    ExerciseMode.ElbowCurl,
-    new EventBus(),
-    clock.read,
-  );
+  const counter = createCounter(ExerciseMode.ElbowCurl, new EventBus(), clock.read);
   return inspectFrame({
     fps: 30,
     mode: ExerciseMode.ElbowCurl,
@@ -38,9 +34,7 @@ describe("frame inspection", () => {
     const result = inspect(without(Joint.LeftWrist));
     const wrist = result.joints.find((j) => j.joint === Joint.LeftWrist);
     expect(wrist?.kept).toBe(false);
-    expect(result.joints.find((j) => j.joint === Joint.RightWrist)?.kept).toBe(
-      true,
-    );
+    expect(result.joints.find((j) => j.joint === Joint.RightWrist)?.kept).toBe(true);
   });
 
   it("says when there is no body at all", () => {

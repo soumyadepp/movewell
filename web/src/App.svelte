@@ -58,35 +58,35 @@
 
 <main id="main" tabindex="-1">
   {#key screenKey}
-  <div class="screen enter">
-  {#if route.name === "setup"}
-    {#if route.step === "welcome"}
-      <SetupWelcome {coach} />
-    {:else if route.step === "comfort"}
-      <SetupComfort {coach} />
-    {:else}
-      <SetupSpace {coach} />
-    {/if}
-  {:else if route.name === "library"}
-    <LibraryScreen />
-  {:else if route.name === "detail" && isCounted(route.mode)}
-    <ExerciseDetail mode={route.mode} />
-  {:else if route.name === "workout"}
-    {#key workoutKey}
-      <WorkoutScreen {coach} />
-    {/key}
-  {:else if route.name === "summary"}
-    <SummaryScreen {coach} />
-  {:else if route.name === "week"}
-    <WeekScreen {coach} />
-  {:else if route.name === "plan"}
-    <PlanScreen {coach} />
-  {:else if route.name === "settings"}
-    <SettingsScreen {coach} />
-  {:else}
-    <HomeScreen {coach} />
-  {/if}
-  </div>
+    <div class="screen enter">
+      {#if route.name === "setup"}
+        {#if route.step === "welcome"}
+          <SetupWelcome {coach} />
+        {:else if route.step === "comfort"}
+          <SetupComfort {coach} />
+        {:else}
+          <SetupSpace {coach} />
+        {/if}
+      {:else if route.name === "library"}
+        <LibraryScreen />
+      {:else if route.name === "detail" && isCounted(route.mode)}
+        <ExerciseDetail mode={route.mode} />
+      {:else if route.name === "workout"}
+        {#key workoutKey}
+          <WorkoutScreen {coach} />
+        {/key}
+      {:else if route.name === "summary"}
+        <SummaryScreen {coach} />
+      {:else if route.name === "week"}
+        <WeekScreen {coach} />
+      {:else if route.name === "plan"}
+        <PlanScreen {coach} />
+      {:else if route.name === "settings"}
+        <SettingsScreen {coach} />
+      {:else}
+        <HomeScreen {coach} />
+      {/if}
+    </div>
   {/key}
 </main>
 

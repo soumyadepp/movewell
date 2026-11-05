@@ -34,7 +34,10 @@
 
   const lerp = (a: FigurePose, b: FigurePose, k: number): FigurePose =>
     Object.fromEntries(
-      (Object.keys(a) as FigureJoint[]).map((j) => [j, [a[j][0] + (b[j][0] - a[j][0]) * k, a[j][1] + (b[j][1] - a[j][1]) * k]]),
+      (Object.keys(a) as FigureJoint[]).map((j) => [
+        j,
+        [a[j][0] + (b[j][0] - a[j][0]) * k, a[j][1] + (b[j][1] - a[j][1]) * k],
+      ]),
     ) as FigurePose;
 
   const p = $derived(lerp(illustration.start, illustration.end, t));
@@ -50,7 +53,8 @@
     [p.lHip, p.lKnee, p.lAnkle],
     [p.rHip, p.rKnee, p.rAnkle],
   ]);
-  const path = (pts: [number, number][]) => pts.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
+  const path = (pts: [number, number][]) =>
+    pts.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
 </script>
 
 <svg viewBox="0 0 120 150" width={size} height={size * 1.25} role="img" aria-label={label}>

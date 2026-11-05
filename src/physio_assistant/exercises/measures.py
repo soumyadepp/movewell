@@ -12,12 +12,26 @@ STANDING_LEG_MAX_DEG = 15.0
 
 
 def below(point: Point) -> Point:
-    """Returns a point straight below ``point`` in image coordinates."""
+    """Returns a point straight below ``point`` in image coordinates.
+
+    Args:
+        point: Reference point.
+
+    Returns:
+        A point 100 pixels below the reference.
+    """
     return (point[0], point[1] + 100.0)
 
 
 def above(point: Point) -> Point:
-    """Returns a point straight above ``point`` in image coordinates."""
+    """Returns a point straight above ``point`` in image coordinates.
+
+    Args:
+        point: Reference point.
+
+    Returns:
+        A point 100 pixels above the reference.
+    """
     return (point[0], point[1] - 100.0)
 
 
@@ -88,5 +102,12 @@ def shoulder_angle(points: BodyPoints, elbow: Joint, shoulder: Joint, hip: Joint
 
 
 def reading(angle: float | None) -> Reading:
-    """Wraps an optional angle as a reading, treating None as not visible."""
+    """Wraps an optional angle as a reading, treating None as not visible.
+
+    Args:
+        angle: Measured angle in degrees, or None.
+
+    Returns:
+        ``Angle`` for a value, otherwise ``Blocked`` with ``NOT_VISIBLE``.
+    """
     return Blocked(BlockReason.NOT_VISIBLE) if angle is None else Angle(angle)

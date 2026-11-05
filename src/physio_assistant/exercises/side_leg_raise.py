@@ -54,6 +54,16 @@ class SideLegRaise:
             return Blocked(reason)
 
         def leg(hip: Joint, ankle: Joint, knee: Joint) -> float | None:
+            """Returns one leg's angle from vertical, using the knee if the ankle is hidden.
+
+            Args:
+                hip: Hip on the measured side.
+                ankle: Preferred end of the leg segment.
+                knee: Fallback end of the leg segment.
+
+            Returns:
+                Degrees from vertical, or None if the leg cannot be read.
+            """
             end = points.get(ankle) or points.get(knee)
             return from_vertical(points.get(hip), end)
 

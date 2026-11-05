@@ -1,6 +1,12 @@
 /** Synthetic poses in reference-frame pixels for tests. */
 import { BodyPoints, Joint, type Point } from "../domain/models";
 
+/**
+ * Builds a person standing upright facing the camera, arms by their sides.
+ *
+ * Returns:
+ *   Image points for every joint.
+ */
 export function uprightFront(): Map<Joint, Point> {
   return new Map<Joint, Point>([
     [Joint.Nose, [480, 120]],
@@ -21,18 +27,45 @@ export function uprightFront(): Map<Joint, Point> {
   ]);
 }
 
+/**
+ * Builds an upright, front-facing body with some joints moved.
+ *
+ * Args:
+ *   overrides: Joints to place somewhere else.
+ *
+ * Returns:
+ *   The body points.
+ */
 export function body(overrides: Partial<Record<Joint, Point>> = {}): BodyPoints {
   const points = uprightFront();
   for (const [joint, point] of Object.entries(overrides) as [Joint, Point][]) points.set(joint, point);
   return new BodyPoints(points);
 }
 
+/**
+ * Builds an upright, front-facing body with some joints missing.
+ *
+ * Args:
+ *   joints: Joints the camera cannot see.
+ *
+ * Returns:
+ *   The body points.
+ */
 export function without(...joints: Joint[]): BodyPoints {
   const points = uprightFront();
   for (const joint of joints) points.delete(joint);
   return new BodyPoints(points);
 }
 
+/**
+ * Builds a front-facing body with both arms raised to an angle.
+ *
+ * Args:
+ *   angleDeg: Angle between each arm and the trunk.
+ *
+ * Returns:
+ *   The body points.
+ */
 export function armsAt(angleDeg: number): BodyPoints {
   const points = uprightFront();
   const rad = (angleDeg * Math.PI) / 180;
@@ -48,6 +81,15 @@ export function armsAt(angleDeg: number): BodyPoints {
   return new BodyPoints(points);
 }
 
+/**
+ * Builds a front-facing body with both knees bent to an angle.
+ *
+ * Args:
+ *   angleDeg: Knee angle in degrees.
+ *
+ * Returns:
+ *   The body points.
+ */
 export function kneesAt(angleDeg: number): BodyPoints {
   const points = uprightFront();
   const rad = ((180 - angleDeg) * Math.PI) / 180;
@@ -63,6 +105,7 @@ export function kneesAt(angleDeg: number): BodyPoints {
   return new BodyPoints(points);
 }
 
+/** A clock that only moves when a test advances it. */
 export class FakeClock {
   now = 1000;
   readonly read = () => this.now;
@@ -101,6 +144,15 @@ export function sideStanding(): Map<Joint, Point> {
   ]);
 }
 
+/**
+ * Builds a side-on body with some joints moved.
+ *
+ * Args:
+ *   overrides: Joints to place somewhere else.
+ *
+ * Returns:
+ *   The body points.
+ */
 export function sideBody(overrides: Partial<Record<Joint, Point>> = {}): BodyPoints {
   const points = sideStanding();
   for (const [joint, point] of Object.entries(overrides) as [Joint, Point][]) points.set(joint, point);
@@ -157,10 +209,12 @@ export function oneArmUp(deg: number): BodyPoints {
   const both = armsAt(deg);
   const down = armsAt(5);
   return new BodyPoints(
-    new Map([...uprightFront()].map(([j, p]) => {
-      if (j === Joint.LeftElbow || j === Joint.LeftHip) return [j, both.get(j)!];
-      if (j === Joint.RightElbow || j === Joint.RightHip) return [j, down.get(j)!];
-      return [j, p];
-    })),
+    new Map(
+      [...uprightFront()].map(([j, p]) => {
+        if (j === Joint.LeftElbow || j === Joint.LeftHip) return [j, both.get(j)!];
+        if (j === Joint.RightElbow || j === Joint.RightHip) return [j, down.get(j)!];
+        return [j, p];
+      }),
+    ),
   );
 }

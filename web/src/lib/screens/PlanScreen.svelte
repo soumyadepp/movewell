@@ -4,7 +4,7 @@
   import ExerciseMedia from "../components/ExerciseMedia.svelte";
   import Segmented from "../components/Segmented.svelte";
   import type { CoachController } from "../controller.svelte";
-  import { href } from "../controller.svelte";
+  import { href } from "../routing";
   import type { CountedExercise } from "../domain/models";
   import { getExercise } from "../exercises";
   import * as msg from "../messages";

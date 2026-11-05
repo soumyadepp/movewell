@@ -1,210 +1,47 @@
 /**
- * Reactive facade between Svelte components and the pure application core.
+ * Reactive facade between the Svelte screens and the application core.
  *
- * Owns routing, the guided routine, the camera lifecycle and preferences.
- * Components read reactive state and call actions; they never touch the
- * camera, MediaPipe, audio or storage directly.
+ * Holds the state the screens read, applies the person's settings, and runs
+ * the guided routine: it starts each step, reacts to frames from the camera,
+ * and turns button presses and spoken commands into routine actions. Camera,
+ * storage, voice commands and presence detection live in their own modules.
  */
-import { Assistant } from "./assistant";
 import { type FrameInspection, inspectFrame } from "./analysis/inspection";
-import {
-  type Command,
-  type CommandAction,
-  commandAction,
-  EchoFilter,
-  MAX_INTERIM_WORDS,
-  MAX_WORDS,
-  parseCommand,
-} from "./commands";
 import { dayStreak } from "./analysis/progress";
-import {
-  DEFAULT_GOAL,
-  PLAN_KEY,
-  POSTURE,
-  PREFERENCES_KEY,
-  RANGES_KEY,
-  STORAGE_KEY,
-} from "./config";
-import {
-  type CountedExercise,
-  ExerciseMode,
-  exerciseFromSlug,
-  exerciseSlug,
-  type Finding,
-  isCounted,
-  type MovementPhase,
-  type SessionRecord,
-  type ViewMode,
-} from "./domain/models";
+import { Assistant } from "./assistant";
+import { type Command, type CommandAction, commandAction } from "./commands";
+import { PLAN_KEY, POSTURE, PREFERENCES_KEY, RANGES_KEY, STORAGE_KEY } from "./config";
+import type { Guidance } from "./domain/guidance";
+import type { ExerciseMode, Finding, MovementPhase, SessionRecord, ViewMode } from "./domain/models";
 import { EventBus } from "./events";
-import {
-  SPEECH_CATALOGS,
-  PhraseKey,
-  phraseText,
-  type VoiceLanguage,
-} from "./i18n/speech";
+import { PhraseKey, phraseText, SPEECH_CATALOGS, type VoiceLanguage } from "./i18n/speech";
+import { CameraError, CameraFeed, cameraAlreadyAllowed, requestCameraAccess } from "./infrastructure/camera";
 import { attachCues, WebAudioCuePlayer } from "./infrastructure/cues";
-import {
-  CommandListener,
-  type ListenerProblem,
-} from "./infrastructure/listener";
-import { BrowserPoseEstimator, LANDMARK_INDEX } from "./infrastructure/pose";
-import {
-  downloadText,
-  LocalStorageRangeRepository,
-  LocalStorageRepository,
-  toCsv,
-} from "./infrastructure/storage";
-import {
-  attachVoice,
-  ClipSpeaker,
-  type Speaker,
-  pickVoice,
-  WebSpeechSpeaker,
-} from "./infrastructure/voice";
+import { LANDMARK_INDEX, type PoseDetection } from "./infrastructure/pose";
+import { type Preferences, PlanRepository, PreferencesRepository, type TextSize } from "./infrastructure/preferences";
+import { LandmarkRecorder } from "./infrastructure/recorder";
+import { downloadText, LocalStorageRangeRepository, LocalStorageRepository, toCsv } from "./infrastructure/storage";
+import { attachVoice, ClipSpeaker, pickVoice, type Speaker, WebSpeechSpeaker } from "./infrastructure/voice";
 import * as msg from "./messages";
+import { PresenceWatcher } from "./presence";
 import {
   DAILY_ROUTINE,
-  planFrom,
-  type RoutinePhase,
   type PauseReason,
+  type RoutinePhase,
   type RoutinePlan,
   RoutineRun,
   type RoutineStep,
-  type StepResult,
   singleExercise,
+  type StepResult,
 } from "./routine";
+import { href, parseRoute, type Route } from "./routing";
 import { secondsClock } from "./session";
 import { Smoothed } from "./stable";
+import { VoiceCommands } from "./voiceCommands.svelte";
 
 export type Stage = "onboarding" | "loading" | "running" | "error";
-export type TextSize = "md" | "lg" | "xl";
 
-export type SetupStep = "welcome" | "comfort" | "space";
-
-export type Route =
-  | { name: "setup"; step: SetupStep }
-  | { name: "home" }
-  | { name: "library" }
-  | { name: "detail"; mode: ExerciseMode }
-  | { name: "workout"; kind: "routine" }
-  | { name: "workout"; kind: "single"; mode: CountedExercise; target: number }
-  | { name: "summary" }
-  | { name: "week" }
-  | { name: "settings" }
-  | { name: "plan" };
-
-export const href = {
-  home: "#/",
-  library: "#/exercises",
-  detail: (mode: ExerciseMode) => `#/exercises/${exerciseSlug(mode)}`,
-  routine: "#/workout/routine",
-  single: (mode: ExerciseMode, target: number) =>
-    `#/workout/${exerciseSlug(mode)}?target=${target}`,
-  summary: "#/summary",
-  week: "#/week",
-  settings: "#/settings",
-  plan: "#/plan",
-  setup: (step: SetupStep) => `#/setup/${step}`,
-};
-
-/** Parses a location hash into a route, falling back to home. */
-export function parseRoute(hash: string): Route {
-  const [path, query = ""] = hash.replace(/^#/, "").split("?");
-  const parts = path.split("/").filter(Boolean);
-  if (parts[0] === "exercises" && parts[1]) {
-    const mode = exerciseFromSlug(parts[1]);
-    return mode ? { name: "detail", mode } : { name: "library" };
-  }
-  if (parts[0] === "exercises") return { name: "library" };
-  if (parts[0] === "week" || parts[0] === "progress") return { name: "week" };
-  if (parts[0] === "settings") return { name: "settings" };
-  if (parts[0] === "plan") return { name: "plan" };
-  if (parts[0] === "setup") {
-    const step =
-      parts[1] === "comfort" || parts[1] === "space" ? parts[1] : "welcome";
-    return { name: "setup", step };
-  }
-  if (parts[0] === "summary") return { name: "summary" };
-  if (parts[0] === "workout") {
-    if (parts[1] === "routine") return { name: "workout", kind: "routine" };
-    const mode = parts[1] ? exerciseFromSlug(parts[1]) : null;
-    if (mode && isCounted(mode)) {
-      const target =
-        Number(new URLSearchParams(query).get("target")) || DEFAULT_GOAL;
-      return { name: "workout", kind: "single", mode, target };
-    }
-  }
-  return { name: "home" };
-}
-
-interface Preferences {
-  textSize: TextSize;
-  language: VoiceLanguage;
-  muted: boolean;
-  sounds: boolean;
-  voiceCommands: boolean;
-  name: string;
-  onboarded: boolean;
-  showSkeleton: boolean;
-  recordSessions: boolean;
-}
-
-/** Seconds out of view before an exercise pauses itself. */
-const AUTO_PAUSE_S = 3;
-/** Seconds back in view before an automatically paused exercise carries on. */
-const AUTO_RESUME_S = 1;
-/** How long the last heard command stays on screen, in milliseconds. */
-const HEARD_MS = 2500;
-
-/** Milliseconds between developer panel updates, so it never slows the frame loop. */
-const INSPECTION_INTERVAL_MS = 100;
-
-/**
- * Dev mode shows the frame inspection panel. On by default under the Vite dev
- * server; elsewhere it is enabled by adding ?debug to the page URL.
- */
-function devModeRequested(): boolean {
-  if (import.meta.env.DEV) return true;
-  return (
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).has("debug")
-  );
-}
-
-const DEFAULT_PREFERENCES: Preferences = {
-  textSize: "lg",
-  language: "en",
-  muted: false,
-  sounds: true,
-  voiceCommands: false,
-  name: "",
-  onboarded: false,
-  showSkeleton: false,
-  recordSessions: false,
-};
-
-function loadPlan(): RoutinePlan {
-  try {
-    const raw = localStorage.getItem(PLAN_KEY);
-    return raw ? planFrom(JSON.parse(raw)) : DAILY_ROUTINE;
-  } catch {
-    return DAILY_ROUTINE;
-  }
-}
-
-function loadPreferences(): Preferences {
-  try {
-    const raw = localStorage.getItem(PREFERENCES_KEY);
-    return {
-      ...DEFAULT_PREFERENCES,
-      ...(raw ? (JSON.parse(raw) as Partial<Preferences>) : {}),
-    };
-  } catch {
-    return { ...DEFAULT_PREFERENCES };
-  }
-}
-
+/** The current exercise, as the session screen shows it. */
 export interface Snapshot {
   view: ViewMode;
   mode: ExerciseMode;
@@ -214,9 +51,10 @@ export interface Snapshot {
   angle: number | null;
   bodyDetected: boolean;
   findings: Finding[];
-  guidance: string[];
+  guidance: Guidance[];
 }
 
+/** The routine's progress, as the session screen shows it. */
 export interface RoutineSnapshot {
   steps: RoutineStep[];
   index: number;
@@ -228,6 +66,7 @@ export interface RoutineSnapshot {
   isSingle: boolean;
 }
 
+/** Totals for the Done screen. */
 export interface SessionSummary {
   results: StepResult[];
   totalReps: number;
@@ -236,26 +75,21 @@ export interface SessionSummary {
   streak: number;
 }
 
-export interface Diagnostics {
-  fps: number;
-  rawBlocked: string | null;
-  framesRecorded: number;
-}
-
-interface RecordedFrame {
-  t: number;
-  mode: ExerciseMode;
-  aspect: number;
-  landmarks: number[][];
-  world: number[][];
-}
-
 const CELEBRATION_MS = 3500;
-/** Recording stops by itself after this many frames (about one minute at 30 fps). */
-const MAX_RECORDED_FRAMES = 1800;
-const round = (n: number) => Math.round(n * 10000) / 10000;
 const FINISH_DELAY_MS = 2500;
+/** Milliseconds between developer panel updates, so it never slows the frame loop. */
+const INSPECTION_INTERVAL_MS = 100;
 
+/**
+ * Dev mode shows the frame inspection panel. It is on under the Vite dev
+ * server; elsewhere it is enabled by adding ?debug to the page URL.
+ */
+function devModeRequested(): boolean {
+  if (import.meta.env.DEV) return true;
+  return typeof window !== "undefined" && new URLSearchParams(window.location.search).has("debug");
+}
+
+/** The single object the screens talk to: state to show and actions to call. */
 export class CoachController {
   route = $state<Route>({ name: "home" });
   stage = $state<Stage>("onboarding");
@@ -272,44 +106,36 @@ export class CoachController {
   history = $state<SessionRecord[]>([]);
   showSkeleton = $state(false);
   recordSessions = $state(false);
-  recording = $state(false);
   name = $state("");
   onboarded = $state(false);
   cameraGranted = $state(false);
   plan = $state<RoutinePlan>(DAILY_ROUTINE);
   voiceCommands = $state(false);
-  listening = $state(false);
-  listenerProblem = $state<ListenerProblem | null>(null);
-  heard = $state<Command | null>(null);
-  heardText = $state("");
-  hearing = $state(false);
   confirmingEnd = $state(false);
   devMode = $state(devModeRequested());
   inspection = $state<FrameInspection | null>(null);
-  diagnostics = $state<Diagnostics>({
-    fps: 0,
-    rawBlocked: null,
-    framesRecorded: 0,
-  });
+
+  /** Spoken-command state for the voice status. */
+  readonly commands: VoiceCommands;
 
   private readonly events = new EventBus();
-  private readonly speaker = new ClipSpeaker(
-    import.meta.env.BASE_URL,
-    new WebSpeechSpeaker(),
-    secondsClock,
-  );
+  private readonly preferences = new PreferencesRepository(PREFERENCES_KEY);
+  private readonly plans = new PlanRepository(PLAN_KEY);
+  private readonly ranges = new LocalStorageRangeRepository(RANGES_KEY);
+  private readonly speaker = new ClipSpeaker(import.meta.env.BASE_URL, new WebSpeechSpeaker(), secondsClock);
   private readonly cues = new WebAudioCuePlayer();
-  private readonly listener = new CommandListener(
-    (guesses, final) => this.onHeard(guesses, final),
-    (problem) => {
-      this.listenerProblem = problem;
-      this.listening = false;
-    },
-    () => (this.listening = true),
-    (speaking) => (this.hearing = speaking),
-  );
-  private heardTimer: ReturnType<typeof setTimeout> | undefined;
-  private readonly echo = new EchoFilter();
+  private readonly camera = new CameraFeed();
+  private readonly recorder = new LandmarkRecorder(msg.APP_NAME, msg.RECORDING_FILENAME);
+  private readonly presence = new PresenceWatcher();
+  private readonly assistant: Assistant;
+  private readonly voiceReady: Promise<void>;
+  private readonly angle = new Smoothed(0.3);
+  private run: RoutineRun | null = null;
+  private lastCountdown = 0;
+  private lastInspection = 0;
+  private celebrationTimer: ReturnType<typeof setTimeout> | undefined;
+  private finishTimer: ReturnType<typeof setTimeout> | undefined;
+
   /** The speaker, plus a record of what was said so it is not heard back as a command. */
   private readonly voice: Speaker = {
     get enabled() {
@@ -317,152 +143,47 @@ export class CoachController {
     },
     say: (language, key, priority) => {
       const text = phraseText(SPEECH_CATALOGS[language], key);
-      if (text && this.speaker.enabled) this.echo.record(text, secondsClock());
+      if (text && this.speaker.enabled) this.commands.recordSpoken(text);
       this.speaker.say(language, key, priority);
     },
     stop: () => this.speaker.stop(),
   };
-  private lastSeenAt = -Infinity;
-  private seenSince: number | null = null;
-  private lastCountdown = 0;
-  private readonly repository = new LocalStorageRepository(STORAGE_KEY);
-  private readonly ranges = new LocalStorageRangeRepository(RANGES_KEY);
-  private readonly assistant: Assistant;
-  private readonly voiceReady: Promise<void>;
-  private readonly angle = new Smoothed(0.3);
-  private estimator: BrowserPoseEstimator | null = null;
-  private stream: MediaStream | null = null;
-  private frameHandle = 0;
-  private celebrationTimer: ReturnType<typeof setTimeout> | undefined;
-  private finishTimer: ReturnType<typeof setTimeout> | undefined;
-  private run: RoutineRun | null = null;
-  private recorded: RecordedFrame[] = [];
-  private canvas: HTMLCanvasElement | null = null;
 
   constructor() {
     this.assistant = new Assistant({
       posture: POSTURE,
       events: this.events,
-      repository: this.repository,
+      repository: new LocalStorageRepository(STORAGE_KEY),
       clock: secondsClock,
       ranges: this.ranges,
     });
+    this.commands = new VoiceCommands({
+      language: () => this.language,
+      onCommand: (command) => this.handleCommand(command),
+      describe: () => this.run?.phase,
+    });
     attachVoice(this.events, this.voice, () => this.language);
     attachCues(this.events, this.cues, secondsClock);
-    const prefs = loadPreferences();
-    this.plan = loadPlan();
-    this.textSize = prefs.textSize;
-    this.name = prefs.name;
-    this.onboarded = prefs.onboarded;
-    this.showSkeleton = prefs.showSkeleton;
-    this.recordSessions = prefs.recordSessions;
-    this.muted = prefs.muted;
-    this.speaker.enabled = !prefs.muted;
-    this.sounds = prefs.sounds;
-    this.voiceCommands = prefs.voiceCommands;
-    this.cues.enabled = prefs.sounds;
-    this.language = prefs.language;
-    this.voiceReady = this.speaker
-      .load()
-      .then(() => this.setLanguage(this.language));
+    this.applyPreferences(this.preferences.load());
+    this.plan = this.plans.load();
+    this.voiceReady = this.speaker.load().then(() => this.setLanguage(this.language));
     if (typeof window !== "undefined") {
       if ("speechSynthesis" in window) {
-        window.speechSynthesis.addEventListener("voiceschanged", () =>
-          this.setLanguage(this.language),
-        );
+        window.speechSynthesis.addEventListener("voiceschanged", () => this.setLanguage(this.language));
       }
       window.addEventListener("hashchange", () => this.onRouteChange());
-      document.addEventListener("visibilitychange", () =>
-        this.onPageShown(document.visibilityState === "visible"),
-      );
-      window.addEventListener("focus", () => this.onPageShown(true));
     }
     this.events.subscribe("goalReached", () => this.onGoalReached());
     this.refresh();
     this.onRouteChange();
-    void this.checkCameraPermission();
+    void cameraAlreadyAllowed().then((allowed) => {
+      if (allowed) this.cameraGranted = true;
+    });
   }
 
   /** Name used in greetings, falling back to a neutral word before setup. */
   get displayName(): string {
     return this.name.trim() || msg.DEFAULT_NAME;
-  }
-
-  setName(name: string): void {
-    this.name = name.trim().slice(0, 40);
-    this.savePreferences();
-  }
-
-  finishSetup(): void {
-    this.onboarded = true;
-    this.savePreferences();
-    this.navigate(href.home);
-  }
-
-  /** Replaces the daily plan and saves it on this device. */
-  updatePlan(plan: RoutinePlan): void {
-    this.plan = plan;
-    try {
-      localStorage.setItem(
-        PLAN_KEY,
-        JSON.stringify({ steps: plan.steps, restS: plan.restS }),
-      );
-    } catch {
-      return;
-    }
-  }
-
-  /** Goes back to the physiotherapist's plan. */
-  resetPlan(): void {
-    this.plan = DAILY_ROUTINE;
-    try {
-      localStorage.removeItem(PLAN_KEY);
-    } catch {
-      return;
-    }
-  }
-
-  setRecordSessions(on: boolean): void {
-    this.recordSessions = on;
-    this.savePreferences();
-  }
-
-  /**
-   * Asks for camera permission once during setup, then releases the camera.
-   *
-   * @returns True if access was granted.
-   */
-  async requestCameraAccess(): Promise<boolean> {
-    this.errorMessage = "";
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: false,
-      });
-      for (const track of stream.getTracks()) track.stop();
-      this.cameraGranted = true;
-      return true;
-    } catch {
-      this.errorMessage = msg.CAMERA_DENIED;
-      return false;
-    }
-  }
-
-  /** Moves from the "Next up" introduction to counting the exercise. */
-  beginExercise(): void {
-    this.run?.begin();
-    this.refresh();
-  }
-
-  private async checkCameraPermission(): Promise<void> {
-    try {
-      const status = await navigator.permissions?.query({
-        name: "camera" as PermissionName,
-      });
-      if (status?.state === "granted") this.cameraGranted = true;
-    } catch {
-      return;
-    }
   }
 
   /** Whether the camera can start without showing the setup sheet. */
@@ -479,55 +200,92 @@ export class CoachController {
     else window.location.hash = hash;
   }
 
-  async start(
-    video: HTMLVideoElement,
-    canvas: HTMLCanvasElement,
-  ): Promise<void> {
+  setName(name: string): void {
+    this.name = name.trim().slice(0, 40);
+    this.savePreferences();
+  }
+
+  finishSetup(): void {
+    this.onboarded = true;
+    this.savePreferences();
+    this.navigate(href.home);
+  }
+
+  /** Replaces the daily plan and saves it on this device. */
+  updatePlan(plan: RoutinePlan): void {
+    this.plan = plan;
+    this.plans.save(plan);
+  }
+
+  /** Goes back to the physiotherapist's plan. */
+  resetPlan(): void {
+    this.plan = DAILY_ROUTINE;
+    this.plans.clear();
+  }
+
+  /**
+   * Asks for camera permission once during setup, then releases the camera.
+   *
+   * Returns:
+   *   True if access was granted.
+   */
+  async requestCameraAccess(): Promise<boolean> {
+    this.errorMessage = "";
+    const granted = await requestCameraAccess();
+    if (granted) this.cameraGranted = true;
+    else this.errorMessage = msg.CAMERA_DENIED;
+    return granted;
+  }
+
+  /**
+   * Opens the camera and starts the workout for the current route.
+   *
+   * Args:
+   *   video: Where the camera is shown.
+   *   canvas: Where tracking lines are drawn.
+   */
+  async start(video: HTMLVideoElement, canvas: HTMLCanvasElement): Promise<void> {
     if (this.stage === "loading") return;
     this.stage = "loading";
     try {
-      this.stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 960 },
-          height: { ideal: 720 },
-          facingMode: "user",
-        },
-        audio: false,
-      });
-    } catch {
-      this.fail(msg.CAMERA_DENIED);
-      return;
-    }
-    video.srcObject = this.stream;
-    await video.play();
-    try {
-      this.estimator ??= await BrowserPoseEstimator.create();
-    } catch {
-      this.fail(msg.MODEL_FAILED);
+      await this.camera.open(video);
+    } catch (error) {
+      const reason = error instanceof CameraError ? error.reason : "camera";
+      this.fail(reason === "model" ? msg.MODEL_FAILED : msg.CAMERA_DENIED);
       return;
     }
     await this.voiceReady;
     this.cameraGranted = true;
     this.stage = "running";
+    this.camera.drawSkeleton = this.showSkeleton || this.devMode;
     this.beginWorkout();
-    this.startListening();
-    this.loop(video, canvas);
+    this.commands.activate();
+    this.camera.run(
+      video,
+      canvas,
+      () => this.tickRoutine(),
+      (detection, nowMs) => this.onFrame(detection, nowMs, video),
+    );
   }
 
+  /** Stops the camera, listening, recording and any speech. */
   stop(): void {
-    this.listener.stop();
-    this.listening = false;
-    this.hearing = false;
+    this.commands.deactivate();
     this.confirmingEnd = false;
-    this.finishRecording();
-    cancelAnimationFrame(this.frameHandle);
-    for (const track of this.stream?.getTracks() ?? []) track.stop();
-    this.stream = null;
+    this.recorder.stop();
+    this.camera.close();
     this.speaker.stop();
     clearTimeout(this.finishTimer);
     if (this.stage !== "error") this.stage = "onboarding";
   }
 
+  /** Moves from the "Next up" introduction to the countdown. */
+  beginExercise(): void {
+    this.run?.begin();
+    this.refresh();
+  }
+
+  /** Records the current exercise as partly done and moves on. */
   skipExercise(): void {
     if (this.run?.phase === "intro") this.run.begin();
     if (!this.run || !this.run.isActive) return;
@@ -540,57 +298,12 @@ export class CoachController {
     this.beginStep();
   }
 
-  endSession(): void {
-    this.confirmingEnd = false;
-    if (this.run) {
-      const before = this.run.results.length;
-      this.run.finish(this.assistant.counter.reps);
-      this.logResults(this.run.results.slice(before));
-      this.showSummary();
-    } else {
-      this.navigate(href.home);
-    }
-  }
-
-  toggleView(): void {
-    this.assistant.toggleView();
-    this.refresh();
-  }
-
-  setMuted(muted: boolean): void {
-    this.muted = muted;
-    this.speaker.enabled = !muted;
-    if (muted) this.speaker.stop();
-    this.savePreferences();
-  }
-
-  /** True when this browser can listen for spoken commands. */
-  get voiceCommandsSupported(): boolean {
-    return CommandListener.supported;
-  }
-
-  /** Turns spoken commands on or off; they only listen during a session. */
-  setVoiceCommands(on: boolean): void {
-    this.voiceCommands = on;
-    this.listenerProblem = null;
-    this.savePreferences();
-    if (this.stage === "running") {
-      if (on) this.startListening();
-      else {
-        this.listener.stop();
-        this.listening = false;
-        this.hearing = false;
-      }
-    }
-  }
-
   /** Pauses the current exercise from a button or spoken command. */
   pause(): void {
     if (!this.run) return;
     const before = this.run.phase;
     this.run.pause("user");
-    if (this.run.phase === "paused" && before !== "paused")
-      this.events.publish("sessionPaused", { reason: "user" });
+    if (this.run.phase === "paused" && before !== "paused") this.events.publish("sessionPaused", { reason: "user" });
     this.refresh();
   }
 
@@ -602,16 +315,45 @@ export class CoachController {
     this.refresh();
   }
 
+  /** Ends a single exercise straight away, or asks first during a routine. */
   requestEnd(): void {
-    if (this.run && !this.run.isSingle) {
-      this.confirmingEnd = true;
-      if (this.listening)
-        this.voice.say(this.language, PhraseKey.endConfirm, "interrupt");
-    } else this.endSession();
+    if (!this.run || this.run.isSingle) {
+      this.endSession();
+      return;
+    }
+    this.confirmingEnd = true;
+    if (this.commands.listening) this.voice.say(this.language, PhraseKey.endConfirm, "interrupt");
   }
 
   cancelEnd(): void {
     this.confirmingEnd = false;
+  }
+
+  /** Ends the session now, keeping progress on the current exercise. */
+  endSession(): void {
+    this.confirmingEnd = false;
+    if (!this.run) {
+      this.navigate(href.home);
+      return;
+    }
+    const before = this.run.results.length;
+    this.run.finish(this.assistant.counter.reps);
+    this.logResults(this.run.results.slice(before));
+    this.showSummary();
+  }
+
+  setMuted(muted: boolean): void {
+    this.muted = muted;
+    this.speaker.enabled = !muted;
+    if (muted) this.speaker.stop();
+    this.savePreferences();
+  }
+
+  /** Turns spoken commands on or off; they only listen during a session. */
+  setVoiceCommands(on: boolean): void {
+    this.voiceCommands = on;
+    this.commands.setEnabled(on);
+    this.savePreferences();
   }
 
   /** Turns the non-verbal sound cues on or off, playing one as a sample when turned on. */
@@ -630,54 +372,36 @@ export class CoachController {
     this.savePreferences();
   }
 
+  /** Switches the voice language and says a sample in it. */
   chooseLanguage(language: VoiceLanguage): void {
     this.setLanguage(language);
     this.voice.say(language, PhraseKey.selected, "interrupt");
   }
 
+  /**
+   * Switches the voice language without speaking.
+   *
+   * Args:
+   *   language: The language for speech and spoken commands.
+   */
   setLanguage(language: VoiceLanguage): void {
     this.language = language;
     this.speaker.preload(language);
-    this.voiceMissing =
-      !this.speaker.hasClips(language) && !this.hasSystemVoice(language);
+    this.voiceMissing = !this.speaker.hasClips(language) && !this.hasSystemVoice(language);
     this.savePreferences();
-    if (this.listening) this.startListening();
-  }
-
-  setDevMode(on: boolean): void {
-    this.devMode = on;
-    if (!on) this.inspection = null;
+    this.commands.restart();
   }
 
   setShowSkeleton(show: boolean): void {
     this.showSkeleton = show;
+    this.camera.drawSkeleton = show || this.devMode;
+    if (!this.camera.drawSkeleton) this.camera.clearOverlay();
     this.savePreferences();
-    if (!show && this.canvas)
-      this.canvas
-        .getContext("2d")
-        ?.clearRect(0, 0, this.canvas.width, this.canvas.height);
   }
 
-  /** Starts or stops recording landmark data (never video) for tuning; stopping downloads a JSON file. */
-  toggleRecording(): void {
-    if (!this.recording) {
-      this.recorded = [];
-      this.recording = true;
-      return;
-    }
-    this.recording = false;
-    const payload = {
-      app: msg.APP_NAME,
-      recordedAt: new Date().toISOString(),
-      frames: this.recorded,
-    };
-    downloadText(
-      msg.RECORDING_FILENAME,
-      JSON.stringify(payload),
-      "application/json",
-    );
-    this.recorded = [];
-    this.diagnostics = { ...this.diagnostics, framesRecorded: 0 };
+  setRecordSessions(on: boolean): void {
+    this.recordSessions = on;
+    this.savePreferences();
   }
 
   downloadHistory(): void {
@@ -694,10 +418,37 @@ export class CoachController {
     this.refresh();
   }
 
+  private applyPreferences(prefs: Preferences): void {
+    this.textSize = prefs.textSize;
+    this.name = prefs.name;
+    this.onboarded = prefs.onboarded;
+    this.showSkeleton = prefs.showSkeleton;
+    this.recordSessions = prefs.recordSessions;
+    this.muted = prefs.muted;
+    this.speaker.enabled = !prefs.muted;
+    this.sounds = prefs.sounds;
+    this.cues.enabled = prefs.sounds;
+    this.voiceCommands = prefs.voiceCommands;
+    this.commands.setEnabled(prefs.voiceCommands);
+    this.language = prefs.language;
+  }
+
+  private savePreferences(): void {
+    this.preferences.save({
+      textSize: this.textSize,
+      language: this.language,
+      muted: this.muted,
+      sounds: this.sounds,
+      voiceCommands: this.voiceCommands,
+      name: this.name,
+      onboarded: this.onboarded,
+      showSkeleton: this.showSkeleton,
+      recordSessions: this.recordSessions,
+    });
+  }
+
   private onRouteChange(): void {
-    const route = parseRoute(
-      typeof window === "undefined" ? "" : window.location.hash,
-    );
+    const route = parseRoute(typeof window === "undefined" ? "" : window.location.hash);
     if (!this.onboarded && route.name !== "setup") {
       this.navigate(href.setup("welcome"));
       return;
@@ -718,15 +469,12 @@ export class CoachController {
     if (route.name !== "workout") return;
     this.summary = null;
     this.celebrating = false;
-    const plan =
-      route.kind === "routine"
-        ? this.plan
-        : singleExercise(route.mode, route.target);
+    const plan = route.kind === "routine" ? this.plan : singleExercise(route.mode, route.target);
     this.run = new RoutineRun(plan, secondsClock);
+    this.presence.reset();
     this.cues.unlock();
-    if (this.recordSessions && !this.recording) this.toggleRecording();
-    if (!this.run.isSingle)
-      this.events.publish("routineStarted", { steps: plan.steps.length });
+    if (this.recordSessions) this.recorder.start();
+    if (!this.run.isSingle) this.events.publish("routineStarted", { steps: plan.steps.length });
     this.beginStep();
   }
 
@@ -734,10 +482,93 @@ export class CoachController {
     const step = this.run?.current;
     if (!step) return;
     this.celebrating = false;
+    this.lastCountdown = 0;
     this.assistant.setGoal(step.target);
     this.assistant.selectMode(step.mode);
     this.angle.update(null);
     this.refresh();
+  }
+
+  /** Runs on every animation frame: timed routine phases and the countdown voice. */
+  private tickRoutine(): void {
+    const run = this.run;
+    if (!run) return;
+    const before = run.phase;
+    if (run.tick()) this.beginStep();
+    if (run.phase === "countdown") {
+      const remaining = run.countdownRemainingS();
+      if (remaining > 0 && remaining !== this.lastCountdown) {
+        this.lastCountdown = remaining;
+        this.events.publish("countdownTick", { remaining });
+      }
+    } else if (before === "countdown" && run.phase === "exercise") {
+      this.lastCountdown = 0;
+      this.events.publish("countdownFinished", {});
+    }
+    this.refreshRoutine();
+  }
+
+  /** Runs on every new camera frame. */
+  private onFrame(detection: PoseDetection | null, nowMs: number, video: HTMLVideoElement): void {
+    if (detection && this.recorder.recording) {
+      const aspect = video.videoWidth / Math.max(1, video.videoHeight);
+      this.recorder.add(nowMs, this.assistant.mode, aspect, detection.landmarks, detection.world);
+    }
+    this.watchPresence(detection !== null);
+    if (!this.run || this.run.phase === "exercise") this.assistant.process(detection?.points ?? null);
+    if (this.devMode && nowMs - this.lastInspection >= INSPECTION_INTERVAL_MS) {
+      this.lastInspection = nowMs;
+      this.inspect(detection);
+    }
+    this.refresh();
+  }
+
+  private watchPresence(present: boolean): void {
+    const run = this.run;
+    if (!run) return;
+    const action = this.presence.observe(present, secondsClock(), run.phase, run.pauseReason);
+    if (action === "pause") {
+      run.pause("away");
+      this.events.publish("sessionPaused", { reason: "away" });
+    } else if (action === "resume") {
+      this.resume();
+    }
+  }
+
+  private inspect(detection: PoseDetection | null): void {
+    this.inspection = inspectFrame({
+      fps: this.camera.fps,
+      mode: this.assistant.mode,
+      goal: this.assistant.goal,
+      counter: this.assistant.counter,
+      rangeStatus: this.assistant.rangeStatus,
+      points: detection?.points ?? null,
+      visibility: (joint) => detection?.landmarks[LANDMARK_INDEX[joint]]?.visibility ?? null,
+      now: secondsClock(),
+    });
+  }
+
+  /**
+   * Applies a spoken command to whatever the session is doing right now.
+   *
+   * Returns:
+   *   False when there is no session to act on.
+   */
+  private handleCommand(command: Command): boolean {
+    if (!this.run) return false;
+    const actions: Record<CommandAction, () => void> = {
+      begin: () => this.beginExercise(),
+      skipExercise: () => this.skipExercise(),
+      skipRest: () => this.skipRest(),
+      pause: () => this.pause(),
+      resume: () => this.resume(),
+      requestEnd: () => this.requestEnd(),
+      confirmEnd: () => this.endSession(),
+      cancelEnd: () => this.cancelEnd(),
+      none: () => undefined,
+    };
+    actions[commandAction(command, this.run.phase, this.confirmingEnd)]();
+    return true;
   }
 
   private onGoalReached(): void {
@@ -759,8 +590,7 @@ export class CoachController {
 
   private logResults(results: StepResult[]): void {
     for (const result of results) {
-      if (result.reps > 0)
-        this.assistant.logExercise(result.mode, result.reps, result.durationS);
+      if (result.reps > 0) this.assistant.logExercise(result.mode, result.reps, result.durationS);
     }
   }
 
@@ -777,135 +607,10 @@ export class CoachController {
     this.navigate(href.summary);
   }
 
-  private hasSystemVoice(language: VoiceLanguage): boolean {
-    if (typeof window === "undefined" || !("speechSynthesis" in window))
-      return false;
-    const voices = window.speechSynthesis.getVoices();
-    return (
-      voices.length === 0 ||
-      pickVoice(voices, SPEECH_CATALOGS[language].bcp47) !== null
-    );
-  }
-
-  private savePreferences(): void {
-    try {
-      const prefs: Preferences = {
-        textSize: this.textSize,
-        language: this.language,
-        muted: this.muted,
-        sounds: this.sounds,
-        voiceCommands: this.voiceCommands,
-        name: this.name,
-        onboarded: this.onboarded,
-        showSkeleton: this.showSkeleton,
-        recordSessions: this.recordSessions,
-      };
-      localStorage.setItem(PREFERENCES_KEY, JSON.stringify(prefs));
-    } catch {
-      return;
-    }
-  }
-
-  private loop(video: HTMLVideoElement, canvas: HTMLCanvasElement): void {
-    let lastVideoTime = -1;
-    const styles = getComputedStyle(document.documentElement);
-    const skeleton = {
-      joint: styles.getPropertyValue("--skeleton-joint").trim(),
-      bone: styles.getPropertyValue("--skeleton-bone").trim(),
-    };
-    this.canvas = canvas;
-    let frames = 0;
-    let fpsWindowStart = performance.now();
-    let lastInspection = 0;
-    const tick = () => {
-      this.frameHandle = requestAnimationFrame(tick);
-      this.tickRoutine();
-      if (
-        !this.estimator ||
-        video.readyState < 2 ||
-        video.currentTime === lastVideoTime
-      ) {
-        this.refreshRoutine();
-        return;
-      }
-      lastVideoTime = video.currentTime;
-      if (canvas.width !== video.videoWidth) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-      }
-      const now = performance.now();
-      const detection = this.estimator.detect(video, now);
-      if (this.showSkeleton || this.devMode)
-        this.estimator.draw(canvas, detection, skeleton);
-      frames++;
-      if (now - fpsWindowStart >= 1000) {
-        this.diagnostics = {
-          ...this.diagnostics,
-          fps: Math.round((frames * 1000) / (now - fpsWindowStart)),
-        };
-        frames = 0;
-        fpsWindowStart = now;
-      }
-      if (this.recording && detection)
-        this.recordFrame(now, video, detection.landmarks, detection.world);
-      this.watchPresence(detection !== null, secondsClock());
-      if (!this.run || this.run.phase === "exercise")
-        this.assistant.process(detection?.points ?? null);
-      if (this.devMode && now - lastInspection >= INSPECTION_INTERVAL_MS) {
-        lastInspection = now;
-        this.inspection = inspectFrame({
-          fps: this.diagnostics.fps,
-          mode: this.assistant.mode,
-          goal: this.assistant.goal,
-          counter: this.assistant.counter,
-          rangeStatus: this.assistant.rangeStatus,
-          points: detection?.points ?? null,
-          visibility: (joint) =>
-            detection?.landmarks[LANDMARK_INDEX[joint]]?.visibility ?? null,
-          now: secondsClock(),
-        });
-      }
-      this.refresh();
-    };
-    tick();
-  }
-
-  private recordFrame(
-    t: number,
-    video: HTMLVideoElement,
-    landmarks: { x: number; y: number; z: number; visibility?: number }[],
-    world: { x: number; y: number; z: number }[],
-  ): void {
-    this.recorded.push({
-      t: round(t / 1000),
-      mode: this.assistant.mode,
-      aspect: round(video.videoWidth / Math.max(1, video.videoHeight)),
-      landmarks: landmarks.map((l) => [
-        round(l.x),
-        round(l.y),
-        round(l.z),
-        round(l.visibility ?? 0),
-      ]),
-      world: world.map((w) => [round(w.x), round(w.y), round(w.z)]),
-    });
-    this.diagnostics = {
-      ...this.diagnostics,
-      framesRecorded: this.recorded.length,
-    };
-    if (this.recorded.length >= MAX_RECORDED_FRAMES) this.toggleRecording();
-  }
-
-  private finishRecording(): void {
-    if (this.recording) this.toggleRecording();
-  }
-
   private celebrate(): void {
     this.celebrating = true;
     clearTimeout(this.celebrationTimer);
-    this.celebrationTimer = setTimeout(
-      () => (this.celebrating = false),
-      CELEBRATION_MS,
-    );
+    this.celebrationTimer = setTimeout(() => (this.celebrating = false), CELEBRATION_MS);
   }
 
   private fail(message: string): void {
@@ -914,124 +619,10 @@ export class CoachController {
     this.stage = "error";
   }
 
-  private tickRoutine(): void {
-    const run = this.run;
-    if (!run) return;
-    const before = run.phase;
-    if (run.tick()) {
-      this.lastCountdown = 0;
-      this.beginStep();
-    }
-    if (run.phase === "countdown") {
-      const remaining = run.countdownRemainingS();
-      if (remaining > 0 && remaining !== this.lastCountdown) {
-        this.lastCountdown = remaining;
-        this.events.publish("countdownTick", { remaining });
-      }
-    } else if (before === "countdown" && run.phase === "exercise") {
-      this.lastCountdown = 0;
-      this.events.publish("countdownFinished", {});
-    }
-  }
-
-  /**
-   * Pauses an exercise when nobody has been in view for a while, and carries
-   * on once the person has been back in view for a moment.
-   */
-  private watchPresence(present: boolean, now: number): void {
-    if (present) {
-      this.lastSeenAt = now;
-      this.seenSince ??= now;
-    } else {
-      this.seenSince = null;
-    }
-    const run = this.run;
-    if (!run) return;
-    if (run.phase === "exercise" && now - this.lastSeenAt >= AUTO_PAUSE_S) {
-      run.pause("away");
-      this.events.publish("sessionPaused", { reason: "away" });
-    } else if (
-      run.phase === "paused" &&
-      run.pauseReason === "away" &&
-      this.seenSince !== null &&
-      now - this.seenSince >= AUTO_RESUME_S
-    ) {
-      this.resume();
-    }
-  }
-
-  /**
-   * Chrome takes speech recognition away from hidden or background pages.
-   * Stop quietly when hidden, and listen again whenever the page is back in
-   * front, unless the microphone itself is the problem.
-   */
-  private onPageShown(visible: boolean): void {
-    if (!this.voiceCommands || this.stage !== "running") return;
-    if (!visible) {
-      this.listener.stop();
-      this.listening = false;
-      this.hearing = false;
-      return;
-    }
-    const permanent =
-      this.listenerProblem === "blocked" ||
-      this.listenerProblem === "no-microphone" ||
-      this.listenerProblem === "unavailable";
-    if (!permanent && (!this.listening || this.listenerProblem))
-      this.startListening();
-  }
-
-  private startListening(): void {
-    if (!this.voiceCommands || this.stage !== "running") return;
-    this.listenerProblem = null;
-    this.listening = false;
-    this.listener.start(SPEECH_CATALOGS[this.language].bcp47);
-  }
-
-  private onHeard(guesses: readonly string[], final: boolean): boolean {
-    const text = guesses[0]?.trim() ?? "";
-    const now = secondsClock();
-    if (!text || this.echo.isEcho(text, now)) return false;
-    const maxWords = final ? MAX_WORDS : MAX_INTERIM_WORDS;
-    const command =
-      guesses
-        .filter((guess) => !this.echo.isEcho(guess, now))
-        .map((guess) => parseCommand(guess, this.language, maxWords))
-        .find((found) => found !== null) ?? null;
-    if (final || command) {
-      console.info("[MoveWell voice]", {
-        heard: guesses,
-        final,
-        command,
-        phase: this.run?.phase,
-      });
-      this.heardText = text;
-      this.heard = command;
-      clearTimeout(this.heardTimer);
-      if (command)
-        this.heardTimer = setTimeout(() => (this.heard = null), HEARD_MS);
-    }
-    if (!command || !this.run) return false;
-    this.handleCommand(command);
-    return true;
-  }
-
-  /** Applies a spoken command to whatever the session is doing right now. */
-  private handleCommand(command: Command): void {
-    if (!this.run) return;
-    const action = commandAction(command, this.run.phase, this.confirmingEnd);
-    const actions: Record<CommandAction, () => void> = {
-      begin: () => this.beginExercise(),
-      skipExercise: () => this.skipExercise(),
-      skipRest: () => this.skipRest(),
-      pause: () => this.pause(),
-      resume: () => this.resume(),
-      requestEnd: () => this.requestEnd(),
-      confirmEnd: () => this.endSession(),
-      cancelEnd: () => this.cancelEnd(),
-      none: () => undefined,
-    };
-    actions[action]();
+  private hasSystemVoice(language: VoiceLanguage): boolean {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return false;
+    const voices = window.speechSynthesis.getVoices();
+    return voices.length === 0 || pickVoice(voices, SPEECH_CATALOGS[language].bcp47) !== null;
   }
 
   private refreshRoutine(): void {

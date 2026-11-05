@@ -2,8 +2,11 @@
   import type { WeekDay } from "../analysis/progress";
   import * as msg from "../messages";
 
-  let { days, onBand = false, showMinutes = false }: { days: WeekDay[]; onBand?: boolean; showMinutes?: boolean } =
-    $props();
+  let {
+    days,
+    onBand = false,
+    showMinutes = false,
+  }: { days: WeekDay[]; onBand?: boolean; showMinutes?: boolean } = $props();
 
   const short = (d: Date) => d.toLocaleDateString(undefined, { weekday: "narrow" });
   const long = (d: Date) => d.toLocaleDateString(undefined, { weekday: "long" });
@@ -23,13 +26,17 @@
         aria-hidden="true"
       >
         {#if day.done && showMinutes}
-          <svg class="draw" style:--i={i} viewBox="0 0 24 24" width="28" height="28"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+          <svg class="draw" style:--i={i} viewBox="0 0 24 24" width="28" height="28"
+            ><path d="M5 12.5l4.5 4.5L19 7.5" /></svg
+          >
         {:else if !showMinutes}
           {short(day.date)}
         {/if}
       </span>
       {#if showMinutes}
-        <span class="minutes" aria-hidden="true">{day.done ? msg.DAY_MINUTES(day.minutes) : day.isFuture ? "" : "–"}</span>
+        <span class="minutes" aria-hidden="true"
+          >{day.isFuture ? "" : msg.DAY_MINUTES(day.done ? day.minutes : 0)}</span
+        >
       {/if}
     </li>
   {/each}

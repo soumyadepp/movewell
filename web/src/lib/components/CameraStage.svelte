@@ -10,7 +10,7 @@
   }: { video?: HTMLVideoElement; canvas?: HTMLCanvasElement; showHint: boolean; children?: Snippet } = $props();
 </script>
 
-<figure class="stage" aria-label="Live camera">
+<figure class="stage" aria-label={msg.LIVE_CAMERA}>
   <div class="mirror">
     <video bind:this={video} playsinline muted></video>
     <canvas bind:this={canvas}></canvas>

@@ -16,6 +16,16 @@ export class Debounced<T> {
     this.candidate = value;
   }
 
+  /**
+   * Offers a new value, which is accepted once it has held for the hold time.
+   *
+   * Args:
+   *   next: The latest value.
+   *   now: Clock time in seconds.
+   *
+   * Returns:
+   *   The stable value.
+   */
   update(next: T, now: number): T {
     if (this.equals(next, this.value)) {
       this.candidate = next;
@@ -42,6 +52,15 @@ export class Smoothed {
 
   constructor(private readonly alpha: number) {}
 
+  /**
+   * Blends in a new value, or resets on null.
+   *
+   * Args:
+   *   next: The latest value, or null to reset.
+   *
+   * Returns:
+   *   The smoothed value, or null after a reset.
+   */
   update(next: number | null): number | null {
     if (next === null) {
       this.current = null;

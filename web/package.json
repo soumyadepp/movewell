@@ -10,12 +10,16 @@
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
     "test": "vitest run",
     "voice:generate": "vite-node scripts/generate-voice.ts",
-    "handwriting:generate": "vite-node scripts/generate-handwriting.ts"
+    "handwriting:generate": "vite-node scripts/generate-handwriting.ts",
+    "format": "prettier --write src scripts",
+    "format:check": "prettier --check src scripts"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^5.0.3",
     "@tsconfig/svelte": "^5.0.4",
     "hersheytext": "^2.0.0",
+    "prettier": "^3.6.2",
+    "prettier-plugin-svelte": "^3.4.0",
     "svelte": "^5.28.1",
     "svelte-check": "^4.1.6",
     "typescript": "~5.8.3",

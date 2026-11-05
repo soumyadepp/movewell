@@ -1,3 +1,5 @@
+"""Tests for counting marching in place."""
+
 import math
 
 from physio_assistant.domain.models import BodyPoints, ExerciseMode, Joint
@@ -5,6 +7,14 @@ from tests.poses import facing_3d, knees_at, reps, side_standing
 
 
 def _knee_lifted(degrees: float) -> BodyPoints:
+    """Builds a side-on pose with the right knee lifted forward.
+
+    Args:
+        degrees: Thigh angle from vertical.
+
+    Returns:
+        The body points.
+    """
     points = dict(side_standing().points)
     rad = math.radians(degrees)
     knee = (490 + 130 * math.sin(rad), 400 + 130 * math.cos(rad))

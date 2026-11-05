@@ -47,7 +47,14 @@ class Quit:
     """Stops the frame loop."""
 
     def execute(self, assistant: Assistant) -> bool:
-        """Signals the loop to exit."""
+        """Signals the loop to exit.
+
+        Args:
+            assistant: Application service to act on.
+
+        Returns:
+            Always False, so the app quits.
+        """
         return False
 
 
@@ -55,7 +62,14 @@ class ToggleView:
     """Switches between front and side view."""
 
     def execute(self, assistant: Assistant) -> bool:
-        """Toggles the view."""
+        """Toggles the view.
+
+        Args:
+            assistant: Application service to act on.
+
+        Returns:
+            Always True.
+        """
         assistant.toggle_view()
         return True
 
@@ -71,7 +85,14 @@ class SelectMode:
     mode: ExerciseMode
 
     def execute(self, assistant: Assistant) -> bool:
-        """Selects the mode."""
+        """Selects the mode.
+
+        Args:
+            assistant: Application service to act on.
+
+        Returns:
+            Always True.
+        """
         assistant.select_mode(self.mode)
         return True
 
@@ -80,7 +101,14 @@ class ToggleTimer:
     """Starts or pauses the session timer."""
 
     def execute(self, assistant: Assistant) -> bool:
-        """Toggles the timer."""
+        """Toggles the timer.
+
+        Args:
+            assistant: Application service to act on.
+
+        Returns:
+            Always True.
+        """
         assistant.toggle_timer()
         return True
 
@@ -89,7 +117,14 @@ class SaveSession:
     """Saves a session summary."""
 
     def execute(self, assistant: Assistant) -> bool:
-        """Saves the session."""
+        """Saves the session.
+
+        Args:
+            assistant: Application service to act on.
+
+        Returns:
+            Always True.
+        """
         assistant.save_session()
         return True
 
@@ -98,7 +133,14 @@ class ShowHelp:
     """Prints the controls to the terminal."""
 
     def execute(self, assistant: Assistant) -> bool:
-        """Prints help."""
+        """Prints help.
+
+        Args:
+            assistant: Application service to act on.
+
+        Returns:
+            Always True.
+        """
         modes = "\n".join(f"{i}: {mode_label(mode)}" for i, mode in enumerate(MODE_ORDER, start=1))
         print(messages.HELP_TEXT.format(modes=modes))
         return True

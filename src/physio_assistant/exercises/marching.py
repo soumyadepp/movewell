@@ -49,6 +49,16 @@ class Marching:
         """
 
         def flexion(shoulder: Joint, hip: Joint, knee: Joint) -> float | None:
+            """Returns how far one thigh is lifted forward from the trunk line.
+
+            Args:
+                shoulder: Shoulder on the measured side.
+                hip: Hip on the measured side (vertex).
+                knee: Knee on the measured side.
+
+            Returns:
+                Hip flexion in degrees, or None if a joint is not visible.
+            """
             angle = joint_angle_3d(points, shoulder, hip, knee)
             return None if angle is None else 180.0 - angle
 

@@ -1,3 +1,5 @@
+"""Tests for counting elbow curls."""
+
 from physio_assistant.domain.models import BodyPoints, ExerciseMode, Joint
 from tests.poses import body, curled, hold, reps
 
@@ -62,6 +64,14 @@ def test_curl_toward_camera_counts_in_3d(counter_for):
     }
 
     def pose(bent: bool) -> BodyPoints:
+        """Builds the 3-D arm pose with the forearm bent toward the camera or hanging.
+
+        Args:
+            bent: Whether the elbow is flexed.
+
+        Returns:
+            The body points.
+        """
         wrist = (-0.2, -0.2, -0.26) if bent else (-0.2, 0.08, 0.0)
         world = {
             Joint.LEFT_SHOULDER: (-0.18, -0.45, 0.0),

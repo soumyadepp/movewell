@@ -9,9 +9,7 @@
 
 interface RecognitionResultEvent {
   readonly resultIndex: number;
-  readonly results: ArrayLike<
-    ArrayLike<{ readonly transcript: string }> & { readonly isFinal: boolean }
-  >;
+  readonly results: ArrayLike<ArrayLike<{ readonly transcript: string }> & { readonly isFinal: boolean }>;
 }
 
 interface Recognition {
@@ -64,24 +62,16 @@ function recognitionClass(): RecognitionConstructor | null {
  * busy: something else in the browser keeps taking the speech recogniser.
  * other-tab: another MoveWell tab started listening, so this one stopped.
  */
-export type ListenerProblem =
-  | "busy"
-  | "other-tab"
-  | "blocked"
-  | "no-microphone"
-  | "network"
-  | "unavailable";
+export type ListenerProblem = "busy" | "other-tab" | "blocked" | "no-microphone" | "network" | "unavailable";
 
 /**
  * Called with the recogniser's guesses for each phrase, best first, final or
  * still in progress. Returns true when it acted on it, so the same utterance
  * is never acted on twice.
  */
-export type HeardHandler = (
-  guesses: readonly string[],
-  final: boolean,
-) => boolean;
+export type HeardHandler = (guesses: readonly string[], final: boolean) => boolean;
 
+/** Keeps the browser's speech recognition running and reports what it hears. */
 export class CommandListener {
   private recognition: Recognition | null = null;
   private wanted = false;
@@ -92,9 +82,7 @@ export class CommandListener {
   private quickAborts = 0;
   private readonly id = Math.random().toString(36).slice(2);
   private readonly channel: BroadcastChannel | null =
-    typeof BroadcastChannel === "undefined"
-      ? null
-      : new BroadcastChannel(CHANNEL);
+    typeof BroadcastChannel === "undefined" ? null : new BroadcastChannel(CHANNEL);
 
   constructor(
     private readonly onHeard: HeardHandler,
@@ -102,15 +90,12 @@ export class CommandListener {
     private readonly onStarted: () => void = () => undefined,
     private readonly onSpeech: (speaking: boolean) => void = () => undefined,
   ) {
-    this.channel?.addEventListener(
-      "message",
-      (event: MessageEvent<{ claim?: string }>) => {
-        if (event.data?.claim && event.data.claim !== this.id && this.wanted) {
-          this.stop();
-          this.onProblem("other-tab");
-        }
-      },
-    );
+    this.channel?.addEventListener("message", (event: MessageEvent<{ claim?: string }>) => {
+      if (event.data?.claim && event.data.claim !== this.id && this.wanted) {
+        this.stop();
+        this.onProblem("other-tab");
+      }
+    });
   }
 
   /** True when this browser can recognise speech at all. */
@@ -135,6 +120,16 @@ export class CommandListener {
     this.networkRetries = 0;
     this.quickAborts = 0;
     this.channel?.postMessage({ claim: this.id });
+    this.recognition = this.create(Recognition, bcp47);
+    try {
+      this.recognition.start();
+    } catch {
+      this.onProblem("unavailable");
+    }
+  }
+
+  /** Builds a recognition session wired to this listener's handlers. */
+  private create(Recognition: RecognitionConstructor, bcp47: string): Recognition {
     const recognition = new Recognition();
     recognition.lang = bcp47;
     recognition.continuous = true;
@@ -147,45 +142,41 @@ export class CommandListener {
       this.handled = new Set();
       this.onStarted();
     };
-    recognition.onresult = (event) => {
-      this.networkRetries = 0;
-      this.quickAborts = 0;
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        if (this.handled.has(i)) continue;
-        const result = event.results[i];
-        const guesses = Array.from(
-          { length: result.length },
-          (_, k) => result[k].transcript,
-        );
-        if (this.onHeard(guesses, result.isFinal)) this.handled.add(i);
-      }
-    };
+    recognition.onresult = (event) => this.onResult(event);
     recognition.onerror = (event) => this.onError(event.error);
-    recognition.onend = () => {
-      this.onSpeech(false);
-      if (!this.wanted) return;
-      if (Date.now() - this.startedAt > HEALTHY_SESSION_MS)
-        this.quickAborts = 0;
-      const delay =
-        this.networkRetries > 0
-          ? NETWORK_RETRY_MS
-          : Math.min(MAX_BACKOFF_MS, RESTART_DELAY_MS * 2 ** this.quickAborts);
-      this.restartTimer = setTimeout(() => {
-        try {
-          if (this.wanted) recognition.start();
-        } catch {
-          return;
-        }
-      }, delay);
-    };
-    this.recognition = recognition;
-    try {
-      recognition.start();
-    } catch {
-      this.onProblem("unavailable");
+    recognition.onend = () => this.onEnd(recognition);
+    return recognition;
+  }
+
+  /** Passes each phrase's guesses on, skipping phrases already acted on. */
+  private onResult(event: RecognitionResultEvent): void {
+    this.networkRetries = 0;
+    this.quickAborts = 0;
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      if (this.handled.has(i)) continue;
+      const result = event.results[i];
+      const guesses = Array.from({ length: result.length }, (_, k) => result[k].transcript);
+      if (this.onHeard(guesses, result.isFinal)) this.handled.add(i);
     }
   }
 
+  /** Restarts after Chrome ends a session, backing off if sessions keep being cut short. */
+  private onEnd(recognition: Recognition): void {
+    this.onSpeech(false);
+    if (!this.wanted) return;
+    if (Date.now() - this.startedAt > HEALTHY_SESSION_MS) this.quickAborts = 0;
+    const backoff = Math.min(MAX_BACKOFF_MS, RESTART_DELAY_MS * 2 ** this.quickAborts);
+    const delay = this.networkRetries > 0 ? NETWORK_RETRY_MS : backoff;
+    this.restartTimer = setTimeout(() => {
+      try {
+        if (this.wanted) recognition.start();
+      } catch {
+        return;
+      }
+    }, delay);
+  }
+
+  /** Stops listening and detaches the old recognition session, so its late events are ignored. */
   stop(): void {
     this.wanted = false;
     clearTimeout(this.restartTimer);
@@ -220,8 +211,7 @@ export class CommandListener {
       return;
     }
     this.wanted = false;
-    if (error === "not-allowed" || error === "service-not-allowed")
-      this.onProblem("blocked");
+    if (error === "not-allowed" || error === "service-not-allowed") this.onProblem("blocked");
     else if (error === "audio-capture") this.onProblem("no-microphone");
     else this.onProblem("unavailable");
   }

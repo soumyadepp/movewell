@@ -41,5 +41,9 @@ def get_exercise(mode: ExerciseMode) -> Exercise:
 
 
 def counted_modes() -> tuple[ExerciseMode, ...]:
-    """Returns the modes of all counted exercises in display order."""
+    """Returns the modes of all counted exercises.
+
+    Returns:
+        Modes in display order.
+    """
     return tuple(exercise.mode for exercise in EXERCISES)
