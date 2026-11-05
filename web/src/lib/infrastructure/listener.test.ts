@@ -36,7 +36,7 @@ class FakeRecognition {
   say(transcript: string, isFinal = true) {
     this.onresult?.({
       resultIndex: 0,
-      results: [{ isFinal, 0: { transcript } }],
+      results: [{ isFinal, length: 1, 0: { transcript } }],
     });
   }
 
@@ -57,8 +57,8 @@ function setup() {
   const heard: string[] = [];
   const problems: ListenerProblem[] = [];
   const listener = new CommandListener(
-    (text) => {
-      heard.push(text);
+    (guesses) => {
+      heard.push(guesses[0]);
       return true;
     },
     (problem) => problems.push(problem),

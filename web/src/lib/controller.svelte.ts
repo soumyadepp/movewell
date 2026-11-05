@@ -300,7 +300,7 @@ export class CoachController {
   );
   private readonly cues = new WebAudioCuePlayer();
   private readonly listener = new CommandListener(
-    (transcript, final) => this.onHeard(transcript, final),
+    (guesses, final) => this.onHeard(guesses, final),
     (problem) => {
       this.listenerProblem = problem;
       this.listening = false;
@@ -603,8 +603,11 @@ export class CoachController {
   }
 
   requestEnd(): void {
-    if (this.run && !this.run.isSingle) this.confirmingEnd = true;
-    else this.endSession();
+    if (this.run && !this.run.isSingle) {
+      this.confirmingEnd = true;
+      if (this.listening)
+        this.voice.say(this.language, PhraseKey.endConfirm, "interrupt");
+    } else this.endSession();
   }
 
   cancelEnd(): void {
@@ -985,22 +988,28 @@ export class CoachController {
     this.listener.start(SPEECH_CATALOGS[this.language].bcp47);
   }
 
-  private onHeard(transcript: string, final: boolean): boolean {
-    const text = transcript.trim();
-    if (!text || this.echo.isEcho(text, secondsClock())) return false;
-    const command = parseCommand(
-      text,
-      this.language,
-      final ? MAX_WORDS : MAX_INTERIM_WORDS,
-    );
+  private onHeard(guesses: readonly string[], final: boolean): boolean {
+    const text = guesses[0]?.trim() ?? "";
+    const now = secondsClock();
+    if (!text || this.echo.isEcho(text, now)) return false;
+    const maxWords = final ? MAX_WORDS : MAX_INTERIM_WORDS;
+    const command =
+      guesses
+        .filter((guess) => !this.echo.isEcho(guess, now))
+        .map((guess) => parseCommand(guess, this.language, maxWords))
+        .find((found) => found !== null) ?? null;
     if (final || command) {
+      console.info("[MoveWell voice]", {
+        heard: guesses,
+        final,
+        command,
+        phase: this.run?.phase,
+      });
       this.heardText = text;
       this.heard = command;
       clearTimeout(this.heardTimer);
-      this.heardTimer = setTimeout(() => {
-        this.heard = null;
-        this.heardText = "";
-      }, HEARD_MS);
+      if (command)
+        this.heardTimer = setTimeout(() => (this.heard = null), HEARD_MS);
     }
     if (!command || !this.run) return false;
     this.handleCommand(command);

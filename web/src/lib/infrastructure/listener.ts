@@ -9,10 +9,9 @@
 
 interface RecognitionResultEvent {
   readonly resultIndex: number;
-  readonly results: ArrayLike<{
-    readonly isFinal: boolean;
-    readonly 0: { readonly transcript: string };
-  }>;
+  readonly results: ArrayLike<
+    ArrayLike<{ readonly transcript: string }> & { readonly isFinal: boolean }
+  >;
 }
 
 interface Recognition {
@@ -34,6 +33,8 @@ interface Recognition {
 type RecognitionConstructor = new () => Recognition;
 
 const RESTART_DELAY_MS = 250;
+/** Guesses asked for per phrase; a command in any of them counts, which absorbs mishearings. */
+const ALTERNATIVES = 5;
 const NETWORK_RETRY_MS = 3000;
 const MAX_NETWORK_RETRIES = 3;
 /** A session aborted sooner than this was taken over by another recogniser. */
@@ -72,10 +73,14 @@ export type ListenerProblem =
   | "unavailable";
 
 /**
- * Called with each transcript, final or still in progress. Returns true when
- * it acted on it, so the same utterance is never acted on twice.
+ * Called with the recogniser's guesses for each phrase, best first, final or
+ * still in progress. Returns true when it acted on it, so the same utterance
+ * is never acted on twice.
  */
-export type HeardHandler = (transcript: string, final: boolean) => boolean;
+export type HeardHandler = (
+  guesses: readonly string[],
+  final: boolean,
+) => boolean;
 
 export class CommandListener {
   private recognition: Recognition | null = null;
@@ -134,7 +139,7 @@ export class CommandListener {
     recognition.lang = bcp47;
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.maxAlternatives = 1;
+    recognition.maxAlternatives = ALTERNATIVES;
     recognition.onspeechstart = () => this.onSpeech(true);
     recognition.onspeechend = () => this.onSpeech(false);
     recognition.onstart = () => {
@@ -148,8 +153,11 @@ export class CommandListener {
       for (let i = event.resultIndex; i < event.results.length; i++) {
         if (this.handled.has(i)) continue;
         const result = event.results[i];
-        if (this.onHeard(result[0].transcript, result.isFinal))
-          this.handled.add(i);
+        const guesses = Array.from(
+          { length: result.length },
+          (_, k) => result[k].transcript,
+        );
+        if (this.onHeard(guesses, result.isFinal)) this.handled.add(i);
       }
     };
     recognition.onerror = (event) => this.onError(event.error);

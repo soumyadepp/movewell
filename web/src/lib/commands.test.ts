@@ -23,6 +23,14 @@ describe("voice commands", () => {
     expect(parseCommand("next one please", "en")).toBe("next");
   });
 
+  it("understands how Chrome often mishears end and pause", () => {
+    expect(parseCommand("and session", "en")).toBe("end");
+    expect(parseCommand("in session", "en")).toBe("end");
+    expect(parseCommand("stop the session", "en")).toBe("end");
+    expect(parseCommand("pass", "en")).toBe("pause");
+    expect(parseCommand("pauses", "en")).toBe("pause");
+  });
+
   it("prefers the longer phrase when one contains another", () => {
     expect(parseCommand("start again", "en")).toBe("resume");
     expect(parseCommand("go on", "en")).toBe("resume");

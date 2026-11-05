@@ -32,6 +32,7 @@ export interface SpeechCatalog {
   readonly routineComplete: string;
   readonly pausedAway: string;
   readonly pausedUser: string;
+  readonly endConfirm: string;
   readonly corrections: Record<FindingId, string>;
 }
 
@@ -90,6 +91,7 @@ const en: SpeechCatalog = {
   routineComplete: "Routine complete. Great work today!",
   pausedAway: "Paused. Step back into the camera's view.",
   pausedUser: "Paused. Take your time.",
+  endConfirm: "Do you want to stop for today?",
   corrections: {
     shoulder_height:
       "Stand comfortably; avoid deliberately forcing one shoulder down.",
@@ -129,6 +131,7 @@ const hi: SpeechCatalog = {
   routineComplete: "आज की कसरत पूरी हो गई। बहुत बढ़िया!",
   pausedAway: "रुक गए हैं। कैमरे के सामने आइए।",
   pausedUser: "रुक गए हैं। आराम से।",
+  endConfirm: "क्या आज के लिए यहीं रुकना है?",
   corrections: {
     shoulder_height: "आराम से खड़े रहिए; एक कंधे को जानबूझकर नीचे मत दबाइए।",
     hip_height: "दोनों पैरों पर बराबर वज़न रखकर सहज रूप से खड़े रहिए।",
@@ -165,6 +168,7 @@ export const PhraseKey = {
   routineComplete: "routine_complete",
   pausedAway: "paused_away",
   pausedUser: "paused_user",
+  endConfirm: "end_confirm",
   count: (total: number) => `count_${total}`,
   view: (view: ViewMode) => `view_${slug(view)}`,
   mode: (mode: ExerciseMode) => `mode_${slug(mode)}`,
@@ -184,6 +188,7 @@ export function phraseTable(catalog: SpeechCatalog): Map<string, string> {
     [PhraseKey.routineComplete, catalog.routineComplete],
     [PhraseKey.pausedAway, catalog.pausedAway],
     [PhraseKey.pausedUser, catalog.pausedUser],
+    [PhraseKey.endConfirm, catalog.endConfirm],
   ]);
   for (const view of Object.values(ViewMode))
     table.set(PhraseKey.view(view), catalog.view[view]);

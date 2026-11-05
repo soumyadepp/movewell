@@ -40,6 +40,9 @@ const PHRASES: Record<VoiceLanguage, Record<Command, readonly string[]>> = {
       "pose",
       "pours",
       "pores",
+      "pass",
+      "pauses",
+      "wait please",
     ],
     resume: [
       "carry on",
@@ -56,8 +59,16 @@ const PHRASES: Record<VoiceLanguage, Record<Command, readonly string[]>> = {
       "end",
       "end the session",
       "end now",
+      "end it",
+      "and session",
+      "in session",
+      "and the session",
+      "stop session",
+      "stop the session",
       "finish",
+      "finished",
       "i'm done",
+      "i am done",
       "quit",
     ],
     yes: ["yes", "yeah", "okay", "ok"],
@@ -86,13 +97,17 @@ const PHRASES: Record<VoiceLanguage, Record<Command, readonly string[]>> = {
       "कैरी ऑन",
       "कंटिन्यू",
     ],
-    end: ["बस", "खत्म", "खत्म करो", "समाप्त", "एंड", "फिनिश"],
+    end: ["बस", "खत्म", "खत्म करो", "समाप्त", "एंड", "फिनिश", "एंड सेशन"],
     yes: ["हाँ", "हां", "जी हाँ", "ठीक है", "यस", "ओके"],
     no: ["नहीं", "रहने दो", "नो"],
   },
 };
 
-/** Commands that move the session win over a bare yes or no in the same utterance. */
+/**
+ * The longest matching phrase wins, so "stop the session" ends rather than
+ * pauses. Between phrases of the same length, commands that move the session
+ * win over a bare yes or no.
+ */
 const PRIORITY: readonly Command[] = [
   "pause",
   "end",
@@ -110,7 +125,6 @@ const FILLERS = new Set([
   "the",
   "now",
   "just",
-  "and",
   "oh",
 ]);
 
@@ -152,19 +166,21 @@ export function parseCommand(
   const meaningful = words.filter((w) => !FILLERS.has(w));
   const tables =
     language === "en" ? [PHRASES.en] : [PHRASES[language], PHRASES.en];
+  let best: { command: Command; length: number } | null = null;
   for (const command of PRIORITY) {
     for (const table of tables) {
       for (const phrase of table[command]) {
         const phraseWords = normalize(phrase).split(" ");
-        if (
+        const found =
           containsPhrase(words, phraseWords) ||
-          containsPhrase(meaningful, phraseWords)
-        )
-          return command;
+          containsPhrase(meaningful, phraseWords);
+        if (found && (!best || phraseWords.length > best.length)) {
+          best = { command, length: phraseWords.length };
+        }
       }
     }
   }
-  return null;
+  return best?.command ?? null;
 }
 
 /** The main phrases to show on screen, one per command, in the given language. */
