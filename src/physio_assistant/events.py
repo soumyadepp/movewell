@@ -41,8 +41,6 @@ class BodyLost:
 class AnnouncementKind(StrEnum):
     """What a user action changed, as a code the voice layer turns into speech."""
 
-    VIEW_SELECTED = "view_selected"
-    MODE_SELECTED = "mode_selected"
     TIMER_STARTED = "timer_started"
     TIMER_PAUSED = "timer_paused"
     SESSION_SAVED = "session_saved"
@@ -53,15 +51,12 @@ class Announcement:
     """A user action produced something that should be spoken.
 
     Attributes:
-        kind: What happened.
-        view: The newly selected view, for ``VIEW_SELECTED``.
-        mode: The newly selected mode, for ``MODE_SELECTED``.
+        subject: What to announce: a newly selected view or exercise mode, or
+            one of the fixed announcements.
         force: Whether to bypass the speech cooldown.
     """
 
-    kind: AnnouncementKind
-    view: ViewMode | None = None
-    mode: ExerciseMode | None = None
+    subject: ViewMode | ExerciseMode | AnnouncementKind
     force: bool = True
 
 

@@ -1,7 +1,7 @@
 """Tests for counting elbow curls."""
 
 from physio_assistant.domain.models import BodyPoints, ExerciseMode, Joint
-from tests.poses import body, curled, hold, reps
+from tests.poses import at, body, curled, hold, reps
 
 
 def test_counts_curls_with_upper_arm_by_side(counter_for):
@@ -52,7 +52,7 @@ def test_curl_toward_camera_counts_in_3d(counter_for):
     counter, clock, _ = counter_for(ExerciseMode.ELBOW_CURL)
     flat = body()
     image = {
-        j: flat.get(j)
+        j: at(flat, j)
         for j in (
             Joint.LEFT_SHOULDER,
             Joint.RIGHT_SHOULDER,
@@ -73,7 +73,7 @@ def test_curl_toward_camera_counts_in_3d(counter_for):
             The body points.
         """
         wrist = (-0.2, -0.2, -0.26) if bent else (-0.2, 0.08, 0.0)
-        world = {
+        world: dict[Joint, tuple[float, float, float]] = {
             Joint.LEFT_SHOULDER: (-0.18, -0.45, 0.0),
             Joint.LEFT_ELBOW: (-0.2, -0.17, 0.0),
             Joint.LEFT_WRIST: wrist,

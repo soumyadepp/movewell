@@ -6,6 +6,7 @@ import cv2
 import numpy as np
 
 from physio_assistant.config import CameraConfig
+from physio_assistant.infrastructure.frames import Frame
 
 
 class CameraUnavailableError(RuntimeError):
@@ -59,7 +60,7 @@ class Webcam:
             self._capture.release()
             self._capture = None
 
-    def read(self) -> np.ndarray | None:
+    def read(self) -> Frame | None:
         """Reads the next frame, mirrored if configured.
 
         Returns:
@@ -70,4 +71,5 @@ class Webcam:
         ok, frame = self._capture.read()
         if not ok:
             return None
-        return cv2.flip(frame, 1) if self._config.mirror else frame
+        image = cv2.flip(frame, 1) if self._config.mirror else frame
+        return np.asarray(image, dtype=np.uint8)

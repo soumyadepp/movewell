@@ -1,8 +1,41 @@
 """Builders for synthetic body poses in pixel coordinates."""
 
 import math
+from collections.abc import Callable
+from typing import Protocol
 
+from physio_assistant.analysis.counting import Counter
 from physio_assistant.domain.models import BodyPoints, Joint, Point
+
+
+class AdvancingClock(Protocol):
+    """A test clock that can be moved forward."""
+
+    def advance(self, seconds: float) -> None:
+        """Moves time forward.
+
+        Args:
+            seconds: How far to move.
+        """
+        ...
+
+
+def at(points: BodyPoints, joint: Joint) -> Point:
+    """Returns a joint that a test pose is known to contain.
+
+    Args:
+        points: The pose.
+        joint: The joint to read.
+
+    Returns:
+        The joint's position.
+
+    Raises:
+        AssertionError: If the pose does not contain the joint.
+    """
+    point = points.get(joint)
+    assert point is not None, f"{joint} missing from test pose"
+    return point
 
 
 def upright_front() -> dict[Joint, Point]:
@@ -105,7 +138,13 @@ def knees_at(angle_deg: float) -> BodyPoints:
     return BodyPoints(points)
 
 
-def hold(update, points: BodyPoints, clock, seconds: float = 0.5, fps: int = 30) -> None:
+def hold(
+    update: Callable[[BodyPoints], object],
+    points: BodyPoints,
+    clock: AdvancingClock,
+    seconds: float = 0.5,
+    fps: int = 30,
+) -> None:
     """Feeds the same pose for ``seconds`` at ``fps`` frames per second.
 
     Args:
@@ -120,7 +159,9 @@ def hold(update, points: BodyPoints, clock, seconds: float = 0.5, fps: int = 30)
         clock.advance(1 / fps)
 
 
-def reps(counter, clock, low: BodyPoints, high: BodyPoints, cycles: int = 1) -> int:
+def reps(
+    counter: Counter, clock: AdvancingClock, low: BodyPoints, high: BodyPoints, cycles: int = 1
+) -> int:
     """Holds ``low`` then ``high`` for ``cycles`` repetitions.
 
     Args:
@@ -163,10 +204,10 @@ def one_arm_up(degrees: float) -> BodyPoints:
     """
     raised, down = arms_at(degrees), arms_at(5)
     points = dict(upright_front())
-    points[Joint.LEFT_ELBOW] = raised.get(Joint.LEFT_ELBOW)
-    points[Joint.LEFT_HIP] = raised.get(Joint.LEFT_HIP)
-    points[Joint.RIGHT_ELBOW] = down.get(Joint.RIGHT_ELBOW)
-    points[Joint.RIGHT_HIP] = down.get(Joint.RIGHT_HIP)
+    points[Joint.LEFT_ELBOW] = at(raised, Joint.LEFT_ELBOW)
+    points[Joint.LEFT_HIP] = at(raised, Joint.LEFT_HIP)
+    points[Joint.RIGHT_ELBOW] = at(down, Joint.RIGHT_ELBOW)
+    points[Joint.RIGHT_HIP] = at(down, Joint.RIGHT_HIP)
     return BodyPoints(points)
 
 
@@ -292,7 +333,7 @@ def facing_3d(
         Body points with world coordinates.
     """
     image = {
-        j: body().get(j)
+        j: at(body(), j)
         for j in (
             Joint.LEFT_SHOULDER,
             Joint.RIGHT_SHOULDER,
@@ -302,7 +343,7 @@ def facing_3d(
             Joint.RIGHT_KNEE,
         )
     }
-    world = {
+    world: dict[Joint, tuple[float, float, float]] = {
         Joint.LEFT_SHOULDER: (-0.18, -0.5, 0.0),
         Joint.RIGHT_SHOULDER: (0.18, -0.5, 0.0),
         Joint.LEFT_HIP: (-0.1, 0.0, 0.0),

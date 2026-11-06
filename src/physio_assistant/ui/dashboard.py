@@ -7,6 +7,7 @@ from physio_assistant import messages
 from physio_assistant.assistant import Assistant
 from physio_assistant.domain.models import ExerciseMode, MovementPhase
 from physio_assistant.exercises import get_exercise
+from physio_assistant.infrastructure.frames import Frame
 from physio_assistant.ui.commands import mode_label
 from physio_assistant.ui.text import guidance_lines, render_status
 
@@ -28,7 +29,7 @@ OVERLAY: Color = (0, 165, 255)
 
 
 def _text(
-    image: np.ndarray,
+    image: Frame,
     text: str,
     xy: tuple[int, int],
     scale: float = 0.55,
@@ -67,7 +68,7 @@ def _phase_label(a: Assistant) -> str:
 class DashboardRenderer:
     """Draws the camera overlay and the information panel."""
 
-    def render(self, frame: np.ndarray, assistant: Assistant) -> np.ndarray:
+    def render(self, frame: Frame, assistant: Assistant) -> Frame:
         """Returns the camera frame with the dashboard panel attached on the right.
 
         Args:
@@ -90,7 +91,7 @@ class DashboardRenderer:
         self._footer(panel, assistant, y)
         return np.hstack((frame, panel))
 
-    def _rule(self, panel: np.ndarray, y: int) -> None:
+    def _rule(self, panel: Frame, y: int) -> None:
         """Draws a horizontal separator across the panel.
 
         Args:
@@ -99,7 +100,7 @@ class DashboardRenderer:
         """
         cv2.line(panel, (15, y), (PANEL_WIDTH - 15, y), RULE, 1)
 
-    def _header(self, panel: np.ndarray, a: Assistant) -> int:
+    def _header(self, panel: Frame, a: Assistant) -> int:
         """Draws the title, view, mode and session time.
 
         Args:
@@ -125,7 +126,7 @@ class DashboardRenderer:
         self._rule(panel, 191)
         return 216
 
-    def _findings(self, panel: np.ndarray, a: Assistant, y: int) -> int:
+    def _findings(self, panel: Frame, a: Assistant, y: int) -> int:
         """Draws up to three posture findings, or the no-flag notice.
 
         Args:
@@ -160,7 +161,7 @@ class DashboardRenderer:
             y += 67
         return y
 
-    def _guidance(self, panel: np.ndarray, a: Assistant, y: int) -> int:
+    def _guidance(self, panel: Frame, a: Assistant, y: int) -> int:
         """Draws up to three rendered guidance lines.
 
         Args:
@@ -180,7 +181,7 @@ class DashboardRenderer:
             y += 22
         return y
 
-    def _counter(self, panel: np.ndarray, a: Assistant, y: int) -> int:
+    def _counter(self, panel: Frame, a: Assistant, y: int) -> int:
         """Draws the repetition count, phase and measured angle.
 
         Args:
@@ -210,7 +211,7 @@ class DashboardRenderer:
             )
         return y + 27
 
-    def _footer(self, panel: np.ndarray, a: Assistant, y: int) -> None:
+    def _footer(self, panel: Frame, a: Assistant, y: int) -> None:
         """Draws progress, the status notice and the key controls.
 
         Args:

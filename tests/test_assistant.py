@@ -2,9 +2,9 @@
 
 from physio_assistant.analysis import findings as catalog
 from physio_assistant.assistant import Assistant
-from physio_assistant.domain.feedback import Guidance, StatusNotice
+from physio_assistant.domain.feedback import Cue, PostureCorrection, StatusNotice
 from physio_assistant.domain.models import ExerciseMode, SessionRecord, ViewMode
-from physio_assistant.events import Announcement, AnnouncementKind, BodyLost, FindingChanged
+from physio_assistant.events import Announcement, BodyLost, FindingChanged
 from physio_assistant.ui.commands import SPACE, dispatch
 from tests.conftest import InMemoryRepository
 from tests.poses import arms_at, body, hold
@@ -31,7 +31,7 @@ def test_no_body_sets_guidance_and_publishes(config, bus, clock, fixed_now):
     state = assistant.process(None)
 
     assert not state.body_detected
-    assert state.guidance == [Guidance.NO_BODY]
+    assert state.guidance == [Cue.NO_BODY]
     assert bus.of_type(BodyLost)
 
 
@@ -42,7 +42,7 @@ def test_new_leading_finding_is_published_once(config, bus, clock, fixed_now):
     assistant.process(tilted)
 
     assert bus.of_type(FindingChanged) == [FindingChanged(catalog.SHOULDER_HEIGHT)]
-    assert Guidance.for_finding(catalog.SHOULDER_HEIGHT) in assistant.frame.guidance
+    assert PostureCorrection(catalog.SHOULDER_HEIGHT) in assistant.frame.guidance
 
 
 def test_finding_is_republished_after_it_clears(config, bus, clock, fixed_now):
@@ -60,9 +60,7 @@ def test_toggle_view_switches_analyzer(config, bus, clock, fixed_now):
     assistant.toggle_view()
 
     assert assistant.view is ViewMode.SIDE
-    assert bus.of_type(Announcement)[-1] == Announcement(
-        AnnouncementKind.VIEW_SELECTED, view=ViewMode.SIDE
-    )
+    assert bus.of_type(Announcement)[-1] == Announcement(ViewMode.SIDE)
 
 
 def test_select_mode_resets_counter(config, bus, clock, fixed_now):

@@ -6,18 +6,19 @@ from types import TracebackType
 from typing import Any, Protocol
 
 import cv2
-import mediapipe as mp
-import numpy as np
+from mediapipe.python.solutions import drawing_utils as _mp_drawing
+from mediapipe.python.solutions import pose as _mp_pose
 
 from physio_assistant.config import PoseConfig
 from physio_assistant.domain.models import BodyPoints, Joint, Point, Point3
-
-_mp_pose = mp.solutions.pose
-_mp_drawing = mp.solutions.drawing_utils
+from physio_assistant.infrastructure.frames import Frame
 
 _LANDMARK_IDS: dict[Joint, int] = {
     joint: _mp_pose.PoseLandmark[joint.name].value for joint in Joint
 }
+
+_CONNECTIONS: list[tuple[int, int]] = sorted(_mp_pose.POSE_CONNECTIONS)
+"""Pairs of landmarks joined when drawing the skeleton."""
 
 
 def to_body_points(
@@ -72,7 +73,7 @@ class PoseDetection:
 class PoseEstimator(Protocol):
     """Port for any pose model. The app depends on this, not on MediaPipe."""
 
-    def detect(self, frame_bgr: np.ndarray) -> PoseDetection | None:
+    def detect(self, frame_bgr: Frame) -> PoseDetection | None:
         """Detects a pose in one frame.
 
         Args:
@@ -83,7 +84,7 @@ class PoseEstimator(Protocol):
         """
         ...
 
-    def draw(self, frame_bgr: np.ndarray, detection: PoseDetection) -> None:
+    def draw(self, frame_bgr: Frame, detection: PoseDetection) -> None:
         """Draws the skeleton onto the frame in place.
 
         Args:
@@ -142,7 +143,7 @@ class MediaPipePoseEstimator:
             self._pose.close()
             self._pose = None
 
-    def detect(self, frame_bgr: np.ndarray) -> PoseDetection | None:
+    def detect(self, frame_bgr: Frame) -> PoseDetection | None:
         """Runs the model and converts visible landmarks to pixel coordinates.
 
         Args:
@@ -166,7 +167,7 @@ class MediaPipePoseEstimator:
         )
         return PoseDetection(points=points, raw=results.pose_landmarks)
 
-    def draw(self, frame_bgr: np.ndarray, detection: PoseDetection) -> None:
+    def draw(self, frame_bgr: Frame, detection: PoseDetection) -> None:
         """Draws the MediaPipe skeleton onto the frame in place.
 
         Args:
@@ -176,7 +177,7 @@ class MediaPipePoseEstimator:
         _mp_drawing.draw_landmarks(
             frame_bgr,
             detection.raw,
-            _mp_pose.POSE_CONNECTIONS,
+            _CONNECTIONS,
             self._landmark_style,
             self._connection_style,
         )

@@ -11,7 +11,7 @@ import time
 from collections.abc import Callable
 from typing import Protocol
 
-from physio_assistant.domain.feedback import Guidance
+from physio_assistant.domain.feedback import Cue, ExerciseInstruction, Guidance, JointsHidden
 from physio_assistant.domain.models import BodyPoints, ExerciseMode, MovementPhase
 from physio_assistant.events import EventBus, RepCounted
 from physio_assistant.exercises import Angle, BlockReason, Exercise, get_exercise
@@ -74,9 +74,9 @@ class PostureOnlyCounter:
             points: Visible joints for the frame, ignored.
 
         Returns:
-            ``Guidance.POSTURE_MODE``.
+            ``Cue.POSTURE_MODE``.
         """
-        return Guidance.POSTURE_MODE
+        return Cue.POSTURE_MODE
 
 
 class RepCounter:
@@ -121,7 +121,7 @@ class RepCounter:
         self._blocked_since = None
         self.last_angle = self._smooth(result.degrees, now)
         self._advance_phase(self._zone_for(self.last_angle), now)
-        return Guidance.exercise(self.mode)
+        return ExerciseInstruction(self.mode)
 
     def _on_blocked(self, reason: BlockReason, now: float) -> Guidance:
         """Handles a frame without a usable reading.
@@ -139,7 +139,7 @@ class RepCounter:
         if self._blocked_since is None:
             self._blocked_since = now
         if now - self._blocked_since < BLOCK_GRACE_S:
-            return Guidance.exercise(self.mode)
+            return ExerciseInstruction(self.mode)
         self._reset_tracking()
         return _block_guidance(reason, self.mode)
 
@@ -245,12 +245,12 @@ def _block_guidance(reason: BlockReason, mode: ExerciseMode) -> Guidance:
         A turn hint, the exercise guidance for a form issue, or a not-visible hint.
     """
     if reason is BlockReason.FACE_CAMERA:
-        return Guidance.TURN_FRONT
+        return Cue.TURN_FRONT
     if reason is BlockReason.TURN_SIDE:
-        return Guidance.TURN_SIDE
+        return Cue.TURN_SIDE
     if reason is BlockReason.FORM:
-        return Guidance.exercise(mode)
-    return Guidance.not_visible(mode)
+        return ExerciseInstruction(mode)
+    return JointsHidden(mode)
 
 
 def create_counter(mode: ExerciseMode, events: EventBus, clock: Clock = time.monotonic) -> Counter:

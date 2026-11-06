@@ -1,7 +1,7 @@
 """Tests for counting arm raises."""
 
 from physio_assistant.domain.models import BodyPoints, ExerciseMode, Joint
-from tests.poses import arms_at, one_arm_up, reps
+from tests.poses import arms_at, at, one_arm_up, reps
 
 
 def _cropped(degrees: float) -> BodyPoints:
@@ -15,7 +15,7 @@ def _cropped(degrees: float) -> BodyPoints:
     """
     full = arms_at(degrees)
     joints = (Joint.LEFT_SHOULDER, Joint.RIGHT_SHOULDER, Joint.LEFT_ELBOW, Joint.RIGHT_ELBOW)
-    return BodyPoints({j: full.get(j) for j in joints})
+    return BodyPoints({j: at(full, j) for j in joints})
 
 
 def test_counts_both_arms_rising(counter_for):

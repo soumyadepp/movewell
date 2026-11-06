@@ -87,19 +87,27 @@ Reading = Angle | Blocked
 
 @runtime_checkable
 class Exercise(Protocol):
-    """Contract every exercise module implements.
+    """Contract every exercise module implements. All fields are read-only."""
 
-    Attributes:
-        mode: Identifier used across the app.
-        best_view: Camera orientation the exercise is designed for.
-        thresholds: Hysteresis band for counting.
-        copy: User-facing text.
-    """
+    @property
+    def mode(self) -> ExerciseMode:
+        """Identifier used across the app."""
+        ...
 
-    mode: ExerciseMode
-    best_view: ViewMode
-    thresholds: RepThresholds
-    copy: ExerciseCopy
+    @property
+    def best_view(self) -> ViewMode:
+        """Camera orientation the exercise is designed for."""
+        ...
+
+    @property
+    def thresholds(self) -> RepThresholds:
+        """Hysteresis band for counting."""
+        ...
+
+    @property
+    def copy(self) -> ExerciseCopy:
+        """User-facing text."""
+        ...
 
     def measure(self, points: BodyPoints) -> Reading:
         """Reads the exercise's angle from one frame.

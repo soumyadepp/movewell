@@ -1,8 +1,8 @@
 """Tests for the shared repetition counter state machine."""
 
 from physio_assistant.analysis.counting import PostureOnlyCounter, RepCounter
-from physio_assistant.domain.feedback import Guidance
-from physio_assistant.domain.models import BodyPoints, ExerciseMode, Joint, MovementPhase
+from physio_assistant.domain.feedback import Cue, JointsHidden
+from physio_assistant.domain.models import BodyPoints, ExerciseMode, Joint, MovementPhase, Point
 from physio_assistant.events import RepCounted
 from tests.poses import arms_at, curled, hold, reps
 
@@ -54,7 +54,7 @@ def _drop_wrists(points: BodyPoints) -> BodyPoints:
     Returns:
         The pose without wrists.
     """
-    kept = {
+    kept: dict[Joint, Point] = {
         j: p for j, p in points.points.items() if j not in (Joint.LEFT_WRIST, Joint.RIGHT_WRIST)
     }
     return BodyPoints(kept)
@@ -90,7 +90,7 @@ def test_sustained_loss_reports_not_visible(counter_for):
     hold(counter.update, _drop_wrists(curled(5)), clock, 1)
 
     assert isinstance(counter, RepCounter)
-    assert counter.update(_drop_wrists(curled(5))) == Guidance.not_visible(ExerciseMode.ELBOW_CURL)
+    assert counter.update(_drop_wrists(curled(5))) == JointsHidden(ExerciseMode.ELBOW_CURL)
     assert counter.last_angle is None
 
 
@@ -98,7 +98,7 @@ def test_posture_counter_never_counts(counter_for):
     counter, _, _ = counter_for(ExerciseMode.POSTURE)
 
     assert isinstance(counter, PostureOnlyCounter)
-    assert counter.update(arms_at(100)) == Guidance.POSTURE_MODE
+    assert counter.update(arms_at(100)) == Cue.POSTURE_MODE
     assert counter.reps == 0
 
 

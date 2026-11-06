@@ -14,7 +14,7 @@ from physio_assistant.analysis.counting import Counter, create_counter
 from physio_assistant.analysis.posture import PostureAnalyzer, create_posture_analyzer
 from physio_assistant.analysis.progress import ProgressSummary, summarize
 from physio_assistant.config import AppConfig
-from physio_assistant.domain.feedback import Guidance, StatusNotice
+from physio_assistant.domain.feedback import Cue, Guidance, PostureCorrection, StatusNotice
 from physio_assistant.domain.models import (
     BodyPoints,
     ExerciseMode,
@@ -46,7 +46,7 @@ class FrameState:
 
     body_detected: bool = False
     findings: list[Finding] = field(default_factory=list)
-    guidance: list[Guidance] = field(default_factory=lambda: [Guidance.INITIAL])
+    guidance: list[Guidance] = field(default_factory=lambda: [Cue.INITIAL])
 
 
 class Assistant:
@@ -101,19 +101,19 @@ class Assistant:
             The new frame state.
         """
         if points is None:
-            self.frame = FrameState(body_detected=False, guidance=[Guidance.NO_BODY])
+            self.frame = FrameState(body_detected=False, guidance=[Cue.NO_BODY])
             self._events.publish(BodyLost())
             return self.frame
 
         findings = self._analyzer.analyze(points)
         guidance = [self.counter.update(points)]
         if findings:
-            guidance.extend(Guidance.for_finding(f) for f in findings[:2])
+            guidance.extend(PostureCorrection(f) for f in findings[:2])
             if findings[0] != self._last_finding:
                 self._last_finding = findings[0]
                 self._events.publish(FindingChanged(findings[0]))
         else:
-            guidance.append(Guidance.NO_FINDINGS)
+            guidance.append(Cue.NO_FINDINGS)
             self._last_finding = None
 
         self.frame = FrameState(body_detected=True, findings=findings, guidance=guidance)
@@ -123,7 +123,7 @@ class Assistant:
         """Switches between front and side analysis."""
         self.view = self.view.toggled()
         self._analyzer = create_posture_analyzer(self.view, self._config.posture)
-        self._events.publish(Announcement(AnnouncementKind.VIEW_SELECTED, view=self.view))
+        self._events.publish(Announcement(self.view))
 
     def select_mode(self, mode: ExerciseMode) -> None:
         """Selects an exercise mode and resets its counter.
@@ -138,7 +138,7 @@ class Assistant:
             if self.view is not exercise.best_view:
                 self.view = exercise.best_view
                 self._analyzer = create_posture_analyzer(self.view, self._config.posture)
-        self._events.publish(Announcement(AnnouncementKind.MODE_SELECTED, mode=mode))
+        self._events.publish(Announcement(mode))
 
     def toggle_timer(self) -> None:
         """Starts, pauses or resumes the session timer."""

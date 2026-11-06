@@ -1,0 +1,79 @@
+default_install_hook_types: [pre-commit, pre-push]
+default_stages: [pre-commit]
+
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff lint (Python)
+        entry: uv run --frozen ruff check --fix
+        language: system
+        types: [python]
+
+      - id: ruff-format
+        name: ruff format (Python)
+        entry: uv run --frozen ruff format
+        language: system
+        types: [python]
+
+      - id: mypy
+        name: mypy strict type check (Python)
+        entry: uv run --frozen mypy
+        language: system
+        types: [python]
+        pass_filenames: false
+
+      - id: pyright
+        name: pyright type check (Python, matches VS Code)
+        entry: uv run --frozen pyright
+        language: system
+        types: [python]
+        pass_filenames: false
+
+      - id: web-format
+        name: prettier (web)
+        entry: npm --prefix web run --silent format:check
+        language: system
+        files: ^web/(src|scripts)/
+        pass_filenames: false
+
+      - id: web-types
+        name: svelte-check and tsc (web)
+        entry: npm --prefix web run --silent check
+        language: system
+        files: ^web/(src|scripts)/.*\.(ts|svelte)$
+        pass_filenames: false
+
+      - id: no-em-en-dashes
+        name: no em or en dashes
+        entry: '\xe2\x80[\x93\x94]'
+        language: pygrep
+        files: ^(src|tests|web/src|web/scripts)/
+
+      - id: no-python-inline-comments
+        name: no inline comments (Python, docstrings only)
+        entry: "(^|\\s)#(?!!)(?!\\s*(type: ignore|noqa))"
+        language: pygrep
+        types: [python]
+
+      - id: no-web-inline-comments
+        name: no inline comments (TypeScript, Svelte, CSS)
+        entry: "((^|\\s)//\\s)|(/\\*(?!\\*))|(<!--(?!\\s*svelte-ignore))"
+        language: pygrep
+        files: ^web/(src|scripts)/.*\.(ts|svelte|css)$
+
+      - id: python-tests
+        name: pytest
+        entry: uv run --frozen pytest -q
+        language: system
+        types: [python]
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: web-tests
+        name: vitest
+        entry: npm --prefix web run --silent test
+        language: system
+        files: ^web/
+        pass_filenames: false
+        stages: [pre-push]

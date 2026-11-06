@@ -1,6 +1,6 @@
 """Tests for counting the standing side bend."""
 
-from physio_assistant.domain.feedback import Guidance
+from physio_assistant.domain.feedback import Cue
 from physio_assistant.domain.models import ExerciseMode
 from tests.poses import hold, leaning, reps, side_standing
 
@@ -21,4 +21,4 @@ def test_asks_to_face_camera_when_side_on(counter_for):
     counter, clock, _ = counter_for(ExerciseMode.SIDE_BEND)
     hold(counter.update, side_standing(), clock, 1)
 
-    assert counter.update(side_standing()) == Guidance.TURN_FRONT
+    assert counter.update(side_standing()) == Cue.TURN_FRONT

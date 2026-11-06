@@ -3,6 +3,7 @@
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import Enum, StrEnum
+from typing import ClassVar, Literal
 
 Point = tuple[float, float]
 Point3 = tuple[float, float, float]
@@ -135,6 +136,17 @@ class Finding:
     caveat: str
 
 
+SessionField = Literal[
+    "date_time",
+    "duration_seconds",
+    "view_mode",
+    "exercise",
+    "repetitions",
+    "posture_observations",
+]
+"""A column of the session history CSV, shared with the web app's export."""
+
+
 @dataclass(frozen=True)
 class SessionRecord:
     """Summary of one saved session.
@@ -155,7 +167,7 @@ class SessionRecord:
     repetitions: int
     posture_observations: str
 
-    FIELDS = (
+    FIELDS: ClassVar[tuple[SessionField, ...]] = (
         "date_time",
         "duration_seconds",
         "view_mode",
@@ -164,13 +176,20 @@ class SessionRecord:
         "posture_observations",
     )
 
-    def to_row(self) -> dict[str, str | int]:
+    def to_row(self) -> dict[SessionField, str | int]:
         """Serializes the record into a CSV row.
 
         Returns:
             Mapping from column name to value, in ``FIELDS`` order.
         """
-        return {name: getattr(self, name) for name in self.FIELDS}
+        return {
+            "date_time": self.date_time,
+            "duration_seconds": self.duration_seconds,
+            "view_mode": self.view_mode,
+            "exercise": self.exercise,
+            "repetitions": self.repetitions,
+            "posture_observations": self.posture_observations,
+        }
 
     @classmethod
     def from_row(cls, row: Mapping[str, str]) -> "SessionRecord":

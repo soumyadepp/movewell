@@ -1,11 +1,11 @@
-"""Keyboard commands (Command pattern).
+"""Keyboard shortcuts for the desktop app.
 
-Each key maps to a small command object, so adding a shortcut is one entry in
-``KEY_BINDINGS`` rather than another branch in the frame loop.
+Each key maps to a function of the assistant, so adding a shortcut is one
+entry in ``KEY_BINDINGS`` rather than another branch in the frame loop.
 """
 
-from dataclasses import dataclass
-from typing import Protocol
+from collections.abc import Callable
+from functools import partial
 
 from physio_assistant import messages
 from physio_assistant.assistant import Assistant
@@ -28,136 +28,33 @@ def mode_label(mode: ExerciseMode) -> str:
     return messages.POSTURE_LABEL if mode is ExerciseMode.POSTURE else get_exercise(mode).copy.label
 
 
-class Command(Protocol):
-    """Action triggered by a key press."""
+def show_help(_assistant: Assistant) -> None:
+    """Prints the controls to the terminal.
 
-    def execute(self, assistant: Assistant) -> bool:
-        """Runs the action.
-
-        Args:
-            assistant: Application service to act on.
-
-        Returns:
-            False if the app should quit, True otherwise.
-        """
-        ...
-
-
-class Quit:
-    """Stops the frame loop."""
-
-    def execute(self, assistant: Assistant) -> bool:
-        """Signals the loop to exit.
-
-        Args:
-            assistant: Application service to act on.
-
-        Returns:
-            Always False, so the app quits.
-        """
-        return False
-
-
-class ToggleView:
-    """Switches between front and side view."""
-
-    def execute(self, assistant: Assistant) -> bool:
-        """Toggles the view.
-
-        Args:
-            assistant: Application service to act on.
-
-        Returns:
-            Always True.
-        """
-        assistant.toggle_view()
-        return True
-
-
-@dataclass(frozen=True)
-class SelectMode:
-    """Activates an exercise mode.
-
-    Attributes:
-        mode: Mode to activate.
+    Args:
+        _assistant: Unused; every key action receives the assistant.
     """
-
-    mode: ExerciseMode
-
-    def execute(self, assistant: Assistant) -> bool:
-        """Selects the mode.
-
-        Args:
-            assistant: Application service to act on.
-
-        Returns:
-            Always True.
-        """
-        assistant.select_mode(self.mode)
-        return True
-
-
-class ToggleTimer:
-    """Starts or pauses the session timer."""
-
-    def execute(self, assistant: Assistant) -> bool:
-        """Toggles the timer.
-
-        Args:
-            assistant: Application service to act on.
-
-        Returns:
-            Always True.
-        """
-        assistant.toggle_timer()
-        return True
-
-
-class SaveSession:
-    """Saves a session summary."""
-
-    def execute(self, assistant: Assistant) -> bool:
-        """Saves the session.
-
-        Args:
-            assistant: Application service to act on.
-
-        Returns:
-            Always True.
-        """
-        assistant.save_session()
-        return True
-
-
-class ShowHelp:
-    """Prints the controls to the terminal."""
-
-    def execute(self, assistant: Assistant) -> bool:
-        """Prints help.
-
-        Args:
-            assistant: Application service to act on.
-
-        Returns:
-            Always True.
-        """
-        modes = "\n".join(f"{i}: {mode_label(mode)}" for i, mode in enumerate(MODE_ORDER, start=1))
-        print(messages.HELP_TEXT.format(modes=modes))
-        return True
+    modes = "\n".join(f"{i}: {mode_label(mode)}" for i, mode in enumerate(MODE_ORDER, start=1))
+    print(messages.HELP_TEXT.format(modes=modes))
 
 
 MODE_ORDER: tuple[ExerciseMode, ...] = (ExerciseMode.POSTURE, *counted_modes())
 """Modes in keyboard order: 1 is posture, 2 onward follow the exercise registry."""
 
-KEY_BINDINGS: dict[int, Command] = {
-    ord("q"): Quit(),
-    ESC: Quit(),
-    ord("v"): ToggleView(),
-    **{ord(str(i)): SelectMode(mode) for i, mode in enumerate(MODE_ORDER, start=1)},
-    SPACE: ToggleTimer(),
-    ord("s"): SaveSession(),
-    ord("h"): ShowHelp(),
+QUIT_KEYS = frozenset({ord("q"), ESC})
+"""Keys that close the app."""
+
+KEY_BINDINGS: dict[int, Callable[[Assistant], object]] = {
+    ord("v"): Assistant.toggle_view,
+    **{
+        ord(str(i)): partial(Assistant.select_mode, mode=mode)
+        for i, mode in enumerate(MODE_ORDER, start=1)
+    },
+    SPACE: Assistant.toggle_timer,
+    ord("s"): Assistant.save_session,
+    ord("h"): show_help,
 }
+"""What each key does to the assistant."""
 
 
 def dispatch(key: int, assistant: Assistant) -> bool:
@@ -172,5 +69,9 @@ def dispatch(key: int, assistant: Assistant) -> bool:
     """
     if ord("A") <= key <= ord("Z"):
         key = ord(chr(key).lower())
-    command = KEY_BINDINGS.get(key)
-    return command.execute(assistant) if command else True
+    if key in QUIT_KEYS:
+        return False
+    action = KEY_BINDINGS.get(key)
+    if action:
+        action(assistant)
+    return True

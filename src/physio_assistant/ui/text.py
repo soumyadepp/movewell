@@ -7,18 +7,25 @@ copy from ``messages`` and from each exercise's ``ExerciseCopy``.
 from collections.abc import Iterable
 
 from physio_assistant import messages
-from physio_assistant.domain.feedback import Guidance, GuidanceKind, StatusNotice
+from physio_assistant.domain.feedback import (
+    Cue,
+    ExerciseInstruction,
+    Guidance,
+    JointsHidden,
+    PostureCorrection,
+    StatusNotice,
+)
 from physio_assistant.domain.models import ExerciseMode, ViewMode
 from physio_assistant.events import Announcement, AnnouncementKind
 from physio_assistant.exercises import get_exercise
 
-_FIXED_GUIDANCE: dict[GuidanceKind, tuple[str, ...]] = {
-    GuidanceKind.INITIAL: messages.GUIDANCE_INITIAL,
-    GuidanceKind.NO_BODY: messages.GUIDANCE_NO_BODY,
-    GuidanceKind.POSTURE_MODE: (messages.GUIDANCE_POSTURE_MODE,),
-    GuidanceKind.TURN_FRONT: (messages.GUIDANCE_TURN_FRONT,),
-    GuidanceKind.TURN_SIDE: (messages.GUIDANCE_TURN_SIDE,),
-    GuidanceKind.NO_FINDINGS: (messages.GUIDANCE_NO_FINDINGS,),
+_CUE_LINES: dict[Cue, tuple[str, ...]] = {
+    Cue.INITIAL: messages.GUIDANCE_INITIAL,
+    Cue.NO_BODY: messages.GUIDANCE_NO_BODY,
+    Cue.POSTURE_MODE: (messages.GUIDANCE_POSTURE_MODE,),
+    Cue.TURN_FRONT: (messages.GUIDANCE_TURN_FRONT,),
+    Cue.TURN_SIDE: (messages.GUIDANCE_TURN_SIDE,),
+    Cue.NO_FINDINGS: (messages.GUIDANCE_NO_FINDINGS,),
 }
 
 _VIEW_ANNOUNCEMENTS: dict[ViewMode, str] = {
@@ -41,8 +48,8 @@ _STATUS_TEXT: dict[StatusNotice, str] = {
 def render_guidance(guidance: Guidance) -> tuple[str, ...]:
     """Returns the on-screen lines for one guidance code.
 
-    Most codes render to a single line; ``INITIAL`` and ``NO_BODY`` render to
-    several.
+    Most codes render to a single line; ``Cue.INITIAL`` and ``Cue.NO_BODY``
+    render to several.
 
     Args:
         guidance: Code produced by the counter or the assistant.
@@ -50,13 +57,15 @@ def render_guidance(guidance: Guidance) -> tuple[str, ...]:
     Returns:
         The lines to display, in order.
     """
-    if guidance.kind is GuidanceKind.FINDING:
-        return (guidance.finding.correction,)
-    if guidance.kind is GuidanceKind.EXERCISE:
-        return (get_exercise(guidance.mode).copy.guidance,)
-    if guidance.kind is GuidanceKind.NOT_VISIBLE:
-        return (get_exercise(guidance.mode).copy.not_visible,)
-    return _FIXED_GUIDANCE[guidance.kind]
+    match guidance:
+        case PostureCorrection(finding):
+            return (finding.correction,)
+        case ExerciseInstruction(mode):
+            return (get_exercise(mode).copy.guidance,)
+        case JointsHidden(mode):
+            return (get_exercise(mode).copy.not_visible,)
+        case Cue():
+            return _CUE_LINES[guidance]
 
 
 def guidance_lines(guidance: Iterable[Guidance]) -> list[str]:
@@ -80,11 +89,13 @@ def render_announcement(announcement: Announcement) -> str:
     Returns:
         The text to speak.
     """
-    if announcement.kind is AnnouncementKind.VIEW_SELECTED:
-        return _VIEW_ANNOUNCEMENTS[announcement.view]
-    if announcement.kind is AnnouncementKind.MODE_SELECTED:
-        return _mode_announcement(announcement.mode)
-    return _FIXED_ANNOUNCEMENTS[announcement.kind]
+    match announcement.subject:
+        case ViewMode() as view:
+            return _VIEW_ANNOUNCEMENTS[view]
+        case ExerciseMode() as mode:
+            return _mode_announcement(mode)
+        case AnnouncementKind() as kind:
+            return _FIXED_ANNOUNCEMENTS[kind]
 
 
 def render_status(status: StatusNotice | None) -> str:
