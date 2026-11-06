@@ -6,7 +6,8 @@ import { POSTURE } from "./config";
 import { ExerciseMode, Joint, type SessionRecord, ViewMode } from "./domain/models";
 import { getExercise } from "./exercises";
 import { EventBus, type EventMap } from "./events";
-import { LocalStorageRepository, toCsv } from "./infrastructure/storage";
+import { toCsv } from "./infrastructure/files";
+import { LocalStorageRepository } from "./infrastructure/storage";
 import { armsAt, body, curled, FakeClock, hold } from "./testing/poses";
 
 class MemoryRepo implements SessionRepository {

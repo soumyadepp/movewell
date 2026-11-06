@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { CoachController } from "../controller.svelte";
   import { href } from "../routing";
+  import Notice from "../components/Notice.svelte";
   import * as msg from "../messages";
 
   let { coach }: { coach: CoachController } = $props();
@@ -31,7 +32,7 @@
         <span>{msg.SPACE_PRIVACY}</span>
       </p>
       {#if coach.errorMessage}
-        <p class="warning" role="alert">{coach.errorMessage}</p>
+        <Notice urgent>{coach.errorMessage}</Notice>
       {/if}
       <div class="actions">
         <a class="link" href={href.setup("comfort")}>← {msg.BACK}</a>
@@ -109,14 +110,6 @@
     fill: none;
     stroke: currentColor;
     stroke-width: 2;
-  }
-
-  .warning {
-    padding: var(--space-4) var(--space-5);
-    border-radius: var(--radius-md);
-    background: var(--color-warning-surface);
-    color: var(--color-warning);
-    font-size: var(--type-small);
   }
 
   .actions {

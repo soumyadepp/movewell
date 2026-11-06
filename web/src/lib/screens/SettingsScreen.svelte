@@ -2,7 +2,9 @@
   import { untrack } from "svelte";
   import { commandHints } from "../commands";
   import ComfortSettings from "../components/ComfortSettings.svelte";
+  import Notice from "../components/Notice.svelte";
   import Segmented from "../components/Segmented.svelte";
+  import SettingRow from "../components/SettingRow.svelte";
   import type { CoachController } from "../controller.svelte";
   import { href } from "../routing";
   import * as msg from "../messages";
@@ -13,51 +15,39 @@
   let confirming = $state(false);
   let rangesForgotten = $state(false);
   const hints = $derived(commandHints(coach.language));
-  const onOff = [
-    { id: "on", label: msg.VOICE_ON },
-    { id: "off", label: msg.VOICE_OFF },
-  ] as const;
 </script>
 
 <div class="container page">
   <h1>{msg.SETTINGS_TITLE}</h1>
 
-  <div class="row name-row">
-    <label for="name" class="label">{msg.YOUR_NAME}</label>
+  <SettingRow label={msg.YOUR_NAME} labelFor="name">
     <input id="name" bind:value={name} maxlength="40" onchange={() => coach.setName(name)} />
-  </div>
-  <div class="row plan-row">
-    <div>
-      <h2 class="label">{msg.PLAN_TITLE}</h2>
-      <p class="secondary small">{msg.PLAN_SUMMARY(coach.plan.steps.length, estimatedMinutes(coach.plan))}</p>
-    </div>
+  </SettingRow>
+  <SettingRow label={msg.PLAN_TITLE} hint={msg.PLAN_SUMMARY(coach.plan.steps.length, estimatedMinutes(coach.plan))}>
     <a class="btn btn-secondary" href={href.plan}>{msg.PLAN_EDIT}</a>
-  </div>
+  </SettingRow>
   <ComfortSettings {coach} />
-  <div class="row commands">
-    <div class="text">
-      <h2 class="label">{msg.VOICE_COMMANDS_LABEL}</h2>
-      <p class="secondary small">{msg.VOICE_COMMANDS_HINT(hints.next, hints.pause, hints.resume, hints.end)}</p>
+  <SettingRow
+    label={msg.VOICE_COMMANDS_LABEL}
+    hint={msg.VOICE_COMMANDS_HINT(hints.next, hints.pause, hints.resume, hints.end)}
+  >
+    {#snippet details()}
       <p class="secondary small">{msg.VOICE_COMMANDS_PRIVACY}</p>
       {#if !coach.commands.supported}
-        <p class="warning">{msg.VOICE_COMMANDS_UNSUPPORTED}</p>
-      {:else if coach.commands.problem === "blocked"}
-        <p class="warning" role="alert">{msg.VOICE_COMMANDS_BLOCKED}</p>
-      {:else if coach.commands.problem === "network"}
-        <p class="warning" role="alert">{msg.VOICE_PROBLEM_NETWORK}</p>
-      {:else if coach.commands.problem === "no-microphone"}
-        <p class="warning" role="alert">{msg.VOICE_PROBLEM_MICROPHONE}</p>
+        <Notice>{msg.VOICE_COMMANDS_UNSUPPORTED}</Notice>
+      {:else if coach.commands.problem}
+        <Notice urgent>{msg.VOICE_PROBLEM_TEXT[coach.commands.problem]}</Notice>
       {/if}
-    </div>
+    {/snippet}
     {#if coach.commands.supported}
       <Segmented
         label={msg.VOICE_COMMANDS_LABEL}
-        options={onOff}
+        options={msg.ON_OFF}
         value={coach.voiceCommands ? "on" : "off"}
         onChange={(v) => coach.setVoiceCommands(v === "on")}
       />
     {/if}
-  </div>
+  </SettingRow>
 
   <details class="advanced">
     <summary class="label">{msg.ADVANCED}</summary>
@@ -126,43 +116,9 @@
     margin-bottom: var(--space-6);
   }
 
-  .row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-4);
-    padding: var(--space-6) 0;
-    border-bottom: 1px solid var(--color-rule);
-    border-top: 1px solid var(--color-rule);
-  }
-
   .label {
     font-size: var(--type-lead);
     font-weight: var(--weight-semibold);
-  }
-
-  h2.label {
-    font-family: var(--font-text);
-    letter-spacing: 0;
-  }
-
-  .commands {
-    border-top: 0;
-  }
-
-  .commands .text {
-    display: grid;
-    gap: var(--space-2);
-    max-width: 34rem;
-  }
-
-  .warning {
-    padding: var(--space-3) var(--space-4);
-    border-radius: var(--radius-md);
-    background: var(--color-warning-surface);
-    color: var(--color-warning);
-    font-size: var(--type-small);
   }
 
   input:not([type]) {

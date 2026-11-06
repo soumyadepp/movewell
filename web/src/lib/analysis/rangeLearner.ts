@@ -7,7 +7,7 @@
  */
 import type { EventBus } from "../events";
 import { CALIBRATION_CYCLES, minimumSpan, type PersonalRange, RangeTracker, thresholdsFor } from "./range";
-import { type ExerciseCounter, RepCounter } from "./counting";
+import type { RepCounter } from "./counting";
 import type { ExerciseMode } from "../domain/models";
 
 /** Where each exercise's personal range of movement is kept. */
@@ -43,12 +43,12 @@ export class RangeLearner {
    * Args:
    *   counter: The counter for the exercise that is starting.
    */
-  start(counter: ExerciseCounter): void {
+  start(counter: RepCounter): void {
     this.tracker = null;
     this.counter = null;
     this.savedCycles = 0;
     this.status = "standard";
-    if (!(counter instanceof RepCounter) || !this.ranges) return;
+    if (!this.ranges) return;
     const standard = counter.exercise.thresholds;
     const saved = thresholdsFor(standard, this.ranges.get(counter.mode));
     counter.setThresholds(saved);

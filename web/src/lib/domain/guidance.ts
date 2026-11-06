@@ -5,16 +5,14 @@
  * the code into words with guidanceText, so core logic never holds sentences
  * and the wording lives in one place.
  */
-import type { CountedExercise, Finding } from "./models";
+import type { ExerciseMode, Finding } from "./models";
 
 export type Guidance =
-  | { readonly kind: "exercise"; readonly mode: CountedExercise }
-  | { readonly kind: "notVisible"; readonly mode: CountedExercise }
+  | { readonly kind: "exercise"; readonly mode: ExerciseMode }
+  | { readonly kind: "notVisible"; readonly mode: ExerciseMode }
   | { readonly kind: "turnFront" }
   | { readonly kind: "turnSide" }
   | { readonly kind: "learningRange" }
-  | { readonly kind: "postureMode" }
   | { readonly kind: "finding"; readonly finding: Finding }
-  | { readonly kind: "noFindings" }
   | { readonly kind: "noBody" }
   | { readonly kind: "gettingStarted" };

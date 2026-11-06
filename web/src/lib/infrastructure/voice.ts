@@ -147,6 +147,7 @@ export class ClipSpeaker implements Speaker {
     private readonly baseUrl: string,
     private readonly fallback: Speaker,
     clock: Clock,
+    private readonly onSpeak: (text: string) => void = () => undefined,
   ) {
     this.hintGate = new CooldownGate(VOICE.cooldownS, clock);
   }
@@ -182,6 +183,8 @@ export class ClipSpeaker implements Speaker {
    */
   say(language: VoiceLanguage, key: string, priority: Priority = "interrupt"): void {
     if (!this.enabled) return;
+    const text = phraseText(SPEECH_CATALOGS[language], key);
+    if (text) this.onSpeak(text);
     const busy = this.current !== null;
     if (priority === "hint") {
       if (busy || !this.hintGate.allow(false)) return;

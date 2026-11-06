@@ -3,7 +3,7 @@
  * counting thresholds, and saves them as a JSON file when stopped.
  */
 import type { ExerciseMode } from "../domain/models";
-import { downloadText } from "./storage";
+import { downloadText } from "./files";
 
 /** Recording stops by itself after this many frames (about one minute at 30 fps). */
 const MAX_FRAMES = 1800;

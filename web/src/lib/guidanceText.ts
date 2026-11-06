@@ -24,12 +24,8 @@ export function guidanceText(guidance: Guidance): string {
       return msg.GUIDANCE_TURN_SIDE;
     case "learningRange":
       return msg.LEARNING_RANGE;
-    case "postureMode":
-      return msg.GUIDANCE_POSTURE_MODE;
     case "finding":
       return guidance.finding.correction;
-    case "noFindings":
-      return msg.GUIDANCE_NO_FINDINGS;
     case "noBody":
       return msg.GUIDANCE_NO_BODY[0];
     case "gettingStarted":

@@ -28,7 +28,6 @@ export enum ViewMode {
 }
 
 export enum ExerciseMode {
-  Posture = "POSTURE",
   ArmRaise = "ARM RAISE",
   SitToStand = "SIT-TO-STAND",
   ElbowCurl = "ELBOW CURL",
@@ -37,8 +36,8 @@ export enum ExerciseMode {
   SideBend = "SIDE BEND",
 }
 
-/** Counted exercises, in the order they are offered. */
-export const COUNTED_EXERCISES = [
+/** Every exercise, in the order they are offered. */
+export const EXERCISE_MODES = [
   ExerciseMode.ArmRaise,
   ExerciseMode.ElbowCurl,
   ExerciseMode.Marching,
@@ -46,10 +45,6 @@ export const COUNTED_EXERCISES = [
   ExerciseMode.SideBend,
   ExerciseMode.SitToStand,
 ] as const;
-
-export type CountedExercise = (typeof COUNTED_EXERCISES)[number];
-
-export const isCounted = (mode: ExerciseMode): mode is CountedExercise => mode !== ExerciseMode.Posture;
 
 /** URL-safe identifier for an exercise, e.g. "side-leg-raise". */
 export const exerciseSlug = (mode: ExerciseMode): string => mode.toLowerCase().replace(/[^a-z0-9]+/g, "-");

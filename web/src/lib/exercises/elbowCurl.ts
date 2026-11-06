@@ -1,7 +1,6 @@
 /** Elbow curl: hands come up toward the shoulders with the elbows by the sides. */
 import { jointAngle, jointAngle3 } from "../domain/geometry";
 import { ExerciseMode, Joint, ViewMode } from "../domain/models";
-import { FRONT_POSE, pose } from "../illustrations";
 import { blocked, fromVertical, orientationBlock } from "./measures";
 import type { Exercise } from "./types";
 
@@ -37,10 +36,6 @@ export const elbowCurl: Exercise = {
   announcement: {
     en: "Elbow curl selected. Bend your elbows slowly towards your shoulders.",
     hi: "कोहनी मोड़ने का व्यायाम चुना गया। हाथ धीरे-धीरे कंधे की ओर लाइए।",
-  },
-  illustration: {
-    start: FRONT_POSE,
-    end: pose(FRONT_POSE, { lWrist: [47, 44], rWrist: [73, 44] }),
   },
 
   /** Per-arm flexion in 3-D and 2-D, and how far each upper arm is from vertical. */

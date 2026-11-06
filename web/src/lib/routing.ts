@@ -1,6 +1,6 @@
 /** Hash routes for every screen, and parsing a location hash back into one. */
 import { DEFAULT_GOAL } from "./config";
-import { type CountedExercise, type ExerciseMode, exerciseFromSlug, exerciseSlug, isCounted } from "./domain/models";
+import { type ExerciseMode, exerciseFromSlug, exerciseSlug } from "./domain/models";
 
 export type SetupStep = "welcome" | "comfort" | "space";
 
@@ -10,7 +10,7 @@ export type Route =
   | { name: "library" }
   | { name: "detail"; mode: ExerciseMode }
   | { name: "workout"; kind: "routine" }
-  | { name: "workout"; kind: "single"; mode: CountedExercise; target: number }
+  | { name: "workout"; kind: "single"; mode: ExerciseMode; target: number }
   | { name: "summary" }
   | { name: "week" }
   | { name: "settings" }
@@ -63,7 +63,7 @@ export function parseRoute(hash: string): Route {
 function workoutRoute(slug: string | undefined, query: string): Route {
   if (slug === "routine") return { name: "workout", kind: "routine" };
   const mode = slug ? exerciseFromSlug(slug) : null;
-  if (!mode || !isCounted(mode)) return { name: "home" };
+  if (!mode) return { name: "home" };
   const target = Number(new URLSearchParams(query).get("target")) || DEFAULT_GOAL;
   return { name: "workout", kind: "single", mode, target };
 }

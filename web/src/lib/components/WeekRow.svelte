@@ -34,8 +34,7 @@
         {/if}
       </span>
       {#if showMinutes}
-        <span class="minutes" aria-hidden="true"
-          >{day.isFuture ? "" : msg.DAY_MINUTES(day.done ? day.minutes : 0)}</span
+        <span class="minutes" aria-hidden="true">{day.isFuture ? "" : msg.DAY_MINUTES(day.done ? day.minutes : 0)}</span
         >
       {/if}
     </li>

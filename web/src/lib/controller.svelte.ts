@@ -12,16 +12,17 @@ import { Assistant } from "./assistant";
 import { type Command, type CommandAction, commandAction } from "./commands";
 import { PLAN_KEY, POSTURE, PREFERENCES_KEY, RANGES_KEY, STORAGE_KEY } from "./config";
 import type { Guidance } from "./domain/guidance";
-import type { ExerciseMode, Finding, MovementPhase, SessionRecord, ViewMode } from "./domain/models";
+import type { ExerciseMode, SessionRecord } from "./domain/models";
 import { EventBus } from "./events";
-import { PhraseKey, phraseText, SPEECH_CATALOGS, type VoiceLanguage } from "./i18n/speech";
+import { PhraseKey, SPEECH_CATALOGS, type VoiceLanguage } from "./i18n/speech";
 import { CameraError, CameraFeed, cameraAlreadyAllowed, requestCameraAccess } from "./infrastructure/camera";
 import { attachCues, WebAudioCuePlayer } from "./infrastructure/cues";
 import { LANDMARK_INDEX, type PoseDetection } from "./infrastructure/pose";
 import { type Preferences, PlanRepository, PreferencesRepository, type TextSize } from "./infrastructure/preferences";
 import { LandmarkRecorder } from "./infrastructure/recorder";
-import { downloadText, LocalStorageRangeRepository, LocalStorageRepository, toCsv } from "./infrastructure/storage";
-import { attachVoice, ClipSpeaker, pickVoice, type Speaker, WebSpeechSpeaker } from "./infrastructure/voice";
+import { downloadText, toCsv } from "./infrastructure/files";
+import { LocalStorageRangeRepository, LocalStorageRepository } from "./infrastructure/storage";
+import { attachVoice, ClipSpeaker, pickVoice, WebSpeechSpeaker } from "./infrastructure/voice";
 import * as msg from "./messages";
 import { PresenceWatcher } from "./presence";
 import {
@@ -36,21 +37,17 @@ import {
 } from "./routine";
 import { href, parseRoute, type Route } from "./routing";
 import { secondsClock } from "./session";
-import { Smoothed } from "./stable";
 import { VoiceCommands } from "./voiceCommands.svelte";
 
 export type Stage = "onboarding" | "loading" | "running" | "error";
 
 /** The current exercise, as the session screen shows it. */
 export interface Snapshot {
-  view: ViewMode;
   mode: ExerciseMode;
   goal: number;
   reps: number;
-  phase: MovementPhase;
-  angle: number | null;
   bodyDetected: boolean;
-  findings: Finding[];
+  /** Most important first. */
   guidance: Guidance[];
 }
 
@@ -122,32 +119,21 @@ export class CoachController {
   private readonly preferences = new PreferencesRepository(PREFERENCES_KEY);
   private readonly plans = new PlanRepository(PLAN_KEY);
   private readonly ranges = new LocalStorageRangeRepository(RANGES_KEY);
-  private readonly speaker = new ClipSpeaker(import.meta.env.BASE_URL, new WebSpeechSpeaker(), secondsClock);
+  /** Plays speech, and tells voice commands what it said so the app never obeys its own voice. */
+  private readonly speaker = new ClipSpeaker(import.meta.env.BASE_URL, new WebSpeechSpeaker(), secondsClock, (text) =>
+    this.commands.recordSpoken(text),
+  );
   private readonly cues = new WebAudioCuePlayer();
   private readonly camera = new CameraFeed();
   private readonly recorder = new LandmarkRecorder(msg.APP_NAME, msg.RECORDING_FILENAME);
   private readonly presence = new PresenceWatcher();
   private readonly assistant: Assistant;
   private readonly voiceReady: Promise<void>;
-  private readonly angle = new Smoothed(0.3);
   private run: RoutineRun | null = null;
   private lastCountdown = 0;
   private lastInspection = 0;
   private celebrationTimer: ReturnType<typeof setTimeout> | undefined;
   private finishTimer: ReturnType<typeof setTimeout> | undefined;
-
-  /** The speaker, plus a record of what was said so it is not heard back as a command. */
-  private readonly voice: Speaker = {
-    get enabled() {
-      return true;
-    },
-    say: (language, key, priority) => {
-      const text = phraseText(SPEECH_CATALOGS[language], key);
-      if (text && this.speaker.enabled) this.commands.recordSpoken(text);
-      this.speaker.say(language, key, priority);
-    },
-    stop: () => this.speaker.stop(),
-  };
 
   constructor() {
     this.assistant = new Assistant({
@@ -162,7 +148,7 @@ export class CoachController {
       onCommand: (command) => this.handleCommand(command),
       describe: () => this.run?.phase,
     });
-    attachVoice(this.events, this.voice, () => this.language);
+    attachVoice(this.events, this.speaker, () => this.language);
     attachCues(this.events, this.cues, secondsClock);
     this.applyPreferences(this.preferences.load());
     this.plan = this.plans.load();
@@ -322,7 +308,7 @@ export class CoachController {
       return;
     }
     this.confirmingEnd = true;
-    if (this.commands.listening) this.voice.say(this.language, PhraseKey.endConfirm, "interrupt");
+    if (this.commands.listening) this.speaker.say(this.language, PhraseKey.endConfirm, "interrupt");
   }
 
   cancelEnd(): void {
@@ -375,7 +361,7 @@ export class CoachController {
   /** Switches the voice language and says a sample in it. */
   chooseLanguage(language: VoiceLanguage): void {
     this.setLanguage(language);
-    this.voice.say(language, PhraseKey.selected, "interrupt");
+    this.speaker.say(language, PhraseKey.selected, "interrupt");
   }
 
   /**
@@ -485,7 +471,6 @@ export class CoachController {
     this.lastCountdown = 0;
     this.assistant.setGoal(step.target);
     this.assistant.selectMode(step.mode);
-    this.angle.update(null);
     this.refresh();
   }
 
@@ -644,14 +629,10 @@ export class CoachController {
   private refresh(): void {
     const a = this.assistant;
     this.snapshot = {
-      view: a.view,
       mode: a.mode,
       goal: a.goal,
       reps: a.counter.reps,
-      phase: a.counter.phase,
-      angle: this.angle.update(a.counter.lastAngle),
       bodyDetected: a.frame.bodyDetected,
-      findings: a.frame.findings,
       guidance: a.frame.guidance,
     };
     if (this.history !== a.history) this.history = a.history;

@@ -36,38 +36,8 @@ const MAX_GAP_S = 0.5;
 
 export type Zone = "low" | "mid" | "high";
 
-/** What the assistant and UI need from any counter. */
-export interface ExerciseCounter {
-  readonly mode: ExerciseMode;
-  readonly reps: number;
-  readonly phase: MovementPhase;
-  readonly lastAngle: number | null;
-  /** Which side of the hysteresis band the smoothed angle is in. */
-  readonly zone: Zone;
-  /** When the current run of blocked frames started, in clock seconds. */
-  readonly blockedSince: number | null;
-  /** Thresholds in use, which may be personalised; null in posture mode. */
-  readonly thresholds: RepThresholds | null;
-  update(points: BodyPoints): Guidance;
-}
-
-/** Null Object used in posture mode so callers never branch on mode. */
-class PostureOnlyCounter implements ExerciseCounter {
-  readonly mode = ExerciseMode.Posture;
-  readonly reps = 0;
-  readonly phase = MovementPhase.Ready;
-  readonly lastAngle = null;
-  readonly zone: Zone = "mid";
-  readonly blockedSince = null;
-  readonly thresholds = null;
-
-  update(): Guidance {
-    return { kind: "postureMode" };
-  }
-}
-
 /** Counts repetitions of one exercise with smoothing, dwell and dropout tolerance. */
-export class RepCounter implements ExerciseCounter {
+export class RepCounter {
   readonly mode: ExerciseMode;
   reps = 0;
   phase = MovementPhase.Ready;
@@ -200,8 +170,17 @@ export class RepCounter implements ExerciseCounter {
   }
 }
 
-/** Factory returning a fresh counter for a mode. */
-export function createCounter(mode: ExerciseMode, events: EventBus, clock: Clock): ExerciseCounter {
-  if (mode === ExerciseMode.Posture) return new PostureOnlyCounter();
+/**
+ * Creates a fresh counter for an exercise.
+ *
+ * Args:
+ *   mode: The exercise to count.
+ *   events: Where counted reps and position changes are published.
+ *   clock: Time source in seconds.
+ *
+ * Returns:
+ *   A counter starting from zero.
+ */
+export function createCounter(mode: ExerciseMode, events: EventBus, clock: Clock): RepCounter {
   return new RepCounter(getExercise(mode), events, clock);
 }

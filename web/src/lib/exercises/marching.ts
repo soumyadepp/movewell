@@ -1,7 +1,6 @@
 /** Marching: one knee lifts at a time, like marching on the spot. */
 import { jointAngle3 } from "../domain/geometry";
 import { ExerciseMode, Joint, ViewMode } from "../domain/models";
-import { pose, SIDE_POSE } from "../illustrations";
 import { blocked } from "./measures";
 import type { Exercise } from "./types";
 
@@ -29,10 +28,6 @@ export const marching: Exercise = {
   announcement: {
     en: "Marching selected. Lift one knee at a time.",
     hi: "कदमताल चुना गया। एक-एक करके घुटने उठाइए।",
-  },
-  illustration: {
-    start: SIDE_POSE,
-    end: pose(SIDE_POSE, { rKnee: [84, 88], rAnkle: [84, 116], lElbow: [52, 62], lWrist: [56, 80] }),
   },
 
   /**

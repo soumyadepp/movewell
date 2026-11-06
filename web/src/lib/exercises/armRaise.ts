@@ -1,6 +1,5 @@
 /** Shoulder raise: both arms lift out to the side and lower again. */
 import { ExerciseMode, Joint, ViewMode } from "../domain/models";
-import { FRONT_POSE, pose } from "../illustrations";
 import { blocked, orientationBlock, shoulderAngle } from "./measures";
 import type { Exercise } from "./types";
 
@@ -28,10 +27,6 @@ export const armRaise: Exercise = {
   announcement: {
     en: "Shoulder raise selected. Raise your arms slowly.",
     hi: "कंधा उठाने का व्यायाम चुना गया। बाँहें धीरे-धीरे उठाइए।",
-  },
-  illustration: {
-    start: FRONT_POSE,
-    end: pose(FRONT_POSE, { lElbow: [24, 40], rElbow: [96, 40], lWrist: [4, 40], rWrist: [116, 40] }),
   },
 
   /** Smaller of the two shoulder angles: both arms must rise; one arm waving stays low. */

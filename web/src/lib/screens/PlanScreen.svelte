@@ -5,7 +5,7 @@
   import Segmented from "../components/Segmented.svelte";
   import type { CoachController } from "../controller.svelte";
   import { href } from "../routing";
-  import type { CountedExercise } from "../domain/models";
+  import type { ExerciseMode } from "../domain/models";
   import { getExercise } from "../exercises";
   import * as msg from "../messages";
   import {
@@ -44,7 +44,7 @@
   }
 
   const restOptions = REST_CHOICES.map((s) => ({ id: s, label: msg.PLAN_SECONDS(s) }));
-  const timesOptions = (mode: CountedExercise) => targetChoices(mode).map((n) => ({ id: n, label: String(n) }));
+  const timesOptions = (mode: ExerciseMode) => targetChoices(mode).map((n) => ({ id: n, label: String(n) }));
 </script>
 
 <div class="container page">
@@ -58,7 +58,7 @@
       {@const exercise = getExercise(step.mode)}
       <li animate:flip={{ duration: reducedMotion ? 0 : 260 }}>
         <span class="num" aria-hidden="true">{i + 1}</span>
-        <div class="thumb"><ExerciseMedia {exercise} animate={false} /></div>
+        <div class="thumb"><ExerciseMedia {exercise} /></div>
         <div class="main">
           <h2>{exercise.copy.label}</h2>
           <div class="times">

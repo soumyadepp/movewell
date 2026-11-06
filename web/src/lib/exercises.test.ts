@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createCounter, type ExerciseCounter } from "./analysis/counting";
-import { BodyPoints, COUNTED_EXERCISES, ExerciseMode, Joint, MovementPhase, type Point3 } from "./domain/models";
+import { createCounter, type RepCounter } from "./analysis/counting";
+import { BodyPoints, EXERCISE_MODES, ExerciseMode, Joint, MovementPhase, type Point3 } from "./domain/models";
 import { EventBus } from "./events";
 import { EXERCISES, getExercise } from "./exercises";
 import { VOICE_LANGUAGES } from "./i18n/speech";
@@ -278,24 +278,18 @@ describe("sit-to-stand", () => {
 
 describe("registry", () => {
   it("registers every counted mode exactly once, with complete definitions", () => {
-    expect(EXERCISES.map((e) => e.mode).sort()).toEqual([...COUNTED_EXERCISES].sort());
+    expect(EXERCISES.map((e) => e.mode).sort()).toEqual([...EXERCISE_MODES].sort());
     for (const exercise of EXERCISES) {
       expect(getExercise(exercise.mode)).toBe(exercise);
       expect(exercise.thresholds.highDeg).toBeGreaterThan(exercise.thresholds.lowDeg);
       for (const text of Object.values(exercise.copy)) expect(text).toBeTruthy();
       for (const language of VOICE_LANGUAGES) expect(exercise.announcement[language]).toBeTruthy();
-      expect(exercise.illustration.start).toBeDefined();
+      expect(exercise.photo).toMatch(/\.webp$/);
     }
   });
 
-  it("rejects posture, which has no exercise definition", () => {
-    expect(() => getExercise(ExerciseMode.Posture)).toThrow();
-  });
-
-  it("posture mode never counts", () => {
-    const counter: ExerciseCounter = createCounter(ExerciseMode.Posture, new EventBus(), () => 0);
-    expect(counter.update(armsAt(100))).toEqual({ kind: "postureMode" });
-    expect(counter.reps).toBe(0);
+  it("rejects an unknown mode", () => {
+    expect(() => getExercise("JUMPING" as ExerciseMode)).toThrow();
   });
 });
 

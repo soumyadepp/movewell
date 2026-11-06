@@ -6,14 +6,6 @@
   let { coach }: { coach: CoachController } = $props();
 
   const hints = $derived(commandHints(coach.language));
-  const problemText = {
-    blocked: msg.VOICE_COMMANDS_BLOCKED,
-    "no-microphone": msg.VOICE_PROBLEM_MICROPHONE,
-    network: msg.VOICE_PROBLEM_NETWORK,
-    unavailable: msg.VOICE_COMMANDS_UNSUPPORTED,
-    busy: msg.VOICE_PROBLEM_BUSY,
-    "other-tab": msg.VOICE_PROBLEM_OTHER_TAB,
-  } as const;
 
   type Status = "off" | "problem" | "starting" | "heard" | "hearing" | "listening";
 
@@ -59,7 +51,7 @@
           ><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3M4 4l16 16" /></svg
         >
       </span>
-      <p class="text">{problemText[coach.commands.problem]}</p>
+      <p class="text">{msg.VOICE_PROBLEM_TEXT[coach.commands.problem]}</p>
       <button class="retry" onclick={() => coach.setVoiceCommands(true)}>{msg.VOICE_TRY_AGAIN}</button>
     </div>
   {:else}

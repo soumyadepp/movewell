@@ -6,7 +6,7 @@
 import { type BodyPoints, ExerciseMode, Joint, type MovementPhase } from "../domain/models";
 import { getExercise } from "../exercises";
 import type { Reading } from "../exercises/types";
-import type { ExerciseCounter, Zone } from "./counting";
+import type { RepCounter, Zone } from "./counting";
 
 export interface JointReading {
   readonly joint: Joint;
@@ -39,7 +39,7 @@ export interface InspectionInput {
   fps: number;
   mode: ExerciseMode;
   goal: number;
-  counter: ExerciseCounter;
+  counter: RepCounter;
   points: BodyPoints | null;
   visibility: (joint: Joint) => number | null;
   now: number;
@@ -85,7 +85,7 @@ export function describeReading(reading: Reading | null): string {
  */
 export function inspectFrame(input: InspectionInput): FrameInspection {
   const { counter, points, mode } = input;
-  const exercise = mode === ExerciseMode.Posture ? null : getExercise(mode);
+  const exercise = getExercise(mode);
   const joints = ORDER.map((joint) => ({
     joint,
     visibility: input.visibility(joint),

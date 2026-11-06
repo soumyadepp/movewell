@@ -85,13 +85,15 @@ describe("landmark conversion", () => {
 });
 
 describe("speech catalogs", () => {
-  it("cover every finding, mode and view in every language", async () => {
-    const { SPEECH_CATALOGS, modePhrase } = await import("./i18n/speech");
+  it("cover every finding and exercise, with the same phrases in every language", async () => {
+    const { SPEECH_CATALOGS, modePhrase, phraseTable } = await import("./i18n/speech");
     const findingIds = Object.values(catalog).map((f) => f.id);
+    const keys = (speech: (typeof SPEECH_CATALOGS)["en"]) => [...phraseTable(speech).keys()].sort();
     for (const speech of Object.values(SPEECH_CATALOGS)) {
       for (const id of findingIds) expect(speech.corrections[id]).toBeTruthy();
       for (const mode of Object.values(ExerciseMode)) expect(modePhrase(speech, mode)).toBeTruthy();
-      for (const view of Object.values(ViewMode)) expect(speech.view[view]).toBeTruthy();
+      for (const text of phraseTable(speech).values()) expect(text).toBeTruthy();
+      expect(keys(speech)).toEqual(keys(SPEECH_CATALOGS.en));
     }
   });
 

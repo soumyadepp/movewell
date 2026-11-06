@@ -5,7 +5,7 @@
  * clip (see scripts/generate-voice.ts) with browser speech as a fallback, so
  * adding a language means adding one catalog here and re-running the script.
  */
-import { ExerciseMode, type FindingId, ViewMode } from "../domain/models";
+import { ExerciseMode, type FindingId } from "../domain/models";
 import { getExercise } from "../exercises";
 
 export type VoiceLanguage = "en" | "hi";
@@ -22,12 +22,6 @@ export interface SpeechCatalog {
   countWord(total: number): string;
   readonly goalReached: string;
   readonly moveIntoView: string;
-  readonly view: Record<ViewMode, string>;
-  /** Spoken when posture check is selected; exercises carry their own announcements. */
-  readonly postureMode: string;
-  readonly timerStarted: string;
-  readonly timerPaused: string;
-  readonly saved: string;
   readonly routineStart: string;
   readonly routineComplete: string;
   readonly pausedAway: string;
@@ -79,14 +73,6 @@ const en: SpeechCatalog = {
   countWord: (total) => `${total}.`,
   goalReached: "Great job! Target reached. Take a short rest.",
   moveIntoView: "Please move into the camera view.",
-  view: {
-    [ViewMode.Front]: "Front view. Face the camera.",
-    [ViewMode.Side]: "Side view. Turn sideways to the camera.",
-  },
-  postureMode: "Posture observation selected.",
-  timerStarted: "Session timer started.",
-  timerPaused: "Session timer paused.",
-  saved: "Session saved.",
   routineStart: "Let's begin today's routine.",
   routineComplete: "Routine complete. Great work today!",
   pausedAway: "Paused. Step back into the camera's view.",
@@ -113,14 +99,6 @@ const hi: SpeechCatalog = {
   countWord: (total) => HINDI_NUMBERS[total - 1] ?? String(total),
   goalReached: "बहुत बढ़िया! पूरा हो गया। अब थोड़ा आराम कर लीजिए।",
   moveIntoView: "कृपया कैमरे के सामने आइए।",
-  view: {
-    [ViewMode.Front]: "सामने का व्यू। कैमरे की ओर मुँह कीजिए।",
-    [ViewMode.Side]: "साइड व्यू। कैमरे की ओर बगल से खड़े होइए।",
-  },
-  postureMode: "पोस्चर जाँच चुनी गई।",
-  timerStarted: "सत्र टाइमर शुरू हुआ।",
-  timerPaused: "सत्र टाइमर रुका।",
-  saved: "सत्र सहेजा गया।",
   routineStart: "चलिए, आज का व्यायाम शुरू करते हैं।",
   routineComplete: "आज की कसरत पूरी हो गई। बहुत बढ़िया!",
   pausedAway: "रुक गए हैं। कैमरे के सामने आइए।",
@@ -144,7 +122,7 @@ const slug = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "_");
 
 /** Spoken announcement for a mode in a catalog's language. */
 export function modePhrase(catalog: SpeechCatalog, mode: ExerciseMode): string {
-  return mode === ExerciseMode.Posture ? catalog.postureMode : getExercise(mode).announcement[catalog.id];
+  return getExercise(mode).announcement[catalog.id];
 }
 
 /** Builders for stable phrase keys, which double as clip file names. */
@@ -152,16 +130,12 @@ export const PhraseKey = {
   selected: "selected",
   goalReached: "goal_reached",
   moveIntoView: "move_into_view",
-  timerStarted: "timer_started",
-  timerPaused: "timer_paused",
-  saved: "saved",
   routineStart: "routine_start",
   routineComplete: "routine_complete",
   pausedAway: "paused_away",
   pausedUser: "paused_user",
   endConfirm: "end_confirm",
   count: (total: number) => `count_${total}`,
-  view: (view: ViewMode) => `view_${slug(view)}`,
   mode: (mode: ExerciseMode) => `mode_${slug(mode)}`,
   correction: (id: FindingId) => `correction_${id}`,
 } as const;
@@ -172,16 +146,12 @@ export function phraseTable(catalog: SpeechCatalog): Map<string, string> {
     [PhraseKey.selected, catalog.selected],
     [PhraseKey.goalReached, catalog.goalReached],
     [PhraseKey.moveIntoView, catalog.moveIntoView],
-    [PhraseKey.timerStarted, catalog.timerStarted],
-    [PhraseKey.timerPaused, catalog.timerPaused],
-    [PhraseKey.saved, catalog.saved],
     [PhraseKey.routineStart, catalog.routineStart],
     [PhraseKey.routineComplete, catalog.routineComplete],
     [PhraseKey.pausedAway, catalog.pausedAway],
     [PhraseKey.pausedUser, catalog.pausedUser],
     [PhraseKey.endConfirm, catalog.endConfirm],
   ]);
-  for (const view of Object.values(ViewMode)) table.set(PhraseKey.view(view), catalog.view[view]);
   for (const mode of Object.values(ExerciseMode)) table.set(PhraseKey.mode(mode), modePhrase(catalog, mode));
   for (const [id, text] of Object.entries(catalog.corrections)) {
     table.set(PhraseKey.correction(id as FindingId), text);

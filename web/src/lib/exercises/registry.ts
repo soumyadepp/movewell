@@ -1,5 +1,5 @@
 /** Ordered registry of every counted exercise. */
-import { type CountedExercise, ExerciseMode } from "../domain/models";
+import { ExerciseMode } from "../domain/models";
 import { armRaise } from "./armRaise";
 import { elbowCurl } from "./elbowCurl";
 import { marching } from "./marching";
@@ -13,15 +13,12 @@ export const EXERCISES: readonly Exercise[] = [armRaise, elbowCurl, marching, si
 
 const BY_MODE = new Map<ExerciseMode, Exercise>(EXERCISES.map((e) => [e.mode, e]));
 
-export const POSTURE_LABEL = "Posture check";
-
-/** Returns the exercise for a counted mode. Throws for posture or unknown modes. */
-export function getExercise(mode: CountedExercise | ExerciseMode): Exercise {
+/** Returns the exercise for a mode. Throws for an unknown mode. */
+export function getExercise(mode: ExerciseMode): Exercise {
   const exercise = BY_MODE.get(mode);
   if (!exercise) throw new Error(`No exercise registered for ${mode}`);
   return exercise;
 }
 
-/** Display name for any mode, including posture. */
-export const modeLabel = (mode: ExerciseMode): string =>
-  mode === ExerciseMode.Posture ? POSTURE_LABEL : getExercise(mode).copy.label;
+/** Display name for an exercise. */
+export const modeLabel = (mode: ExerciseMode): string => getExercise(mode).copy.label;

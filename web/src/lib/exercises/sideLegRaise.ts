@@ -1,6 +1,5 @@
 /** Side leg raise: one leg lifts out to the side while holding a chair. */
 import { type BodyPoints, ExerciseMode, Joint, ViewMode } from "../domain/models";
-import { FRONT_POSE, pose } from "../illustrations";
 import { blocked, fromVertical, orientationBlock, STANDING_LEG_MAX_DEG } from "./measures";
 import type { Exercise } from "./types";
 
@@ -31,10 +30,6 @@ export const sideLegRaise: Exercise = {
   announcement: {
     en: "Side leg raise selected. Hold a chair for support.",
     hi: "पैर बगल में उठाने का व्यायाम चुना गया। सहारे के लिए कुर्सी पकड़िए।",
-  },
-  illustration: {
-    start: FRONT_POSE,
-    end: pose(FRONT_POSE, { rKnee: [78, 112], rAnkle: [88, 138] }),
   },
 
   /** Raised leg's angle from vertical while the standing leg stays vertical. */

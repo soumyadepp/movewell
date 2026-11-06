@@ -129,6 +129,19 @@ export const VOICE_LISTENING = "Listening";
 export const VOICE_HEARING = "Hearing you…";
 export const VOICE_SAY = (next: string, pause: string, end: string) => `Say "${next}", "${pause}" or "${end}".`;
 export const VOICE_TRY_AGAIN = "Try again";
+export const ON_OFF = [
+  { id: "on", label: VOICE_ON },
+  { id: "off", label: VOICE_OFF },
+] as const;
+/** What to tell the person for each reason voice commands are not listening. */
+export const VOICE_PROBLEM_TEXT = {
+  blocked: VOICE_COMMANDS_BLOCKED,
+  "no-microphone": VOICE_PROBLEM_MICROPHONE,
+  network: VOICE_PROBLEM_NETWORK,
+  unavailable: VOICE_COMMANDS_UNSUPPORTED,
+  busy: VOICE_PROBLEM_BUSY,
+  "other-tab": VOICE_PROBLEM_OTHER_TAB,
+} as const;
 export const VOICE_STARTING = "Starting the microphone…";
 export const KEEP_GOING = "Keep going";
 export const END_NOW = "End now";
@@ -145,7 +158,7 @@ export const WHY_IT_HELPS = "Why it helps";
 export const TAKE_CARE = "Take care";
 export const HOW_MANY = "How many times";
 export const START_EXERCISE = "Start this exercise";
-export const DEMO_LABEL = (name: string) => `Animated demonstration of ${name}`;
+export const DEMO_LABEL = (name: string) => `A person doing the ${name.toLowerCase()} exercise`;
 
 export const NEXT_POSITION = (index: number, total: number) => `${index} of ${total}`;
 export const TIMES = (n: number) => `${n} times`;
@@ -204,8 +217,6 @@ export const GUIDANCE_NO_BODY = [
   "Step back so the camera can see your whole body.",
   "Try turning on a light.",
 ];
-export const GUIDANCE_POSTURE_MODE = "Stand comfortably and look straight ahead.";
-export const GUIDANCE_NO_FINDINGS = "You're standing well.";
 export const GUIDANCE_TURN_FRONT = "Face the camera so I can see both shoulders.";
 export const GUIDANCE_TURN_SIDE = "Turn side-on to the camera for this one.";
 

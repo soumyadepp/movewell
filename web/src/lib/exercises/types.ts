@@ -2,9 +2,8 @@
  * The Exercise interface every exercise module implements, plus the value
  * types it exchanges with the counter and the UI.
  */
-import type { BodyPoints, CountedExercise, ViewMode } from "../domain/models";
+import type { BodyPoints, ExerciseMode, ViewMode } from "../domain/models";
 import type { VoiceLanguage } from "../i18n/speech";
-import type { Illustration } from "../illustrations";
 
 /**
  * Hysteresis band: the measured angle must stay below lowDeg and then above
@@ -42,7 +41,7 @@ export type Reading = { angle: number } | { blocked: BlockReason };
 export type InspectionDetails = Record<string, number | string | null>;
 
 export interface Exercise {
-  readonly mode: CountedExercise;
+  readonly mode: ExerciseMode;
   readonly bestView: ViewMode;
   readonly thresholds: RepThresholds;
   readonly copy: ExerciseCopy;
@@ -53,10 +52,8 @@ export interface Exercise {
    * Must be pure: it may be called on frames the counter never sees.
    */
   inspect?(p: BodyPoints): InspectionDetails;
-  /** File name of a demonstration photo in public/img, if one exists. */
-  readonly photo?: string;
-  /** Start and end poses for the animated demo, used when there is no photo. */
-  readonly illustration: Illustration;
+  /** File name of the demonstration photo in public/img. */
+  readonly photo: string;
   /** Reads the exercise's angle from one frame, or explains why it cannot. */
   measure(points: BodyPoints): Reading;
 }

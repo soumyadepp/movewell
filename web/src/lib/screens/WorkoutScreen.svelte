@@ -5,11 +5,12 @@
   import ExerciseMedia from "../components/ExerciseMedia.svelte";
   import type { CoachController } from "../controller.svelte";
   import { href } from "../routing";
-  import { isCounted } from "../domain/models";
   import { getExercise } from "../exercises";
   import * as msg from "../messages";
   import { guidanceText } from "../guidanceText";
   import Handwritten from "../components/Handwritten.svelte";
+  import Notice from "../components/Notice.svelte";
+  import StageOverlay from "../components/StageOverlay.svelte";
   import VoiceStatus from "../components/VoiceStatus.svelte";
 
   let { coach }: { coach: CoachController } = $props();
@@ -21,7 +22,7 @@
   const running = $derived(coach.stage === "running");
   const phase = $derived(running ? (r?.phase ?? "exercise") : "camera");
   const step = $derived(r ? r.steps[Math.min(r.index, r.steps.length - 1)] : null);
-  const exercise = $derived(step ? getExercise(step.mode) : isCounted(s.mode) ? getExercise(s.mode) : null);
+  const exercise = $derived(getExercise(step ? step.mode : s.mode));
   const next = $derived(r?.next ? getExercise(r.next.mode) : null);
   const position = $derived(r && !r.isSingle ? msg.NEXT_POSITION(r.index + 1, r.steps.length) : "");
   const progress = $derived(r ? (r.index / r.steps.length) * 100 : 0);
@@ -68,35 +69,21 @@
           {/if}
         </CameraStage>
         {#if phase === "countdown" && r}
-          <div class="overlay ready fade-in" role="status" aria-live="assertive">
-            <p class="title">{msg.GET_READY}</p>
-            {#key r.countdownS}
-              <p class="countdown">
-                <Handwritten text={String(r.countdownS)} durationMs={500} scale={1.1} weight={36} />
-              </p>
-            {/key}
-          </div>
+          <StageOverlay title={msg.GET_READY} countdown={r.countdownS} countdownMs={500} seeThrough urgent />
         {:else if phase === "paused" && r}
-          <div class="overlay rest fade-in" role="status" aria-live="polite">
-            <p class="title">{msg.PAUSED_TITLE}</p>
-            <p class="lead">{r.pauseReason === "away" ? msg.PAUSED_AWAY : msg.PAUSED_USER}</p>
-            <button class="btn btn-light" onclick={() => coach.resume()}>{msg.CARRY_ON}</button>
-          </div>
-        {/if}
-        {#if phase === "rest" && r}
-          <div class="overlay rest fade-in" role="status" aria-live="polite">
-            <p class="title">{msg.REST}</p>
-            {#key r.restRemainingS}
-              <p class="countdown">
-                <Handwritten text={String(r.restRemainingS)} durationMs={600} scale={1.1} weight={36} />
-              </p>
-            {/key}
-            {#if next}
-              <p class="title">{msg.UP_NEXT(next.copy.label)}</p>
-              <p>{msg.VIEW_HINT(next.bestView)}</p>
-            {/if}
-            <button class="btn btn-light" onclick={() => coach.skipRest()}>{msg.START_NOW}</button>
-          </div>
+          <StageOverlay
+            title={msg.PAUSED_TITLE}
+            detail={r.pauseReason === "away" ? msg.PAUSED_AWAY : msg.PAUSED_USER}
+            action={{ label: msg.CARRY_ON, onClick: () => coach.resume() }}
+          />
+        {:else if phase === "rest" && r}
+          <StageOverlay
+            title={msg.REST}
+            countdown={r.restRemainingS}
+            subtitle={next ? msg.UP_NEXT(next.copy.label) : undefined}
+            detail={next ? msg.VIEW_HINT(next.bestView) : undefined}
+            action={{ label: msg.START_NOW, onClick: () => coach.skipRest() }}
+          />
         {/if}
       </div>
       {#if phase === "intro" && exercise}
@@ -113,7 +100,7 @@
         {#if phase === "camera"}
           <h1>{msg.CAMERA_OFF_TITLE}</h1>
           <p>{msg.CAMERA_OFF_BODY}</p>
-          {#if coach.errorMessage}<p class="error" role="alert">{coach.errorMessage}</p>{/if}
+          {#if coach.errorMessage}<Notice urgent>{coach.errorMessage}</Notice>{/if}
           <button
             class="btn btn-light btn-block"
             onclick={start}
@@ -253,46 +240,6 @@
   .left :global(.media),
   .left .photo {
     aspect-ratio: 4 / 3;
-  }
-
-  .overlay {
-    position: absolute;
-    inset: 0;
-    display: grid;
-    place-content: center;
-    justify-items: center;
-    gap: var(--space-3);
-    padding: var(--space-8);
-    border-radius: var(--photo-radius);
-    background: rgb(22 58 44 / 0.88);
-    text-align: center;
-  }
-
-  .overlay.ready {
-    background: rgb(22 58 44 / 0.45);
-  }
-
-  .overlay .lead {
-    max-width: 24rem;
-  }
-
-  .overlay .title {
-    font-family: var(--font-display);
-    font-size: var(--type-title);
-    font-weight: var(--weight-semibold);
-  }
-
-  .countdown {
-    font-family: var(--font-accent);
-    font-size: calc(var(--type-counter) * 1.4);
-    font-style: italic;
-    font-weight: 400;
-    line-height: 0.9;
-  }
-
-  .overlay .btn {
-    margin-top: var(--space-4);
-    min-width: 16rem;
   }
 
   .right {
@@ -436,14 +383,6 @@
 
   .pair .btn {
     padding: 0 var(--space-4);
-  }
-
-  .error {
-    padding: var(--space-4) var(--space-5);
-    border-radius: var(--radius-md);
-    background: var(--color-warning-surface);
-    color: var(--color-warning);
-    font-size: var(--type-small);
   }
 
   @media (max-width: 900px) {

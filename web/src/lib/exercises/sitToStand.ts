@@ -1,7 +1,6 @@
 /** Sit-to-stand: stand up from a chair and sit back down with control. */
 import { jointAngle3, safeAverage } from "../domain/geometry";
 import { ExerciseMode, Joint, ViewMode } from "../domain/models";
-import { pose, SIDE_POSE } from "../illustrations";
 import { reading } from "./measures";
 import type { Exercise } from "./types";
 
@@ -29,39 +28,6 @@ export const sitToStand: Exercise = {
   announcement: {
     en: "Sit to stand selected. Use a sturdy chair for support.",
     hi: "बैठकर खड़े होने का व्यायाम चुना गया। सहारे के लिए मज़बूत कुर्सी रखिए।",
-  },
-  illustration: {
-    chair: true,
-    start: pose(SIDE_POSE, {
-      head: [70, 50],
-      lShoulder: [66, 70],
-      rShoulder: [66, 70],
-      lElbow: [74, 88],
-      rElbow: [75, 88],
-      lWrist: [86, 92],
-      rWrist: [87, 92],
-      lHip: [52, 104],
-      rHip: [52, 104],
-      lKnee: [80, 106],
-      rKnee: [81, 106],
-      lAnkle: [80, 142],
-      rAnkle: [81, 142],
-    }),
-    end: pose(SIDE_POSE, {
-      head: [64, 20],
-      lShoulder: [62, 40],
-      rShoulder: [62, 40],
-      lElbow: [62, 64],
-      rElbow: [63, 64],
-      lWrist: [64, 86],
-      rWrist: [65, 86],
-      lHip: [62, 86],
-      rHip: [62, 86],
-      lKnee: [66, 114],
-      rKnee: [67, 114],
-      lAnkle: [68, 142],
-      rAnkle: [69, 142],
-    }),
   },
 
   /**

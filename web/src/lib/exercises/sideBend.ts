@@ -1,7 +1,6 @@
 /** Side bend: the trunk leans gently to one side and returns upright. */
 import { calculateAngle, midpoint } from "../domain/geometry";
 import { ExerciseMode, Joint, ViewMode } from "../domain/models";
-import { FRONT_POSE, leanUpperBody } from "../illustrations";
 import { above, blocked, orientationBlock, reading } from "./measures";
 import type { Exercise } from "./types";
 
@@ -29,10 +28,6 @@ export const sideBend: Exercise = {
   announcement: {
     en: "Side bend selected. Lean gently to one side, then return.",
     hi: "बगल में झुकने का व्यायाम चुना गया। धीरे से एक ओर झुकिए, फिर सीधे होइए।",
-  },
-  illustration: {
-    start: FRONT_POSE,
-    end: leanUpperBody(FRONT_POSE, -16),
   },
 
   /** Angle of the hip-midpoint-to-shoulder-midpoint line away from vertical. */

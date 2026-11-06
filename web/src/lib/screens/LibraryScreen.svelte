@@ -12,7 +12,7 @@
     {#each EXERCISES as exercise, i (exercise.mode)}
       <li class="enter" style:--i={i + 1}>
         <a class="row" href={href.detail(exercise.mode)}>
-          <div class="thumb"><ExerciseMedia {exercise} animate={false} /></div>
+          <div class="thumb"><ExerciseMedia {exercise} /></div>
           <div class="text">
             <h2>{exercise.copy.label}</h2>
             <p>{exercise.copy.benefit}</p>

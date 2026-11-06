@@ -5,13 +5,13 @@
  * guidance code, and keeps the exercise history. No DOM, camera or speech
  * code, so it runs under Vitest exactly as in the browser.
  */
-import { createCounter, type ExerciseCounter } from "./analysis/counting";
+import { createCounter, type RepCounter } from "./analysis/counting";
 import { createPostureAnalyzer, type PostureAnalyzer } from "./analysis/posture";
 import { localIso } from "./analysis/progress";
 import { RangeLearner, type RangeRepository, type RangeStatus } from "./analysis/rangeLearner";
 import { DEFAULT_GOAL, type PostureThresholds } from "./config";
 import type { Guidance } from "./domain/guidance";
-import { type BodyPoints, ExerciseMode, type Finding, isCounted, type SessionRecord, ViewMode } from "./domain/models";
+import { type BodyPoints, ExerciseMode, type Finding, type SessionRecord, ViewMode } from "./domain/models";
 import type { EventBus } from "./events";
 import { getExercise } from "./exercises";
 import type { Clock } from "./session";
@@ -60,7 +60,7 @@ export class Assistant {
   goal = DEFAULT_GOAL;
   history: SessionRecord[];
   frame: FrameState = { bodyDetected: false, findings: [], guidance: [{ kind: "gettingStarted" }] };
-  counter: ExerciseCounter;
+  counter: RepCounter;
 
   private analyzer: PostureAnalyzer;
   private readonly ranges: RangeLearner;
@@ -107,7 +107,7 @@ export class Assistant {
    */
   selectMode(mode: ExerciseMode): void {
     this.mode = mode;
-    if (isCounted(mode) && this.view !== getExercise(mode).bestView) {
+    if (this.view !== getExercise(mode).bestView) {
       this.view = getExercise(mode).bestView;
       this.analyzer = createPostureAnalyzer(this.view, this.deps.posture);
       this.stableFindings.reset([]);
@@ -184,7 +184,6 @@ export class Assistant {
       learning && instruction.kind === "exercise" ? { kind: "learningRange" } : instruction,
       ...findings.slice(0, MAX_CORRECTIONS).map((finding): Guidance => ({ kind: "finding", finding })),
     ];
-    if (!findings.length && this.mode === ExerciseMode.Posture) guidance.push({ kind: "noFindings" });
     return { bodyDetected: true, findings, guidance };
   }
 

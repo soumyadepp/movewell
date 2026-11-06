@@ -1,7 +1,6 @@
 <script lang="ts">
   import AppHeader from "./lib/components/AppHeader.svelte";
   import { CoachController } from "./lib/controller.svelte";
-  import { isCounted } from "./lib/domain/models";
   import { modeLabel } from "./lib/exercises";
   import * as msg from "./lib/messages";
   import ExerciseDetail from "./lib/screens/ExerciseDetail.svelte";
@@ -69,7 +68,7 @@
         {/if}
       {:else if route.name === "library"}
         <LibraryScreen />
-      {:else if route.name === "detail" && isCounted(route.mode)}
+      {:else if route.name === "detail"}
         <ExerciseDetail mode={route.mode} />
       {:else if route.name === "workout"}
         {#key workoutKey}

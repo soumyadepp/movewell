@@ -5,11 +5,11 @@
  * until its target is reached or the user skips it, followed by a timed rest,
  * then the next step. A single-exercise workout is simply a one-step routine.
  */
-import { COUNTED_EXERCISES, type CountedExercise, ExerciseMode } from "./domain/models";
+import { EXERCISE_MODES, ExerciseMode } from "./domain/models";
 import type { Clock } from "./session";
 
 export interface RoutineStep {
-  mode: CountedExercise;
+  mode: ExerciseMode;
   target: number;
 }
 
@@ -22,7 +22,7 @@ export interface RoutinePlan {
 }
 
 export interface StepResult {
-  mode: CountedExercise;
+  mode: ExerciseMode;
   target: number;
   reps: number;
   durationS: number;
@@ -62,7 +62,7 @@ export function isPhysioPlan(plan: RoutinePlan): boolean {
 }
 
 /** Repetition choices for one exercise, including the physiotherapist's own target for it. */
-export function targetChoices(mode: CountedExercise): number[] {
+export function targetChoices(mode: ExerciseMode): number[] {
   const physio = DAILY_ROUTINE.steps.find((s) => s.mode === mode)?.target;
   return [...new Set([...TARGET_CHOICES, ...(physio ? [physio] : [])])].sort((a, b) => a - b);
 }
@@ -78,14 +78,14 @@ export function targetChoices(mode: CountedExercise): number[] {
  */
 export function planFrom(raw: unknown): RoutinePlan {
   const data = (raw ?? {}) as { steps?: unknown; restS?: unknown };
-  const seen = new Set<CountedExercise>();
+  const seen = new Set<ExerciseMode>();
   const steps: RoutineStep[] = [];
   for (const item of Array.isArray(data.steps) ? data.steps : []) {
     const { mode, target } = (item ?? {}) as {
       mode?: unknown;
       target?: unknown;
     };
-    const counted = COUNTED_EXERCISES.find((m) => m === mode);
+    const counted = EXERCISE_MODES.find((m) => m === mode);
     if (!counted || seen.has(counted)) continue;
     if (typeof target !== "number" || !targetChoices(counted).includes(target)) continue;
     seen.add(counted);
@@ -120,7 +120,7 @@ export function removeStep(plan: RoutinePlan, index: number): RoutinePlan {
 }
 
 /** Adds an exercise at the end with its usual target, unless it is already in the plan. */
-export function addStep(plan: RoutinePlan, mode: CountedExercise): RoutinePlan {
+export function addStep(plan: RoutinePlan, mode: ExerciseMode): RoutinePlan {
   if (plan.steps.some((s) => s.mode === mode)) return plan;
   const target = DAILY_ROUTINE.steps.find((s) => s.mode === mode)?.target ?? 10;
   return withSteps(plan, [...plan.steps, { mode, target }]);
@@ -159,12 +159,12 @@ export function setRest(plan: RoutinePlan, restS: number): RoutinePlan {
 }
 
 /** Counted exercises not yet in the plan, in library order. */
-export function addableExercises(plan: RoutinePlan): CountedExercise[] {
-  return COUNTED_EXERCISES.filter((m) => !plan.steps.some((s) => s.mode === m));
+export function addableExercises(plan: RoutinePlan): ExerciseMode[] {
+  return EXERCISE_MODES.filter((m) => !plan.steps.some((s) => s.mode === m));
 }
 
 /** Builds a one-step plan for doing a single exercise without rests or introductions. */
-export const singleExercise = (mode: CountedExercise, target: number): RoutinePlan => ({
+export const singleExercise = (mode: ExerciseMode, target: number): RoutinePlan => ({
   id: `single-${mode}`,
   restS: 0,
   showIntro: false,

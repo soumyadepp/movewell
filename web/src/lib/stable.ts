@@ -45,28 +45,3 @@ export class Debounced<T> {
     this.candidate = value;
   }
 }
-
-/** Exponential moving average that forgets its history after a gap in measurements. */
-export class Smoothed {
-  private current: number | null = null;
-
-  constructor(private readonly alpha: number) {}
-
-  /**
-   * Blends in a new value, or resets on null.
-   *
-   * Args:
-   *   next: The latest value, or null to reset.
-   *
-   * Returns:
-   *   The smoothed value, or null after a reset.
-   */
-  update(next: number | null): number | null {
-    if (next === null) {
-      this.current = null;
-      return null;
-    }
-    this.current = this.current === null ? next : this.current + this.alpha * (next - this.current);
-    return this.current;
-  }
-}

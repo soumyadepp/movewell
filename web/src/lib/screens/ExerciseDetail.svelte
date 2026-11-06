@@ -3,11 +3,11 @@
   import Segmented from "../components/Segmented.svelte";
   import { DEFAULT_GOAL, GOAL_OPTIONS } from "../config";
   import { href } from "../routing";
-  import type { CountedExercise } from "../domain/models";
+  import type { ExerciseMode } from "../domain/models";
   import { getExercise } from "../exercises";
   import * as msg from "../messages";
 
-  let { mode }: { mode: CountedExercise } = $props();
+  let { mode }: { mode: ExerciseMode } = $props();
   let target = $state(String(DEFAULT_GOAL));
   const exercise = $derived(getExercise(mode));
   const copy = $derived(exercise.copy);

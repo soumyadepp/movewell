@@ -6,5 +6,5 @@
  * announcement and demo poses. Counting, screens and voice only depend on the
  * interface. Adding an exercise means adding one module and one registry entry.
  */
-export { EXERCISES, getExercise, modeLabel, POSTURE_LABEL } from "./registry";
+export { EXERCISES, getExercise, modeLabel } from "./registry";
 export type { BlockReason, Exercise, ExerciseCopy, Reading, RepThresholds } from "./types";
